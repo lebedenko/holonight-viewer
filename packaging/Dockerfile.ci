@@ -1,0 +1,7 @@
+FROM archlinux:base
+RUN pacman -Syu --noconfirm && pacman -S --needed --noconfirm \
+    base-devel cmake ninja go-task qt6-base qt6-declarative qt6-svg \
+    qt6-tools qt6-wayland tomlplusplus gtest clang python reuse \
+    desktop-file-utils git ttf-dejavu && pacman -Scc --noconfirm
+ENV QT_QPA_PLATFORM=offscreen QSG_RHI_BACKEND=software
+WORKDIR /work/viewer

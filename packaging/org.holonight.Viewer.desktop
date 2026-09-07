@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=HoloNight Viewer
+Comment=A focused HoloNight image viewer shell
+Exec=holonight-viewer
+Icon=org.holonight.Viewer
+Terminal=false
+Categories=Graphics;Viewer;
+StartupNotify=true
