@@ -16,3 +16,7 @@ Implementation authorized by supplied plan. Completion depends on recorded check
 
 Roadmap stage 0 remains open at T5, T7 and T9. See the stage 0 follow-up in
 VERIFICATION.md for current evidence and environment limitations.
+
+- [x] R3 regression: preserve other window-state flags when toggling fullscreen;
+  verify settled tiled geometry and normal/maximized restoration, and record
+  native Wayland requests plus required checks.

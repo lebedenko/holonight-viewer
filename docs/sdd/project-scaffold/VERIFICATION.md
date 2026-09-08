@@ -97,3 +97,35 @@ and current workflow/application files are untracked. Stacking-compositor titleb
 inspection remains pending: no stacking compositor is installed (Cage is a kiosk
 compositor and does not meet that gate). No new compositor visual result is claimed.
 Stage 0 is therefore still open; stages 1–5 are not implemented by this follow-up.
+
+## Fullscreen tiled-state regression (2026-09-08)
+
+The user reported tiled → fullscreen → maximized-under-the-panel transitions on
+Hyprland. This corrects existing R3 behavior. The fullscreen routing in Main.qml
+now uses WindowState to change only Qt::WindowFullScreen in QWindow::windowStates;
+it does not replace the complete state with showFullScreen/showMaximized/showNormal.
+Keyboard, header and menu toggles share the same function.
+
+The original WindowAndKeyboard test checked synchronous Qt visibility and could
+finish before native fullscreen configure events arrived. It now processes events
+for 250 ms between transitions and checks restored geometry. The strengthened
+test failed before the fix on the live Hyprland session: the original tiled width
+was about 762 logical pixels and the restored width about 2560. The protocol trace
+showed unset_maximized on fullscreen entry. With the fix the same test passed and
+all three fullscreen cycles emitted only set_fullscreen/unset_fullscreen, with no
+maximize/unmaximize requests. Logs: build/fullscreen-before-settled.log and
+build/fullscreen-after.log. Fixed delays permit the observed compositor round trips;
+they are not a general synchronization guarantee for arbitrarily slow desktops.
+
+Native
+stacking-desktop restoration remains unverified by this Hyprland run; the offscreen
+suite separately exercises normal and explicitly maximized window states.
+
+Checks passed: task deps, task build, task test (all 7 CTest entries; 42 GTests
+passed, 3 unrelated opt-in performance/clipboard tests skipped), task build
+PRESET=release, task format-check, task qml-lint, task license-check, and task
+install-check. The license task required execution outside the sandbox because
+Python multiprocessing could not bind its worker socket. Logs are under
+build/fullscreen-{deps,build,tests,release,format,qml-lint,license,install}.log.
+Static analysis: task tidy passed (build/fullscreen-tidy.log); only suppressed
+non-user-code warnings were reported. git diff --check also passed.

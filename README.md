@@ -41,7 +41,7 @@ build/debug/apps/viewer/holonight-viewer -- './photo with spaces.png'
 ```
 
 Native decorations belong to Qt/the compositor. Fullscreen restores the previous
-normal/maximized state. Viewer shortcuts pause while Open, Image Information or Shortcut Help is active.
+normal/maximized state, including compositor-managed tiling. Viewer shortcuts pause while Open, Image Information or Shortcut Help is active.
 
 | Image control | Action |
 | --- | --- |

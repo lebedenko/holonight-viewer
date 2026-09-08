@@ -52,20 +52,34 @@ TEST(Viewer, WindowAndKeyboard) {
   }
   window->requestActivate();
   ASSERT_TRUE(QTest::qWaitForWindowActive(window));
+  // Qt updates visibility synchronously; let the compositor apply each request
+  // before issuing the next one or checking restoration.
+  const auto settle = [] { QTest::qWait(250); };
+  settle();
+  const auto initial_geometry = window->geometry();
   const auto initial_visibility = window->visibility();
   QTest::keyClick(window, Qt::Key_F);
+  settle();
   EXPECT_TRUE(QTest::qWaitFor([window] { return window->visibility() == QWindow::FullScreen; }));
   QTest::keyClick(window, Qt::Key_F);
+  settle();
   EXPECT_TRUE(QTest::qWaitFor([window, initial_visibility] { return window->visibility() == initial_visibility; }));
   QTest::keyClick(window, Qt::Key_F);
+  settle();
   QTest::keyClick(window, Qt::Key_Escape);
+  settle();
   EXPECT_TRUE(QTest::qWaitFor([window, initial_visibility] { return window->visibility() == initial_visibility; }));
   QTest::keyClick(window, Qt::Key_Escape);
+  settle();
   EXPECT_TRUE(QTest::qWaitFor([window, initial_visibility] { return window->visibility() == initial_visibility; }));
+  EXPECT_EQ(window->geometry(), initial_geometry);
   window->showMaximized();
+  settle();
   ASSERT_TRUE(QTest::qWaitFor([window] { return window->visibility() == QWindow::Maximized; }));
   QTest::keyClick(window, Qt::Key_F);
+  settle();
   QTest::keyClick(window, Qt::Key_Escape);
+  settle();
   EXPECT_EQ(window->visibility(), QWindow::Maximized);
   QTest::keyClick(window, Qt::Key_Q);
   EXPECT_FALSE(window->isVisible());

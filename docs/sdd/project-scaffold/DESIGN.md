@@ -43,3 +43,16 @@ Stage 0 adds `task desktop-check` to CI. It registers debug then release in one
 isolated XDG data home under build/, validates generated entries and launch
 arguments, executes their version commands, and checks packaged-entry separation.
 It complements the staged runtime check and does not alter host registration.
+
+## Fullscreen restoration correction
+
+R3 also covers compositor-managed tiling: leaving fullscreen must restore the
+preceding tile, without requesting maximization. QML retains action routing; a
+small public-QWindow helper changes only the WindowFullScreen flag, preserving
+other current window-state flags. This avoids treating a compositor-reported
+Maximized state as an instruction to maximize. All fullscreen entry points use
+the same helper. No compositor-name checks or private Qt APIs are needed.
+
+Verification must allow native configure events between key presses and compare
+restored geometry as well as Qt visibility. Native Wayland protocol evidence
+must show fullscreen requests without maximize/unmaximize requests from toggling.

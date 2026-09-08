@@ -85,3 +85,8 @@ matrix now pass. Default HoloNight native Open remains an unresolved
 [provider delegation blocker](holonight-qt-dlg-delegation-missed.md).
 Installed-only container validation and basic native Orca/PNG clipboard checks pass. See the
 [verification record](sdd/release-readiness/VERIFICATION.md) for actual evidence.
+
+Fullscreen restoration follow-up: Viewer now changes only the fullscreen state
+flag, preserving compositor-managed tiling. The native Hyprland regression passes;
+see the [scaffold verification](sdd/project-scaffold/VERIFICATION.md) for evidence
+and the separate stacking-desktop acceptance limitation.

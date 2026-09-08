@@ -22,7 +22,10 @@ HnApplicationWindow {
     visible: true
     title: document.fileName ? qsTr("%1 — HoloNight Viewer").arg(document.fileName) : qsTr("HoloNight Viewer")
 
-    property bool restoreMaximized: false
+    function toggleFullscreen(): void {
+        WindowState.setFullscreen(window, window.visibility !== Window.FullScreen);
+    }
+
     property bool dialogRequested: false
     property int detailDialog: 0
     readonly property bool modalActive: dialogRequested || detailDialog !== 0
@@ -199,12 +202,8 @@ HnApplicationWindow {
     }
 
     function leaveFullscreen(): void {
-        if (window.visibility === Window.FullScreen) {
-            if (window.restoreMaximized)
-                window.showMaximized();
-            else
-                window.showNormal();
-        }
+        if (window.visibility === Window.FullScreen)
+            WindowState.setFullscreen(window, false);
     }
 
     Shortcut {
@@ -215,14 +214,7 @@ HnApplicationWindow {
     Shortcut {
         sequence: "F"
         enabled: !window.modalActive
-        onActivated: {
-            if (window.visibility === Window.FullScreen) {
-                window.leaveFullscreen();
-            } else {
-                window.restoreMaximized = window.visibility === Window.Maximized;
-                window.showFullScreen();
-            }
-        }
+        onActivated: window.toggleFullscreen()
     }
     Shortcut {
         sequence: "Escape"
