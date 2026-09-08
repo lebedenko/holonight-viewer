@@ -1,10 +1,13 @@
 #include "clipboard_controller.h"
 
+#include "clipboard_png_p.h"
 #include "image_orientation.h"
 
+#include <QBuffer>
 #include <QClipboard>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QMimeData>
 
 #include <exception>
 #include <utility>
@@ -31,23 +34,29 @@ void ClipboardController::copyImage(const QImage& image, int orientation, const 
   QMetaObject::invokeMethod(
       worker_,
       [this, image, orientation, fileName] {
-        QImage output;
+        QByteArray png;
         try {
-          output = prepare_(image, orientation);
+          const auto output = prepare_(image, orientation);
+          QBuffer buffer(&png);
+          if (output.isNull() || !buffer.open(QIODevice::WriteOnly) || !encodeClipboardPng(output, buffer)) {
+            png.clear();
+          }
         } catch (const std::exception&) {
-          // Keep the previous clipboard intact if preparation fails.
+          png.clear();  // Keep the previous clipboard intact if preparation or encoding fails.
         }
         QMetaObject::invokeMethod(
             this,
-            [this, output = std::move(output), fileName] {
+            [this, png = std::move(png), fileName] {
               busy_ = false;
               if (stopping_) {
                 return;
               }
-              if (output.isNull()) {
+              if (png.isEmpty()) {
                 feedback_ = tr("Could not prepare %1 for copying.").arg(fileName);
               } else {
-                QGuiApplication::clipboard()->setImage(output, QClipboard::Clipboard);
+                auto* mime = new QMimeData;
+                mime->setData("image/png", png);
+                QGuiApplication::clipboard()->setMimeData(mime, QClipboard::Clipboard);
                 feedback_ = tr("Copied %1.").arg(fileName);
               }
               emit changed();

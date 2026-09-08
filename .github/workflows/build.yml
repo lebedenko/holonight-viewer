@@ -26,4 +26,12 @@ jobs:
           docker run --rm -v "$GITHUB_WORKSPACE:/work" viewer-ci
           bash -euc 'task deps; task build; task build PRESET=release;
           task test; task format-check; task tidy; task qml-lint;
-          task install-check; task desktop-check'
+          task license-check; task install-check; task desktop-check;
+          bash scripts/prepare-runtime-check.sh'
+
+      - name: Isolated installed runtime (no workspace mount)
+        run: |
+          context=$(cat viewer/build/runtime-check-context)
+          context="viewer/build/$(basename "$context")"
+          docker build -t viewer-runtime-check "$context"
+          docker run --rm --network none viewer-runtime-check

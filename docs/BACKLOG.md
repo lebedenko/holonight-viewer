@@ -73,3 +73,15 @@ Adaptive CSD/SSD remains a shared holonight-qt initiative and must not block cor
 viewing. No compositor-name heuristics or Viewer-specific decoration policy.
 Image editing, albums, tagging, photo databases, HoloNight Files and Quick Look
 are outside this roadmap. Crop remains an uncommitted later possibility.
+
+Stage 5 follows the approved [release-readiness cycle](sdd/release-readiness/SPEC.md).
+Source installation qualification, four-format declarations, file-aware desktop
+integration, accessibility announcements and interactive clipboard tooling are
+implemented. **Stage 5 is not accepted**: full native desktop/accessibility/mixed-scale,
+human clipboard lifecycle/performance and hosted CI gates remain open.
+The approved Viewer fixes add explicit PNG clipboard publication and a bounded
+simple-WebP fallback; compact decoding and the compositor-input generic Qt alpha
+matrix now pass. Default HoloNight native Open remains an unresolved
+[provider delegation blocker](holonight-qt-dlg-delegation-missed.md).
+Installed-only container validation and basic native Orca/PNG clipboard checks pass. See the
+[verification record](sdd/release-readiness/VERIFICATION.md) for actual evidence.

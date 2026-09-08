@@ -35,7 +35,8 @@ shutil.copyfile(root / 'packaging/org.holonight.Viewer.svg', icon)
 arguments = [shutil.which('env') or '/usr/bin/env', f'QML_IMPORT_PATH={imports}',
              f'LD_LIBRARY_PATH={prefix / "lib"}', str(executable)]
 entry = (root / 'packaging/org.holonight.Viewer.desktop').read_text()
-entry = entry.replace('Exec=holonight-viewer', 'Exec=' + ' '.join(map(exec_argument, arguments)))
+entry = entry.replace('Exec=holonight-viewer -- %f',
+                      'Exec=' + ' '.join(map(exec_argument, arguments)) + ' -- %f')
 destination = applications / 'org.holonight.Viewer.desktop'
 destination.write_text(entry)
 print(f'Registered development desktop entry: {destination}')

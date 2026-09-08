@@ -5,8 +5,10 @@
 #include <QFileInfo>
 #include <QImageReader>
 #include <QLocale>
+#include <QtEndian>
 
 #include <utility>
+#include <webp/decode.h>
 
 namespace {
 constexpr qint64 image_limit = 128 * 1024 * 1024;
@@ -15,8 +17,94 @@ bool acceptableSize(QSize size) {
   return size.width() > 0 && size.height() > 0 && size.width() <= 32768 && size.height() <= 32768 &&
          static_cast<qint64>(size.width()) * size.height() <= 32000000;
 }
+// Only the simple single-bitstream RIFF form is eligible. Extended containers,
+// ancillary chunks and animation retain the installed Qt decoder's interpretation.
+QImage simpleWebPFallback(QFile& file, const std::atomic_bool& cancelled, bool& limited) {
+  if (cancelled.load() || !file.seek(0)) {
+    return {};
+  }
+  const auto header = file.peek(20);
+  if (header.size() != 20 || header.first(4) != "RIFF" || header.sliced(8, 4) != "WEBP" ||
+      (header.sliced(12, 4) != "VP8 " && header.sliced(12, 4) != "VP8L")) {
+    return {};
+  }
+  const auto bytes = file.read(file_limit + 1);
+  if (cancelled.load() || bytes.size() < 20 || bytes.size() > file_limit || bytes.first(4) != "RIFF" ||
+      bytes.sliced(8, 4) != "WEBP" || (bytes.sliced(12, 4) != "VP8 " && bytes.sliced(12, 4) != "VP8L")) {
+    return {};
+  }
+  const auto* data = static_cast<const uint8_t*>(static_cast<const void*>(bytes.constData()));
+  const quint64 riff_size = qFromLittleEndian<quint32>(bytes.sliced(4, 4).constData());
+  const quint64 chunk_size = qFromLittleEndian<quint32>(bytes.sliced(16, 4).constData());
+  if (riff_size + 8 != static_cast<quint64>(bytes.size()) ||
+      20 + chunk_size + (chunk_size & 1) != static_cast<quint64>(bytes.size())) {
+    return {};
+  }
+  int width = 0;
+  int height = 0;
+  if (WebPGetInfo(data, bytes.size(), &width, &height) == 0) {
+    return {};
+  }
+  if (!acceptableSize({width, height}) || static_cast<qint64>(width) * height * 4 > image_limit) {
+    limited = true;
+    return {};
+  }
+  if (cancelled.load()) {
+    return {};
+  }
+  QImage image(width, height, QImage::Format_RGBA8888);
+  if (image.isNull() ||
+      WebPDecodeRGBAInto(data, bytes.size(), image.bits(), image.sizeInBytes(),
+                         static_cast<int>(image.bytesPerLine())) == nullptr ||
+      cancelled.load()) {
+    return {};
+  }
+  return image;
+}
 QString limitError() {
   return ImageDocument::tr("This image exceeds the viewing limit (32 million pixels or 128 MiB decoded).");
+}
+QString decoderError(bool readable, QSize dimensions) {
+  if (!readable) {
+    return ImageDocument::tr("The image format is unsupported or its header is damaged.");
+  }
+  if (!dimensions.isValid()) {
+    return ImageDocument::tr("The image dimensions could not be read by the installed decoder.");
+  }
+  return ImageDocument::tr("The image is damaged, unreadable, or exceeds the decode memory limit.");
+}
+DecodeResult readImage(QFile& file, const std::atomic_bool& cancelled, ImageInformation facts) {
+  QImageReader reader(&file);
+  reader.setAutoTransform(true);
+  const bool readable = reader.canRead();
+  facts.format = QString::fromLatin1(reader.format()).toUpper();
+  const auto dimensions = readable ? reader.size() : QSize{};
+  if (dimensions.isValid() && !acceptableSize(dimensions)) {
+    return {.image = {}, .error = limitError(), .information = facts};
+  }
+  QImage image;
+  if (readable && dimensions.isValid()) {
+    image = reader.read();
+  }
+  if (cancelled.load()) {
+    return {};
+  }
+  if (image.isNull()) {
+    bool limited = false;
+    image = simpleWebPFallback(file, cancelled, limited);
+    if (cancelled.load()) {
+      return {};
+    }
+    if (limited) {
+      return {.image = {}, .error = limitError(), .information = facts};
+    }
+    if (!image.isNull()) {
+      facts.format = QStringLiteral("WEBP");
+    } else {
+      return {.image = {}, .error = decoderError(readable, dimensions), .information = facts};
+    }
+  }
+  return {.image = std::move(image), .error = {}, .information = facts};
 }
 }  // namespace
 
@@ -48,27 +136,12 @@ DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
   if (cancelled.load()) {
     return {};
   }
-  QImageReader reader(&file);
-  reader.setAutoTransform(true);
-  const bool readable = reader.canRead();
-  facts.format = QString::fromLatin1(reader.format()).toUpper();
-  if (!readable) {
-    return {.image = {},
-            .error = ImageDocument::tr("The image format is unsupported or its header is damaged."),
-            .information = facts};
+  auto decoded = readImage(file, cancelled, facts);
+  if (decoded.image.isNull()) {
+    return decoded;
   }
-  if (!acceptableSize(reader.size())) {
-    return {.image = {}, .error = limitError(), .information = facts};
-  }
-  QImage image = reader.read();
-  if (cancelled.load()) {
-    return {};
-  }
-  if (image.isNull()) {
-    return {.image = {},
-            .error = ImageDocument::tr("The image is damaged, unreadable, or exceeds the decode memory limit."),
-            .information = facts};
-  }
+  auto image = std::move(decoded.image);
+  facts = std::move(decoded.information);
   if (!acceptableSize(image.size()) || image.sizeInBytes() > image_limit) {
     return {.image = {}, .error = limitError(), .information = facts};
   }

@@ -35,6 +35,22 @@ HnApplicationWindow {
             canvas.forceActiveFocus(Qt.OtherFocusReason);
     }
 
+    readonly property int documentState: document.state
+    onDocumentStateChanged: {
+        if (documentState === ImageDocument.Ready)
+            canvas.Accessible.announce(qsTr("Loaded %1.").arg(window.document.fileName));
+        else if (documentState === ImageDocument.Error)
+            canvas.Accessible.announce(qsTr("Error opening %1: %2").arg(window.document.fileName).arg(window.document.error));
+    }
+
+    Connections {
+        target: window.document.clipboard
+        function onChanged(): void {
+            if (!window.document.clipboard.busy && window.document.clipboard.feedback.length > 0)
+                canvas.Accessible.announce(window.document.clipboard.feedback);
+        }
+    }
+
     function transformImage(operation: int): void {
         window.document.transform(operation);
         window.fitImage();
@@ -452,7 +468,7 @@ HnApplicationWindow {
                 Keys.onUpPressed: canvas.pan(Qt.point(0, 40))
                 Keys.onDownPressed: canvas.pan(Qt.point(0, -40))
                 Accessible.role: Accessible.Graphic
-                Accessible.name: window.document.fileName
+                Accessible.name: window.document.fileName || qsTr("Image canvas")
 
                 TapHandler {
                     enabled: window.canInspect
@@ -498,7 +514,7 @@ HnApplicationWindow {
                     color: "transparent"
                     border.width: HnMetrics.borderWidth
                     border.color: HoloniightPalette.borderFocus
-                    visible: canvas.activeFocus && window.canInspect
+                    visible: canvas.activeFocus
                     Accessible.ignored: true
                 }
             }

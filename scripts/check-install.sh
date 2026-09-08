@@ -23,4 +23,6 @@ cat runtime.log
 test "$status" -eq 124
 if rg -i 'failed|error|not installed|not found|unavailable' runtime.log; then exit 1; fi
 python3 "$root/scripts/check-opening.py" "$stage/usr/bin/holonight-viewer"
+PATH="$stage/usr/bin:$PATH" QT_QPA_PLATFORM=offscreen QSG_RHI_BACKEND=software \
+  python3 "$root/scripts/check-installed-desktop.py" "$stage/usr/share/applications/org.holonight.Viewer.desktop"
 printf 'Staged installation passed: %s\n' "$stage"

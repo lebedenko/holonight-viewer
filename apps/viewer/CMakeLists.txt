@@ -1,3 +1,5 @@
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(WebP REQUIRED IMPORTED_TARGET libwebp)
 qt_add_library(viewer-ui STATIC)
 qt_add_qml_module(viewer-ui
   URI HolonightViewer VERSION 1.0
@@ -7,6 +9,7 @@ qt_add_qml_module(viewer-ui
   SOURCES image_orientation.h image_orientation.cpp clipboard_controller.h clipboard_controller.cpp directory_model.h directory_model.cpp decoded_image_cache.h decoded_image_cache.cpp image_document.h image_document.cpp image_canvas.h image_canvas.cpp view_geometry.h view_geometry.cpp
   NO_IMPORT_SCAN)
 target_link_libraries(viewer-ui PUBLIC Qt6::Quick Qt6::QuickControls2 HolonightQt::Core HolonightQt::Controls)
+target_link_libraries(viewer-ui PRIVATE PkgConfig::WebP)
 target_include_directories(viewer-ui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 qt_add_executable(holonight-viewer main.cpp)
 qt_add_resources(holonight-viewer viewer-config PREFIX "/" FILES qtquickcontrols2.conf)

@@ -1,8 +1,10 @@
 #include "clipboard_controller.h"
+#include "clipboard_png_p.h"
 #include "image_canvas.h"
 #include "image_document.h"
 #include "image_orientation.h"
 
+#include <QBuffer>
 #include <QClipboard>
 #include <QDir>
 #include <QElapsedTimer>
@@ -10,6 +12,7 @@
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QImageReader>
+#include <QMimeData>
 #include <QPainter>
 #include <QProcess>
 #include <QQmlApplicationEngine>
@@ -23,6 +26,10 @@
 #include <gtest/gtest.h>
 
 namespace {
+QImage clipboardPng() {
+  return QImage::fromData(QGuiApplication::clipboard()->mimeData()->data("image/png"), "PNG")
+      .convertToFormat(QImage::Format_ARGB32_Premultiplied);
+}
 QImage asymmetric() {
   QImage image(3, 2, QImage::Format_ARGB32_Premultiplied);
   image.setPixelColor(0, 0, Qt::red);
@@ -191,7 +198,7 @@ TEST(Workflow, ClipboardCaptureBusyFailureAndShutdown) {
   EXPECT_EQ(clipboard->text(), "previous");
   release.store(true);
   ASSERT_TRUE(QTest::qWaitFor([&] { return !controller.busy(); }));
-  EXPECT_EQ(clipboard->image(), reference(asymmetric(), 1));
+  EXPECT_EQ(clipboardPng(), reference(asymmetric(), 1));
   EXPECT_TRUE(controller.feedback().contains("captured.png"));
   if (clipboard->supportsSelection()) {
     EXPECT_EQ(clipboard->text(QClipboard::Selection), "primary");
@@ -199,7 +206,7 @@ TEST(Workflow, ClipboardCaptureBusyFailureAndShutdown) {
   ClipboardController failure([](const QImage&, int) { return QImage{}; });
   failure.copyImage(asymmetric(), 0, "failure.png");
   ASSERT_TRUE(QTest::qWaitFor([&] { return !failure.busy(); }));
-  EXPECT_EQ(clipboard->image(), reference(asymmetric(), 1));
+  EXPECT_EQ(clipboardPng(), reference(asymmetric(), 1));
   EXPECT_TRUE(failure.feedback().contains("Could not prepare failure.png"));
   release.store(false);
   controller.copyImage(asymmetric(), 2, "shutdown.png");
@@ -208,7 +215,7 @@ TEST(Workflow, ClipboardCaptureBusyFailureAndShutdown) {
   controller.shutdown();
   release.store(true);
   ASSERT_TRUE(QTest::qWaitFor([&] { return !finished.isEmpty(); }));
-  EXPECT_EQ(clipboard->image(), reference(asymmetric(), 1));
+  EXPECT_EQ(clipboardPng(), reference(asymmetric(), 1));
 }
 
 TEST(Viewer, StaticWorkflowControls) {
@@ -284,7 +291,7 @@ TEST(Viewer, StaticWorkflowControls) {
   EXPECT_EQ(QGuiApplication::clipboard()->text(), path);
   QTest::keyClick(window, Qt::Key_C, Qt::ControlModifier);
   ASSERT_TRUE(QTest::qWaitFor([&] { return !document.clipboard()->busy(); }));
-  EXPECT_EQ(QGuiApplication::clipboard()->image(), asymmetric());
+  EXPECT_EQ(clipboardPng(), asymmetric());
   QTest::keyClick(window, Qt::Key_F);
   ASSERT_TRUE(QTest::qWaitFor([&] { return window->visibility() == QWindow::FullScreen; }));
   for (auto key : {Qt::Key_I, Qt::Key_F1}) {
@@ -380,11 +387,11 @@ TEST(Workflow, LargeCopyResponsiveness) {
   controller.copyImage(image, 1, "32-million-pixels.png");
   ASSERT_TRUE(QTest::qWaitFor([&] { return !controller.busy(); }));
   EXPECT_GT(ticks, 0);
-  EXPECT_EQ(QGuiApplication::clipboard()->image().size(), QSize(4000, 8000));
+  EXPECT_EQ(clipboardPng().size(), QSize(4000, 8000));
   RecordProperty("copy_ms", elapsed.elapsed());
   RecordProperty("timer_ticks", ticks);
   RecordProperty("snapshot_bytes", image.sizeInBytes());
-  RecordProperty("output_bytes", QGuiApplication::clipboard()->image().sizeInBytes());
+  RecordProperty("output_bytes", clipboardPng().sizeInBytes());
   if (transfer) {
     QTemporaryDir dir(QStringLiteral(VIEWER_FIXTURE_DIR) + "/large-copy-XXXXXX");
     ASSERT_TRUE(dir.isValid());
@@ -488,4 +495,43 @@ TEST(Workflow, InformationRejectsStaleRequestsAndKeepsErrorFacts) {
   EXPECT_EQ(decoded.information.encodedSize, 6);
   EXPECT_TRUE(decoded.information.modified.isValid());
   EXPECT_FALSE(decoded.information.decodedSize.isValid());
+}
+
+TEST(Workflow, ClipboardPngOrientationsAndNavigation) {
+  ClipboardController controller;
+  for (int orientation = 0; orientation < 8; ++orientation) {
+    controller.copyImage(asymmetric(), orientation, "alpha.png");
+    ASSERT_TRUE(QTest::qWaitFor([&] { return !controller.busy(); }));
+    EXPECT_EQ(QGuiApplication::clipboard()->mimeData()->formats(), QStringList{"image/png"});
+    EXPECT_EQ(clipboardPng(), reference(asymmetric(), orientation));
+  }
+  ImageDocument document;
+  const auto path = QStringLiteral(VIEWER_FIXTURE_DIR) + "/copy-navigation.png";
+  ASSERT_TRUE(asymmetric().save(path));
+  document.open({QUrl::fromLocalFile(path)});
+  ASSERT_TRUE(ready(document));
+  document.copyImage();
+  document.open({QUrl::fromLocalFile(path + ".missing")});
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !document.clipboard()->busy(); }));
+  EXPECT_EQ(clipboardPng(), asymmetric());
+  EXPECT_TRUE(document.clipboard()->feedback().contains("copy-navigation.png"));
+}
+
+TEST(Workflow, ClipboardEncodingWriteFailure) {
+  class FailedDevice : public QIODevice {
+   public:
+    qint64 readData(char* /*data*/, qint64 /*maximum*/) override { return -1; }
+    qint64 writeData(const char* /*data*/, qint64 /*size*/) override { return -1; }
+  } device;
+  ASSERT_TRUE(device.open(QIODevice::WriteOnly));
+  EXPECT_FALSE(encodeClipboardPng(asymmetric(), device));
+  QBuffer read_only;
+  ASSERT_TRUE(read_only.open(QIODevice::ReadOnly));
+  EXPECT_FALSE(encodeClipboardPng(asymmetric(), read_only));
+  ClipboardController failure([](const QImage&, int) -> QImage { throw std::runtime_error("allocation"); });
+  QGuiApplication::clipboard()->setText("previous after failure");
+  failure.copyImage(asymmetric(), 0, "failure.png");
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !failure.busy(); }));
+  EXPECT_EQ(QGuiApplication::clipboard()->text(), "previous after failure");
+  EXPECT_FALSE(failure.feedback().startsWith("Copied"));
 }

@@ -1,0 +1,8 @@
+# Reuse the exact Qt runtime used to build providers (their private Qt ABI matters).
+FROM viewer-ci
+# viewer-ci supplies required libwebp and Qt format plugins for installed payloads.
+COPY payload/usr/ /usr/
+COPY check/ /opt/check/
+RUN ldconfig
+WORKDIR /opt/check
+CMD ["bash", "scripts/isolated-runtime.sh"]

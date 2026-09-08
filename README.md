@@ -1,15 +1,16 @@
 # HoloNight Viewer
 
-A standalone, keyboard-first HoloNight static-image viewer. Open one local image
+A standalone, keyboard-first HoloNight static-image viewer for native Wayland.
+X11 and XWayland are outside the supported scope. Open one local image
 with **Open…**, **Ctrl+O**, a file drop, or a command-line path. Images decode in
-the background, honor embedded orientation, and fit the window. PNG and JPEG are
-required; additional formats depend on installed Qt image plugins. Animated files
+the background, honor embedded orientation, and fit the window. PNG, JPEG, BMP and WebP are
+the release target; additional formats depend on installed Qt image plugins. Animated files
 show their first frame only. Inspect with fit, actual size, zoom and pan, then
 browse supported images in the containing folder.
 
-Requires C++23, Qt 6.11+, CMake 3.25+, Ninja, Task, tomlplusplus, and installed
+Requires C++23, Qt 6.11+, CMake 3.25+, Ninja, Task, tomlplusplus, pkg-config, libwebp, and installed
 HolonightQt::Core / HolonightQt::Controls. Tests use Qt Test and GTest. Checks need
-clang-format, clang-tidy (run-clang-tidy), REUSE, and desktop-file-utils.
+clang-format, clang-tidy (run-clang-tidy), REUSE, desktop-file-utils, GIO and Python 3.
 On Arch, the [CI Dockerfile](packaging/Dockerfile.ci) lists the packages.
 
 ```sh
@@ -82,23 +83,23 @@ Information and Help support scrolling and text selection/copying. Escape closes
 the dialog before leaving fullscreen; closing restores canvas focus.
 
 Copy Image captures the image and orientation when invoked, ignoring zoom/pan.
-A dedicated worker prepares one copy at a time with no queue. Both copy commands
+A dedicated worker transforms and PNG-encodes one copy at a time with no queue.
+The GUI publishes explicit image/png without Qt’s private image representation. Both copy commands
 pause during preparation; browsing and inspection remain available. Filename-specific
-feedback distinguishes the captured image from a later selection. Preparation
+feedback distinguishes the captured image from a later selection. Preparation or encoding
 failure preserves the clipboard. The standard clipboard is used; primary selection
 is untouched. Clipboard persistence after exit is managed by the desktop.
 
 The 256 MiB display/cache bound excludes clipboard memory. A copy initially shares
 its decoded snapshot, but after navigation may retain another image (up to 128 MiB).
 A transformed output can add another 128 MiB; Qt, transport, receivers and clipboard
-managers may retain additional storage. An isolated 8000×4000 rotation/copy measured
-40 ms preparation/publication, continuing GUI timer progress, and 294,024 KiB peak
-RSS (128,000,000-byte snapshot plus equally sized output). XWayland transfer to a
-separate Qt process completed in 2.75 seconds with 416,100 KiB peak RSS reported
-for the test process tree (maximum individual process, not combined usage).
-These are machine-specific measurements, excluding cache-filled production-window
-usage and external clipboard-manager storage. Native Wayland clipboard acceptance
-remains pending; see the Stage 4 verification record.
+managers may retain additional storage. PNG encoding also needs temporary storage and its encoded payload. Updated five-run
+measurements and native acceptance are recorded in the
+[release verification](docs/sdd/release-readiness/VERIFICATION.md). On the local
+32-million-pixel fixture, PNG copy preparation/publication takes about one second
+with continuing GUI timer progress; native generic Qt alpha and compositor-input
+navigation/shutdown checks pass. Earlier copy
+measurements predate PNG publication and do not describe its latency.
 
 Opening starts a nonrecursive folder scan without delaying the image. Supported
 suffixes follow installed Qt handlers, case-insensitively. Hidden siblings are
@@ -127,8 +128,8 @@ is prefetched, initially forward. There is one active decoder and only the newes
 pending foreground request, which takes priority over queued prefetch. A separate
 scan worker likewise retains one active and one newest pending scan. Closing keeps the event loop responsive and
 waits for the active read to finish; a hung codec/filesystem has no hard exit deadline.
-Original image files are opened read-only. Desktop MIME association is deferred to
-release readiness.
+Original image files are opened read-only. Desktop MIME availability is declared
+without changing the default image application.
 
 Provider defaults are ../holonight-config and ../holonight-qt. Override their
 locations with HOLONIGHT_CONFIG_SOURCE and HOLONIGHT_QT_SOURCE for `task deps`.
@@ -161,3 +162,73 @@ window. The entry launches the absolute build executable with its provider paths
 rerun the task after moving the checkout or switching builds. This user entry takes
 precedence over a system installation; remove its applications/org.holonight.Viewer.desktop
 file when switching to a system package.
+
+Stage 5 prepares a **source release with CMake install**; it is not release-ready.
+See [release qualification](docs/sdd/release-readiness/VERIFICATION.md) for remaining
+native desktop, accessibility, performance and hosted CI gates. No release
+has been published and no distribution packages or bundled providers are supplied.
+
+The guaranteed target formats are static **PNG, JPEG, BMP and WebP**. Install Qt
+Base's PNG/BMP support and JPEG plugin, plus Qt Image Formats' WebP plugin (Arch:
+`qt6-base qt6-imageformats`). Other installed handlers remain best effort. All
+animated formats display the first frame only. Missing codecs fail qualification,
+not ordinary startup. Qt remains the primary decoder. A private libwebp fallback
+handles simple static RIFF VP8/VP8L files that Qt cannot inspect or decode,
+including the compact Qt 6.11.2 regression. Extended containers, metadata and
+animation stay on the Qt path. Source builds require pkg-config and libwebp
+(Arch: `pkgconf libwebp`); installed runtimes need libwebp and the Qt plugins.
+
+For a system installation, build the separately installed HoloNight providers
+against the same Qt build used by Viewer. Use the dependency revisions in
+[CI](.github/workflows/build.yml); provider private Qt API use ties runtime ABI to
+that Qt build. Configure Viewer against the provider installation, then install:
+
+```sh
+cmake --preset release -DHOLONIGHT_DEPENDENCY_PREFIX=/usr -DHOLONIGHT_QML_IMPORT_PATH=/usr/lib/qt6/qml
+cmake --build --preset release
+sudo cmake --install build/release
+sudo update-desktop-database /usr/share/applications
+```
+
+`DESTDIR` stages the same layout without installing on the host. For a custom
+prefix, set `CMAKE_INSTALL_PREFIX` and provider paths when configuring; expose its
+`bin` on `PATH`, `share` on `XDG_DATA_DIRS`, and provider QML/library paths through
+`QML_IMPORT_PATH` and `LD_LIBRARY_PATH` (adapt `lib` to your platform). Custom-prefix
+overrides are distinct from the standard-location isolated qualification below.
+
+The desktop entry offers one file per process through `holonight-viewer -- %f`
+and advertises PNG/JPEG/BMP/WebP only. Registering availability and refreshing the
+desktop database do not select a default image application. Before switching from
+`task run` to the installed application, remove the generated development entry
+`${XDG_DATA_HOME:-$HOME/.local/share}/applications/org.holonight.Viewer.desktop`
+and its matching user icon if no longer needed, then refresh that applications
+directory with `update-desktop-database`. The user entry otherwise shadows `/usr`.
+
+CI builds the committed checkout with required codecs and contributor tools, stages
+Viewer and providers under `/usr`, then launches a second container with installed
+payloads only, no workspace mount, no network and no development runtime overrides.
+To reproduce on a machine with Docker and the provider checkouts used by CI:
+
+```sh
+docker build -t viewer-ci -f packaging/Dockerfile.ci .
+# Run the Build and verify command from CI in the parent checkout layout first.
+# It writes build/runtime-check-context and the disposable context under build/.
+docker build -t viewer-runtime-check "$(cat build/runtime-check-context)"
+docker run --rm --network none viewer-runtime-check
+```
+
+For real native clipboard checks, start `build/test/tests/clipboard-probe
+--interactive image build/received.png` (or `text build/received.txt`) with the
+same native platform as the receiver under test. Copy through Viewer's keyboard
+or Actions menu, focus the receiver, then click or press Enter/Ctrl+V. It reports
+image dimensions, first pixel and a canonical RGBA digest, or exact path text,
+and saves the received data. It remains open for repeated activation. Automatic
+mode remains available for regression tests; it does not establish native input
+acceptance. Follow the native matrix in the verification record, including Orca.
+
+Native Wayland clipboard qualification retains the generic QClipboard::image()
+receiver as mandatory; explicit PNG reception is a separate diagnostic. See the
+release verification for current results and remaining human input checks.
+Native portal selection/cancellation passed with the per-process
+`QT_QPA_PLATFORMTHEME=xdgdesktopportal` comparison. The default HoloNight theme's
+missing delegation remains a [provider blocker](docs/holonight-qt-dlg-delegation-missed.md).

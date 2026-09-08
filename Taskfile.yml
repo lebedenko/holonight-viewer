@@ -73,3 +73,7 @@ tasks:
       - task: build
         vars: {PRESET: release}
       - python3 scripts/check-desktop.py
+
+  runtime-context:
+    desc: Prepare installed payloads for the isolated container check after deps/build/test
+    cmds: ['bash scripts/prepare-runtime-check.sh']
