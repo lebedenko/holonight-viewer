@@ -2,12 +2,28 @@
 
 #include "image_orientation.h"
 
+#include <QCoreApplication>
+#include <QEvent>
 #include <QPainter>
+#include <QQuickWindow>
 
 #include <algorithm>
 #include <cmath>
 
-ImageCanvas::ImageCanvas(QQuickItem* parent) : QQuickPaintedItem(parent) {}
+ImageCanvas::ImageCanvas(QQuickItem* parent) : QQuickPaintedItem(parent) {
+  QCoreApplication::instance()->installEventFilter(this);
+}
+bool ImageCanvas::eventFilter(QObject* watched, QEvent* event) {
+  if (watched == window()) {
+    if (event->type() == QEvent::MouseMove) {
+      emit mouseMoved();
+    }
+    if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) {
+      emit keyboardInput();
+    }
+  }
+  return false;
+}
 void ImageCanvas::refresh() {
   update();
   emit viewChanged();
@@ -16,6 +32,7 @@ void ImageCanvas::setImage(const QImage& image) {
   if (image_.cacheKey() == image.cacheKey()) {
     return;
   }
+  ++generation_;
   image_ = image;
   view_.setImage(ImageOrientation::dimensions(orientation_, image.size()));
   refresh();
@@ -90,4 +107,15 @@ void ImageCanvas::paint(QPainter* painter) {
   painter->scale(view_.scale(), view_.scale());
   painter->setTransform(mapping, true);
   painter->drawImage(decodedSource, image_, decodedSource);
+  if (painted_generation_ != generation_) {
+    painted_generation_ = generation_;
+    QMetaObject::invokeMethod(
+        this,
+        [this, generation = generation_] {
+          if (generation == generation_ && !image_.isNull()) {
+            emit firstRendered();
+          }
+        },
+        Qt::QueuedConnection);
+  }
 }

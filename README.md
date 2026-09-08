@@ -71,8 +71,19 @@ resets to Fit; canceling Open preserves the view. Image controls pause while the
 dialog is open. Zoom/pan reuse the decoded image and a canvas-sized rendering
 surface without changing the original file.
 
-The Actions menu beside Open provides temporary transforms, copying, information,
-and help. Transforms compose in invocation order, reset zoom/pan to Fit, and do
+The header uses scalable, theme-tinted SVG icons; its Actions popup keeps a
+visible inset from the window edges. The menu provides Open, view controls, navigation, temporary
+transforms, copying, information, help and quit. The centered filename and wrapping
+shortcut footer remain visible. Mouse movement reveals side navigation arrows for
+five seconds; any keyboard input hides them immediately. An independent five-second
+details strip appears after a new or refreshed image first renders. Mouse movement
+restarts its timeout; ordinary repaints and keyboard inspection do not. The strip
+shows transformed dimensions, decimal file size, physical-pixel scale (including
+Fit), and folder position without resizing the canvas. Viewer-owned controls retain
+keyboard focus and activation without focus-dependent decoration. Typography
+inherits the shared theme’s point-based font sizes.
+
+Transforms compose in invocation order, reset zoom/pan to Fit, and do
 not allocate another full-size image while viewing. Open, navigation and F5 clear
 them; returning to a file does not restore them. Original files remain unchanged.
 Information shows worker-collected format, encoded size, local modification time,

@@ -38,8 +38,8 @@ TEST(Accessibility, NamesRolesEnabledFocusAndDialogs) {
   ASSERT_NE(window, nullptr);
   window->requestActivate();
   ASSERT_TRUE(QTest::qWaitForWindowActive(window));
-  for (const auto* name : {"openButton", "actionsButton", "fitButton", "actualSizeButton", "zoomOutButton",
-                           "zoomInButton", "previousButton", "nextButton", "imageCanvas"}) {
+  for (const auto* name :
+       {"actionsButton", "informationButton", "fullscreenButton", "previousButton", "nextButton", "imageCanvas"}) {
     auto* item = window->findChild<QQuickItem*>(QString::fromLatin1(name));
     ASSERT_NE(item, nullptr) << name;
     auto* accessible = QAccessible::queryAccessibleInterface(item);
@@ -79,7 +79,11 @@ TEST(Accessibility, NamesRolesEnabledFocusAndDialogs) {
   QTest::keyClick(window, Qt::Key_A, Qt::ControlModifier);
   QTest::keyClick(window, Qt::Key_C, Qt::ControlModifier);
   EXPECT_EQ(QGuiApplication::clipboard()->text(), text->property("text").toString());
-  QTest::keyClick(window, Qt::Key_Escape);
+  auto* closeButton = window->findChild<QQuickItem*>("closeDetailsButton");
+  ASSERT_NE(closeButton, nullptr);
+  ASSERT_TRUE(closeButton->isVisible());
+  QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
+                    closeButton->mapToScene(QPointF(closeButton->width() / 2, closeButton->height() / 2)).toPoint());
   ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("modalActive").toBool(); }));
   EXPECT_TRUE(canvas->hasActiveFocus());
   announcements().clear();

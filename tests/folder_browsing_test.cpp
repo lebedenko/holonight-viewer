@@ -320,6 +320,8 @@ TEST(Viewer, FolderBrowsingControls) {
   EXPECT_EQ(document.state(), ImageDocument::Error);
   EXPECT_TRUE(canvas->hasActiveFocus());
   const auto click = [&](QQuickItem* button) {
+    QTest::mouseMove(window, QPoint(10, 70));
+    QTest::qWait(20);
     QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
                       button->mapToScene(QPointF(button->width() / 2, button->height() / 2)).toPoint());
   };

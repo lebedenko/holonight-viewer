@@ -419,3 +419,9 @@ QString ImageDocument::informationText() const {
                                           : unavailable,
           dimensions(information_.decodedSize), dimensions(transformedDimensions()));
 }
+
+QString ImageDocument::formattedFileSize() const {
+  return information_.encodedSize < 0
+             ? tr("Unavailable")
+             : QLocale().formattedDataSize(information_.encodedSize, 1, QLocale::DataSizeSIFormat);
+}

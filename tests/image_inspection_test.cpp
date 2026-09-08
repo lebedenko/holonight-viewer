@@ -3,8 +3,11 @@
 
 #include <QDir>
 #include <QElapsedTimer>
+#include <QLocale>
+#include <QPainter>
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
+#include <QSignalSpy>
 #include <QTest>
 #include <QTimer>
 #include <QWheelEvent>
@@ -47,7 +50,7 @@ TEST(Viewer, InspectionControlsAndLifecycle) {
   EXPECT_TRUE(canvas->fitting());
   QTest::qWait(30);
   const auto fit_canvas_size = canvas->size();
-  auto* open_button = window->findChild<QQuickItem*>(QStringLiteral("openButton"));
+  auto* open_button = window->findChild<QQuickItem*>(QStringLiteral("actionsButton"));
   ASSERT_NE(open_button, nullptr);
   // Opening from a control leaves focus there: zoom must make arrows usable without a drag.
   for (const auto key : {Qt::Key_Plus, Qt::Key_Equal}) {
@@ -61,6 +64,8 @@ TEST(Viewer, InspectionControlsAndLifecycle) {
     EXPECT_LT(canvas->imageRect().y(), before_keyboard_pan.y());
   }
   canvas->fit();
+  ASSERT_TRUE(QMetaObject::invokeMethod(window->findChild<QObject*>("actionsMenu"), "open"));
+  QTest::qWait(100);
   QTest::mouseClick(
       window, Qt::LeftButton, Qt::NoModifier,
       actual_button->mapToScene(QPointF(actual_button->width() / 2, actual_button->height() / 2)).toPoint());
@@ -225,4 +230,119 @@ TEST(Viewer, LargeImageInspection) {
   RecordProperty("manipulation_ms", elapsed.elapsed());
   RecordProperty("timer_ticks", ticks);
   window.close();
+}
+
+TEST(Canvas, FirstRenderGeneration) {
+  ImageCanvas canvas;
+  canvas.setSize(QSizeF(200, 150));
+  QImage first(20, 10, QImage::Format_ARGB32);
+  first.fill(Qt::red);
+  QImage second(10, 20, QImage::Format_ARGB32);
+  second.fill(Qt::blue);
+  QImage target(200, 150, QImage::Format_ARGB32);
+  QPainter painter(&target);
+  QSignalSpy rendered(&canvas, &ImageCanvas::firstRendered);
+  canvas.setImage(first);
+  canvas.paint(&painter);
+  canvas.setImage(second);
+  QCoreApplication::processEvents();
+  EXPECT_EQ(rendered.count(), 0);
+  canvas.paint(&painter);
+  QCoreApplication::processEvents();
+  EXPECT_EQ(rendered.count(), 1);
+  canvas.zoomSteps(1, QPointF(100, 75));
+  canvas.pan(QPointF(10, 10));
+  canvas.setOrientation(1);
+  canvas.paint(&painter);
+  QCoreApplication::processEvents();
+  EXPECT_EQ(rendered.count(), 1);
+  // A cached image is selected through the same clear/set lifecycle.
+  canvas.setImage({});
+  canvas.setImage(second);
+  canvas.paint(&painter);
+  QCoreApplication::processEvents();
+  EXPECT_EQ(rendered.count(), 2);
+}
+
+TEST(Viewer, IndependentOverlayTimers) {
+  ImageDocument document;
+  QQmlApplicationEngine engine;
+  engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
+  engine.loadFromModule("HolonightViewer", "Main");
+  ASSERT_EQ(engine.rootObjects().size(), 1);
+  auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+  window->requestActivate();
+  ASSERT_TRUE(QTest::qWaitForWindowActive(window));
+  auto* canvas = window->findChild<ImageCanvas*>("imageCanvas");
+  auto* arrows = window->findChild<QObject*>("arrowTimer");
+  auto* details = window->findChild<QObject*>("detailsTimer");
+  auto* strip = window->findChild<QQuickItem*>("detailsStrip");
+  ASSERT_NE(arrows, nullptr);
+  ASSERT_NE(details, nullptr);
+  ASSERT_NE(strip, nullptr);
+  EXPECT_EQ(arrows->property("interval").toInt(), 5000);
+  EXPECT_EQ(details->property("interval").toInt(), 5000);
+  EXPECT_FALSE(strip->isVisible());
+  // Shorter intervals exercise the production timer wiring without a long suite delay.
+  arrows->setProperty("interval", 300);
+  details->setProperty("interval", 500);
+  document.open({QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/sample.png")});
+  ASSERT_TRUE(QTest::qWaitFor([&] { return strip->isVisible(); }));
+  EXPECT_FALSE(arrows->property("running").toBool());
+  const auto geometry = canvas->imageRect();
+  QTest::mouseMove(window, QPoint(10, 10));
+  EXPECT_TRUE(arrows->property("running").toBool());
+  QTest::qWait(200);
+  QTest::mouseMove(window, QPoint(20, 10));
+  QTest::qWait(200);
+  EXPECT_TRUE(arrows->property("running").toBool());
+  QTest::keyClick(window, Qt::Key_Tab);
+  EXPECT_FALSE(arrows->property("running").toBool());
+  EXPECT_TRUE(strip->isVisible());
+  QTest::qWait(180);
+  QTest::keyClick(window, Qt::Key_0);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !strip->isVisible(); }, 250));
+  EXPECT_EQ(canvas->imageRect(), geometry);
+  canvas->update();
+  QTest::qWait(100);
+  EXPECT_FALSE(strip->isVisible());
+  QTest::keyClick(window, Qt::Key_F5);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return strip->isVisible(); }));
+  EXPECT_FALSE(arrows->property("running").toBool());
+  EXPECT_EQ(document.formattedFileSize(),
+            QLocale().formattedDataSize(document.information().encodedSize, 1, QLocale::DataSizeSIFormat));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !document.scanning(); }));
+  const auto originalPosition = document.position();
+  QSignalSpy renders(canvas, &ImageCanvas::firstRendered);
+  ASSERT_TRUE(document.canNext());
+  {
+    QTest::keyClick(window, Qt::Key_PageDown);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return renders.count() == 1; }));
+    EXPECT_TRUE(strip->isVisible());
+    EXPECT_FALSE(arrows->property("running").toBool());
+    QTest::keyClick(window, Qt::Key_PageUp);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return renders.count() == 2; }));
+    EXPECT_EQ(document.position(), originalPosition);
+    EXPECT_TRUE(strip->isVisible());
+  }
+  QTest::qWait(550);
+  QTest::mouseMove(window, QPoint(30, window->height() - 5));
+  EXPECT_TRUE(strip->isVisible());
+  EXPECT_TRUE(arrows->property("running").toBool());
+  const auto capture = qEnvironmentVariable("VIEWER_CAPTURE_PREFIX");
+  if (!capture.isEmpty()) {
+    for (const auto size : {QSize(1000, 700), QSize(420, 280)}) {
+      window->resize(size);
+      QTest::mouseMove(window, QPoint(40, 20));
+      QTest::qWait(100);
+      EXPECT_TRUE(window->grabWindow().save(capture + QString("-overlays-%1.png").arg(size.width())));
+      QTest::keyClick(window, Qt::Key_Tab);
+      EXPECT_TRUE(window->grabWindow().save(capture + QString("-focus-%1.png").arg(size.width())));
+    }
+    QTest::keyClick(window, Qt::Key_F);
+    QTest::qWait(100);
+    EXPECT_TRUE(window->grabWindow().save(capture + "-fullscreen.png"));
+  }
+
+  window->close();
 }

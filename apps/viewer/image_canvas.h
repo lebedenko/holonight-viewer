@@ -35,16 +35,22 @@ class ImageCanvas : public QQuickPaintedItem {
   void paint(QPainter* painter) override;
   static QRectF fitRect(QSize image, QSizeF canvas);
  signals:
+  void firstRendered();
+  void mouseMoved();
+  void keyboardInput();
   void imageChanged();
   void orientationChanged();
   void viewChanged();
   void viewportChanged();
 
  protected:
+  bool eventFilter(QObject* watched, QEvent* event) override;
   void geometryChange(const QRectF& newGeometry, const QRectF& oldGeometry) override;
 
  private:
   void refresh();
+  quint64 generation_ = 0;
+  quint64 painted_generation_ = 0;
   int orientation_ = 0;
   QImage image_;
   ViewGeometry view_;

@@ -6,6 +6,7 @@ import QtQuick.Dialogs
 // Initialize the configured style before shared controls import Basic.
 // qmllint disable unused-imports
 import QtQuick.Controls
+import QtQuick.Controls.Basic as Basic
 // qmllint enable unused-imports
 import Holonight as HnStyle
 import Holonight.Core
@@ -22,6 +23,45 @@ HnApplicationWindow {
     visible: true
     title: document.fileName ? qsTr("%1 — HoloNight Viewer").arg(document.fileName) : qsTr("HoloNight Viewer")
 
+    component ViewerButton: HnStyle.Button {
+        id: control
+        property bool floating: false
+        implicitWidth: Math.max(implicitContentWidth + leftPadding + rightPadding, HnMetrics.controlHeight(HnControlSize.Normal))
+        background: Rectangle {
+            color: control.down ? HoloniightPalette.surface : control.hovered ? HoloniightPalette.surfaceHover : control.floating ? Qt.alpha(HoloniightPalette.surface, 0.85) : "transparent"
+            border.color: control.floating ? HoloniightPalette.borderPassive : "transparent"
+            radius: HnMetrics.internalSpacing(HnControlSize.Compact)
+        }
+    }
+    component ViewerHeaderButton: ViewerButton {
+        display: AbstractButton.IconOnly
+        icon.width: HnMetrics.iconSize(HnControlSize.Hero)
+        icon.height: HnMetrics.iconSize(HnControlSize.Hero)
+        implicitWidth: HnMetrics.controlHeight(HnControlSize.Large)
+        implicitHeight: HnMetrics.controlHeight(HnControlSize.Large)
+    }
+    component ViewerMenuItem: HnStyle.MenuItem {
+        id: control
+        contentItem: HnLabel {
+            rawText: control.text
+            textFormat: Text.PlainText
+            color: control.enabled ? HoloniightPalette.textPrimary : HoloniightPalette.textDisabled
+        }
+        background: Rectangle {
+            color: control.down ? HoloniightPalette.surface : control.hovered ? HoloniightPalette.surfaceHover : "transparent"
+        }
+    }
+    property bool rendered: false
+    Timer {
+        id: arrowTimer
+        objectName: "arrowTimer"
+        interval: 5000
+    }
+    Timer {
+        id: detailsTimer
+        objectName: "detailsTimer"
+        interval: 5000
+    }
     function toggleFullscreen(): void {
         WindowState.setFullscreen(window, window.visibility !== Window.FullScreen);
     }
@@ -40,6 +80,8 @@ HnApplicationWindow {
 
     readonly property int documentState: document.state
     onDocumentStateChanged: {
+        if (documentState !== ImageDocument.Ready)
+            detailsTimer.stop();
         if (documentState === ImageDocument.Ready)
             canvas.Accessible.announce(qsTr("Loaded %1.").arg(window.document.fileName));
         else if (documentState === ImageDocument.Error)
@@ -250,7 +292,7 @@ HnApplicationWindow {
         id: detailLoader
         active: window.detailDialog !== 0
         sourceComponent: Item {
-            Dialog {
+            Basic.Dialog {
                 id: details
                 objectName: "detailsDialog"
                 parent: Overlay.overlay
@@ -265,7 +307,17 @@ HnApplicationWindow {
                 modal: true
                 focus: true
                 title: window.detailDialog === 1 ? qsTr("Image Information") : qsTr("Shortcut Help")
-                standardButtons: Dialog.Close
+                footer: Item {
+                    implicitHeight: closeDetails.height + 12
+                    ViewerButton {
+                        id: closeDetails
+                        objectName: "closeDetailsButton"
+                        anchors.right: parent.right
+                        anchors.rightMargin: 12
+                        text: qsTr("Close")
+                        onClicked: details.close()
+                    }
+                }
                 closePolicy: Popup.CloseOnEscape
                 onClosed: window.detailDialog = 0
                 Component.onCompleted: open()
@@ -274,8 +326,12 @@ HnApplicationWindow {
                     clip: true
                     contentWidth: availableWidth
                     ScrollBar.vertical.active: true
-                    TextArea {
+                    HnStyle.TextArea {
                         objectName: "detailsText"
+                        background: Rectangle {
+                            color: HoloniightPalette.surface
+                            border.color: HoloniightPalette.borderPassive
+                        }
                         readOnly: true
                         selectByMouse: true
                         wrapMode: TextEdit.Wrap
@@ -290,151 +346,161 @@ HnApplicationWindow {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: HnMetrics.internalSpacing(HnControlSize.Normal)
+        anchors.margins: 0
         spacing: HnMetrics.internalSpacing(HnControlSize.Normal)
 
-        RowLayout {
+        HnHeaderBar {
             Layout.fillWidth: true
-            Button {
-                objectName: "openButton"
-                text: qsTr("Open…")
-                enabled: !window.modalActive
-                onClicked: window.dialogRequested = true
-            }
-            Button {
-                id: actionsButton
-                objectName: "actionsButton"
-                text: qsTr("Actions")
-                enabled: !window.modalActive
-                onClicked: actionsMenu.popup()
-                HnStyle.Menu {
-                    id: actionsMenu
-                    objectName: "actionsMenu"
-                    popupType: Popup.Item
-                    width: Math.min(340, window.width - 24)
-                    height: Math.min(implicitHeight, window.height - 24)
-                    onClosed: if (!window.modalActive)
-                        canvas.forceActiveFocus(Qt.OtherFocusReason)
-                    y: actionsButton.height
-                    contentItem: ListView {
-                        implicitHeight: contentHeight
-                        model: actionsMenu.contentModel
-                        currentIndex: actionsMenu.currentIndex
-                        interactive: contentHeight > height
-                        clip: true
-                        ScrollBar.vertical: ScrollBar {
-                            active: true
+            content: Item {
+                HnLabel {
+                    anchors.centerIn: parent
+                    width: Math.max(0, parent.width - headerActions.width * 2)
+                    horizontalAlignment: Text.AlignHCenter
+                    textFormat: Text.PlainText
+                    rawText: window.document.fileName || qsTr("HoloNight Viewer")
+                    elide: Text.ElideMiddle
+                }
+                Row {
+                    id: headerActions
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    ViewerHeaderButton {
+                        objectName: "informationButton"
+                        icon.source: "icons/information.svg"
+                        Accessible.name: qsTr("Image Information")
+                        enabled: window.hasPath
+                        onClicked: window.detailDialog = 1
+                    }
+                    ViewerHeaderButton {
+                        objectName: "fullscreenButton"
+                        icon.source: "icons/fullscreen.svg"
+                        Accessible.name: qsTr("Fullscreen")
+                        enabled: !window.modalActive
+                        onClicked: window.toggleFullscreen()
+                    }
+                    ViewerHeaderButton {
+                        id: actionsButton
+                        objectName: "actionsButton"
+                        icon.source: "icons/menu.svg"
+                        Accessible.name: qsTr("Actions")
+                        enabled: !window.modalActive
+                        onClicked: actionsMenu.open()
+                        HnStyle.Menu {
+                            id: actionsMenu
+                            objectName: "actionsMenu"
+                            popupType: Popup.Item
+                            margins: 12
+                            x: actionsButton.width - width
+                            width: Math.min(340, window.width - 24)
+                            height: Math.min(implicitHeight, window.height - 24)
+                            onClosed: if (!window.modalActive)
+                                canvas.forceActiveFocus(Qt.OtherFocusReason)
+                            y: actionsButton.height + HnMetrics.internalSpacing(HnControlSize.Normal)
+                            contentItem: ListView {
+                                implicitHeight: contentHeight
+                                model: actionsMenu.contentModel
+                                currentIndex: actionsMenu.currentIndex
+                                interactive: contentHeight > height
+                                clip: true
+                                ScrollBar.vertical: ScrollBar {
+                                    active: true
+                                }
+                            }
+
+                            ViewerMenuItem {
+                                objectName: "openButton"
+                                text: qsTr("Open…")
+                                enabled: !window.modalActive
+                                onTriggered: window.dialogRequested = true
+                            }
+                            ViewerMenuItem {
+                                objectName: "fitButton"
+                                text: qsTr("Fit")
+                                enabled: window.canInspect
+                                onTriggered: window.fitImage()
+                            }
+                            ViewerMenuItem {
+                                objectName: "actualSizeButton"
+                                text: qsTr("Actual Size")
+                                enabled: window.canInspect
+                                onTriggered: window.actualSizeImage()
+                            }
+                            ViewerMenuItem {
+                                objectName: "zoomOutButton"
+                                text: qsTr("Zoom out")
+                                enabled: window.canInspect
+                                onTriggered: window.zoomImage(-1)
+                            }
+                            ViewerMenuItem {
+                                objectName: "zoomInButton"
+                                text: qsTr("Zoom in")
+                                enabled: window.canInspect
+                                onTriggered: window.zoomImage(1)
+                            }
+                            ViewerMenuItem {
+                                text: qsTr("Previous")
+                                enabled: !window.modalActive && window.document.canPrevious
+                                onTriggered: window.browse(-1)
+                            }
+                            ViewerMenuItem {
+                                text: qsTr("Next")
+                                enabled: !window.modalActive && window.document.canNext
+                                onTriggered: window.browse(1)
+                            }
+                            ViewerMenuItem {
+                                text: qsTr("Refresh")
+                                enabled: window.hasPath
+                                onTriggered: window.refreshFolder()
+                            }
+                            ViewerMenuItem {
+                                text: qsTr("Fullscreen")
+                                onTriggered: window.toggleFullscreen()
+                            }
+                            ViewerMenuItem {
+                                text: qsTr("Quit")
+                                onTriggered: window.close()
+                            }
+                            ViewerMenuItem {
+                                action: rotateClockwise
+                            }
+                            ViewerMenuItem {
+                                action: rotateCounterclockwise
+                            }
+                            ViewerMenuItem {
+                                action: flipHorizontal
+                            }
+                            ViewerMenuItem {
+                                action: flipVertical
+                            }
+                            ViewerMenuItem {
+                                action: resetTransform
+                                objectName: "resetTransformMenuItem"
+                            }
+                            ViewerMenuItem {
+                                action: copyImage
+                            }
+                            ViewerMenuItem {
+                                action: copyPath
+                            }
+                            ViewerMenuItem {
+                                action: imageInformation
+                                objectName: "informationMenuItem"
+                            }
+                            ViewerMenuItem {
+                                action: shortcutHelp
+                            }
                         }
-                    }
-                    MenuItem {
-                        action: rotateClockwise
-                    }
-                    MenuItem {
-                        action: rotateCounterclockwise
-                    }
-                    MenuItem {
-                        action: flipHorizontal
-                    }
-                    MenuItem {
-                        action: flipVertical
-                    }
-                    MenuItem {
-                        action: resetTransform
-                        objectName: "resetTransformMenuItem"
-                    }
-                    MenuItem {
-                        action: copyImage
-                    }
-                    MenuItem {
-                        action: copyPath
-                    }
-                    MenuItem {
-                        action: imageInformation
-                        objectName: "informationMenuItem"
-                    }
-                    MenuItem {
-                        action: shortcutHelp
                     }
                 }
             }
-            HnLabel {
-                Layout.fillWidth: true
-                textFormat: Text.PlainText
-                rawText: window.document.fileName
-                elide: Text.ElideMiddle
-            }
         }
-
-        Flow {
-            Layout.fillWidth: true
-            spacing: HnMetrics.internalSpacing(HnControlSize.Normal)
-
-            Button {
-                objectName: "fitButton"
-                text: qsTr("Fit")
-                enabled: window.canInspect
-                onClicked: window.fitImage()
-            }
-            Button {
-                objectName: "actualSizeButton"
-                text: qsTr("Actual Size")
-                enabled: window.canInspect
-                onClicked: window.actualSizeImage()
-            }
-            Button {
-                objectName: "zoomOutButton"
-                text: qsTr("−")
-                Accessible.name: qsTr("Zoom out")
-                enabled: window.canInspect
-                onClicked: window.zoomImage(-1)
-            }
-            Button {
-                objectName: "zoomInButton"
-                text: qsTr("+")
-                Accessible.name: qsTr("Zoom in")
-                enabled: window.canInspect
-                onClicked: window.zoomImage(1)
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            Button {
-                objectName: "previousButton"
-                text: qsTr("Previous")
-                enabled: !window.modalActive && window.document.canPrevious
-                onClicked: window.browse(-1)
-            }
-            Button {
-                objectName: "nextButton"
-                text: qsTr("Next")
-                enabled: !window.modalActive && window.document.canNext
-                onClicked: window.browse(1)
-            }
-            HnLabel {
-                objectName: "folderPosition"
-                Layout.fillWidth: true
-                textFormat: Text.PlainText
-                rawText: window.document.scanning ? qsTr("Scanning…") : qsTr("%1 / %2").arg(window.document.position).arg(window.document.count)
-                Accessible.name: rawText
-            }
-        }
-
         HnLabel {
             objectName: "folderError"
             Layout.fillWidth: true
-            visible: window.document.folderError.length > 0
+            visible: window.document.scanning || window.document.folderError.length > 0
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
-            rawText: window.document.folderError
-            Accessible.name: rawText
-        }
-
-        HnLabel {
-            objectName: "zoomStatus"
-            Layout.fillWidth: true
-            textFormat: Text.PlainText
-            rawText: window.document.state !== ImageDocument.Ready ? qsTr("—") : canvas.fitting ? qsTr("Fit") : qsTr("%1%").arg(Number(canvas.magnification * 100).toLocaleString(Qt.locale(), 'f', canvas.magnification < 0.01 ? 4 : 1))
+            rawText: window.document.scanning ? qsTr("Scanning…") : window.document.folderError
             Accessible.name: rawText
         }
 
@@ -452,7 +518,21 @@ HnApplicationWindow {
                 onOrientationChanged: ++window.inputEpoch
                 displayPixelRatio: window.devicePixelRatio
                 activeFocusOnTab: true
-                onImageChanged: ++window.inputEpoch
+                onImageChanged: {
+                    ++window.inputEpoch;
+                    window.rendered = false;
+                    detailsTimer.stop();
+                }
+                onFirstRendered: {
+                    window.rendered = true;
+                    detailsTimer.restart();
+                }
+                onMouseMoved: {
+                    arrowTimer.restart();
+                    if (window.rendered && window.documentState === ImageDocument.Ready)
+                        detailsTimer.restart();
+                }
+                onKeyboardInput: arrowTimer.stop()
                 onViewportChanged: ++window.inputEpoch
                 Keys.enabled: window.canInspect
                 Keys.onLeftPressed: canvas.pan(Qt.point(40, 0))
@@ -501,13 +581,64 @@ HnApplicationWindow {
                         }
                     }
                 }
-                Rectangle {
-                    anchors.fill: parent
-                    color: "transparent"
-                    border.width: HnMetrics.borderWidth
-                    border.color: HoloniightPalette.borderFocus
-                    visible: canvas.activeFocus
-                    Accessible.ignored: true
+            }
+            ViewerButton {
+                objectName: "previousButton"
+                floating: true
+                implicitHeight: 48
+                anchors.left: parent.left
+                anchors.leftMargin: 12
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("‹")
+                Accessible.name: qsTr("Previous image")
+                visible: arrowTimer.running
+                enabled: !window.modalActive && window.document.canPrevious
+                onClicked: window.browse(-1)
+            }
+            ViewerButton {
+                objectName: "nextButton"
+                floating: true
+                implicitHeight: 48
+                anchors.right: parent.right
+                anchors.rightMargin: 12
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("›")
+                Accessible.name: qsTr("Next image")
+                visible: arrowTimer.running
+                enabled: !window.modalActive && window.document.canNext
+                onClicked: window.browse(1)
+            }
+            Rectangle {
+                objectName: "detailsStrip"
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 12
+                width: Math.min(parent.width - 24, stripFilename.implicitWidth + metadata.implicitWidth + 36)
+                height: detailsFlow.height + 16
+                radius: HnMetrics.internalSpacing(HnControlSize.Compact)
+                color: Qt.alpha(HoloniightPalette.surface, 0.85)
+                border.color: HoloniightPalette.borderPassive
+                visible: window.documentState === ImageDocument.Ready && detailsTimer.running
+                Flow {
+                    id: detailsFlow
+                    x: 12
+                    y: 8
+                    width: parent.width - 24
+                    spacing: 12
+                    HnLabel {
+                        id: stripFilename
+                        width: Math.min(implicitWidth, Math.max(80, detailsFlow.width - metadata.implicitWidth - 12))
+                        rawText: window.document.fileName
+                        elide: Text.ElideMiddle
+                        textFormat: Text.PlainText
+                    }
+                    HnLabel {
+                        id: metadata
+                        width: Math.min(implicitWidth, detailsFlow.width)
+                        wrapMode: Text.Wrap
+                        rawText: qsTr("|  %1 × %2  |  %3  |  %4%  |  %5 / %6").arg(window.document.transformedDimensions.width).arg(window.document.transformedDimensions.height).arg(window.document.formattedFileSize).arg(Number(canvas.magnification * 100).toLocaleString(Qt.locale(), 'f', canvas.magnification < 0.01 ? 4 : 1)).arg(window.document.position).arg(window.document.count)
+                        textFormat: Text.PlainText
+                    }
                 }
             }
             HnEmptyState {
@@ -539,13 +670,21 @@ HnApplicationWindow {
             Accessible.name: rawText
         }
 
-        HnLabel {
+        Flow {
             Layout.fillWidth: true
-            role: HnTypographyRole.Caption
-            color: HoloniightPalette.textMuted
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.Wrap
-            rawText: qsTr("F1 — Shortcut Help")
+            Layout.leftMargin: 12
+            Layout.rightMargin: 12
+            Layout.bottomMargin: 6
+            spacing: 12
+            Repeater {
+                model: [qsTr("PgUp/PgDown  navigate"), qsTr("+/−  zoom"), qsTr("0  fit"), qsTr("1  100%"), qsTr("R  rotate"), qsTr("F  fullscreen"), qsTr("I  information"), qsTr("F1  help"), qsTr("Q  quit")]
+                HnLabel {
+                    required property string modelData
+                    role: HnTypographyRole.Caption
+                    color: HoloniightPalette.textMuted
+                    rawText: modelData
+                }
+            }
         }
     }
 

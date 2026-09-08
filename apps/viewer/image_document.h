@@ -32,6 +32,7 @@ class ImageDocument : public QObject {
   Q_PROPERTY(int orientation READ orientation NOTIFY orientationChanged)
   Q_PROPERTY(QSize transformedDimensions READ transformedDimensions NOTIFY changed)
   Q_PROPERTY(QString localPath READ localPath NOTIFY changed)
+  Q_PROPERTY(QString formattedFileSize READ formattedFileSize NOTIFY changed)
   Q_PROPERTY(QString informationText READ informationText NOTIFY changed)
   Q_PROPERTY(ClipboardController* clipboard READ clipboard CONSTANT)
   Q_PROPERTY(State state READ state NOTIFY changed)
@@ -57,6 +58,7 @@ class ImageDocument : public QObject {
   QSize transformedDimensions() const { return ImageOrientation::dimensions(orientation_, image_.size()); }
   QString localPath() const { return selected_url_.toLocalFile(); }
   QString informationText() const;
+  QString formattedFileSize() const;
   const ImageInformation& information() const { return information_; }
   ClipboardController* clipboard() { return &clipboard_; }
   Q_INVOKABLE void transform(int operation);
