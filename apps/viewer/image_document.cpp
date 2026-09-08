@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QImageReader>
+#include <QLocale>
 
 #include <utility>
 
@@ -24,29 +25,40 @@ DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
     return {};
   }
   const QFileInfo info(url.toLocalFile());
+  ImageInformation facts;
+  if (info.isFile()) {
+    facts.encodedSize = info.size();
+    facts.modified = info.lastModified();
+  }
   if (!info.exists()) {
-    return {.image = {}, .error = ImageDocument::tr("The file no longer exists.")};
+    return {.image = {}, .error = ImageDocument::tr("The file no longer exists."), .information = facts};
   }
   if (!info.isFile()) {
-    return {.image = {}, .error = ImageDocument::tr("Choose a regular image file, not a folder or special file.")};
+    return {.image = {},
+            .error = ImageDocument::tr("Choose a regular image file, not a folder or special file."),
+            .information = facts};
   }
   QFile file(info.absoluteFilePath());
   if (!file.open(QIODevice::ReadOnly)) {
-    return {.image = {}, .error = ImageDocument::tr("The file could not be opened for reading.")};
+    return {.image = {}, .error = ImageDocument::tr("The file could not be opened for reading."), .information = facts};
   }
   if (file.size() > file_limit) {
-    return {.image = {}, .error = ImageDocument::tr("The file exceeds the 256 MiB input limit.")};
+    return {.image = {}, .error = ImageDocument::tr("The file exceeds the 256 MiB input limit."), .information = facts};
   }
   if (cancelled.load()) {
     return {};
   }
   QImageReader reader(&file);
   reader.setAutoTransform(true);
-  if (!reader.canRead()) {
-    return {.image = {}, .error = ImageDocument::tr("The image format is unsupported or its header is damaged.")};
+  const bool readable = reader.canRead();
+  facts.format = QString::fromLatin1(reader.format()).toUpper();
+  if (!readable) {
+    return {.image = {},
+            .error = ImageDocument::tr("The image format is unsupported or its header is damaged."),
+            .information = facts};
   }
   if (!acceptableSize(reader.size())) {
-    return {.image = {}, .error = limitError()};
+    return {.image = {}, .error = limitError(), .information = facts};
   }
   QImage image = reader.read();
   if (cancelled.load()) {
@@ -54,17 +66,21 @@ DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
   }
   if (image.isNull()) {
     return {.image = {},
-            .error = ImageDocument::tr("The image is damaged, unreadable, or exceeds the decode memory limit.")};
+            .error = ImageDocument::tr("The image is damaged, unreadable, or exceeds the decode memory limit."),
+            .information = facts};
   }
   if (!acceptableSize(image.size()) || image.sizeInBytes() > image_limit) {
-    return {.image = {}, .error = limitError()};
+    return {.image = {}, .error = limitError(), .information = facts};
   }
   image.convertTo(QImage::Format_ARGB32_Premultiplied);
   if (image.isNull()) {
-    return {.image = {}, .error = ImageDocument::tr("There is not enough memory to display this image.")};
+    return {.image = {},
+            .error = ImageDocument::tr("There is not enough memory to display this image."),
+            .information = facts};
   }
   image.setDevicePixelRatio(1);
-  return {.image = std::move(image), .error = {}};
+  facts.decodedSize = image.size();
+  return {.image = std::move(image), .error = {}, .information = facts};
 }
 
 QUrl commandLineUrl(const QString& argument) {
@@ -92,6 +108,7 @@ ImageDocument::ImageDocument(Decoder decoder, QObject* parent)
     emit changed();
     maybePrefetch();
   });
+  connect(&clipboard_, &ClipboardController::shutdownFinished, this, &ImageDocument::workerFinished);
   thread_.start();
 }
 
@@ -131,6 +148,9 @@ void ImageDocument::open(const QList<QUrl>& urls) {
     if (cancellation_) {
       cancellation_->store(true);
     }
+    orientation_ = 0;
+    information_ = {};
+    emit orientationChanged();
     selected_url_ = QUrl{};
     image_ = {};
     file_name_.clear();
@@ -149,6 +169,9 @@ void ImageDocument::select(const QUrl& url) {
   if (cancellation_) {
     cancellation_->store(true);
   }
+  orientation_ = 0;
+  information_ = {};
+  emit orientationChanged();
   selected_url_ = url;
   selected_index_ = directory_.indexOf(url);
   image_ = {};
@@ -202,10 +225,12 @@ void ImageDocument::startPending() {
         DecodeResult result;
         if (entry) {
           result.image = entry->image;
+          result.information = entry->information;
         } else {
           entry = DecodedImageCache::metadata(request.url);
           result = decoder_(request.url, *cancel);
           entry->image = result.image;
+          entry->information = result.information;
         }
         if (!cancel->load() && !result.image.isNull()) {
           if (request.prefetch) {
@@ -232,6 +257,7 @@ void ImageDocument::complete(const Request& request, DecodeResult result) {
     return;
   }
   if (!request.prefetch && request.request_id == request_id_) {
+    information_ = std::move(result.information);
     image_ = std::move(result.image);
     error_ = std::move(result.error);
     state_ = image_.isNull() ? Error : Ready;
@@ -259,7 +285,7 @@ void ImageDocument::maybePrefetch() {
 }
 
 void ImageDocument::workerFinished() {
-  if (++finished_workers_ == 2) {
+  if (++finished_workers_ == 3) {
     emit shutdownFinished();
   }
 }
@@ -274,8 +300,49 @@ void ImageDocument::shutdown() {
   if (cancellation_) {
     cancellation_->store(true);
   }
+  clipboard_.shutdown();
   directory_.shutdown();
   if (!busy_) {
     thread_.quit();
   }
+}
+
+void ImageDocument::transform(int operation) {
+  if (state_ != Ready || stopping_ || operation < 0 || operation > 7) {
+    return;
+  }
+  orientation_ = ImageOrientation::compose(orientation_, operation);
+  emit orientationChanged();
+  emit changed();
+}
+void ImageDocument::resetTransform() {
+  if (state_ != Ready || stopping_) {
+    return;
+  }
+  orientation_ = 0;
+  emit orientationChanged();
+  emit changed();
+}
+void ImageDocument::copyImage() {
+  if (state_ == Ready && !stopping_) {
+    clipboard_.copyImage(image_, orientation_, file_name_);
+  }
+}
+void ImageDocument::copyPath() {
+  if (!stopping_) {
+    clipboard_.copyPath(localPath());
+  }
+}
+QString ImageDocument::informationText() const {
+  const auto unavailable = tr("Unavailable");
+  const auto dimensions = [&unavailable](QSize size) {
+    return size.isValid() ? tr("%1 × %2 pixels").arg(size.width()).arg(size.height()) : unavailable;
+  };
+  return tr("Path: %1\n\nFormat: %2\nFile size: %3\nModified: %4\nDecoded dimensions: %5\nTransformed dimensions: %6")
+      .arg(
+          localPath(), information_.format.isEmpty() ? unavailable : information_.format,
+          information_.encodedSize < 0 ? unavailable : tr("%1 bytes").arg(QLocale().toString(information_.encodedSize)),
+          information_.modified.isValid() ? QLocale().toString(information_.modified.toLocalTime(), QLocale::LongFormat)
+                                          : unavailable,
+          dimensions(information_.decodedSize), dimensions(transformedDimensions()));
 }

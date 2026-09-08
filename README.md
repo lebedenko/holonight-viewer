@@ -40,7 +40,7 @@ build/debug/apps/viewer/holonight-viewer -- './photo with spaces.png'
 ```
 
 Native decorations belong to Qt/the compositor. Fullscreen restores the previous
-normal/maximized state. Global fullscreen/quit shortcuts pause while Open is active.
+normal/maximized state. Viewer shortcuts pause while Open, Image Information or Shortcut Help is active.
 
 | Image control | Action |
 | --- | --- |
@@ -52,8 +52,15 @@ normal/maximized state. Global fullscreen/quit shortcuts pause while Open is act
 | Vertical wheel or trackpad scroll over the canvas | Zoom around the pointer |
 | Left-button drag | Pan the image |
 | Arrow keys with the canvas focused | Pan the viewed region in that direction |
+| `R` / `Shift+R` | Rotate clockwise / counterclockwise by 90° |
+| `H` / `V` | Flip horizontally / vertically relative to the displayed image |
+| Actions → Reset Transform | Clear temporary rotation and flips |
+| `Ctrl+C` | Copy the entire transformed image, including transparency |
+| `Ctrl+Shift+C` | Copy the normalized absolute path, unquoted; retain symlink paths |
+| `I` | Open selectable Image Information |
+| `F1` | Open scrollable shortcut and gesture help |
 
-Navigation, Refresh, Zoom, Fit and Actual Size focus the canvas so arrow-key panning works immediately.
+Navigation, Refresh, transforms, Zoom, Fit and Actual Size focus the canvas so arrow-key panning works immediately.
 Tab reaches the canvas and buttons; clicking the canvas also focuses it. Manual
 zoom preserves magnification during resize/fullscreen and display-scale changes.
 100% means physical pixels even at fractional display scaling. Zoom normally
@@ -62,6 +69,36 @@ Panning stops at image edges and centers axes that fit. Opening another image
 resets to Fit; canceling Open preserves the view. Image controls pause while the
 dialog is open. Zoom/pan reuse the decoded image and a canvas-sized rendering
 surface without changing the original file.
+
+The Actions menu beside Open provides temporary transforms, copying, information,
+and help. Transforms compose in invocation order, reset zoom/pan to Fit, and do
+not allocate another full-size image while viewing. Open, navigation and F5 clear
+them; returning to a file does not restore them. Original files remain unchanged.
+Information shows worker-collected format, encoded size, local modification time,
+decoded dimensions after embedded orientation, and current transformed dimensions.
+Facts follow cached image snapshots; F5 refreshes them. The path and Copy Path
+remain available during loading/errors; unknown facts say “Unavailable.”
+Information and Help support scrolling and text selection/copying. Escape closes
+the dialog before leaving fullscreen; closing restores canvas focus.
+
+Copy Image captures the image and orientation when invoked, ignoring zoom/pan.
+A dedicated worker prepares one copy at a time with no queue. Both copy commands
+pause during preparation; browsing and inspection remain available. Filename-specific
+feedback distinguishes the captured image from a later selection. Preparation
+failure preserves the clipboard. The standard clipboard is used; primary selection
+is untouched. Clipboard persistence after exit is managed by the desktop.
+
+The 256 MiB display/cache bound excludes clipboard memory. A copy initially shares
+its decoded snapshot, but after navigation may retain another image (up to 128 MiB).
+A transformed output can add another 128 MiB; Qt, transport, receivers and clipboard
+managers may retain additional storage. An isolated 8000×4000 rotation/copy measured
+40 ms preparation/publication, continuing GUI timer progress, and 294,024 KiB peak
+RSS (128,000,000-byte snapshot plus equally sized output). XWayland transfer to a
+separate Qt process completed in 2.75 seconds with 416,100 KiB peak RSS reported
+for the test process tree (maximum individual process, not combined usage).
+These are machine-specific measurements, excluding cache-filled production-window
+usage and external clipboard-manager storage. Native Wayland clipboard acceptance
+remains pending; see the Stage 4 verification record.
 
 Opening starts a nonrecursive folder scan without delaying the image. Supported
 suffixes follow installed Qt handlers, case-insensitively. Hidden siblings are
@@ -113,7 +150,8 @@ See [contributor workflow](CONTRIBUTING.md), [project brief](docs/PROJECT_BRIEF.
 [backlog](docs/BACKLOG.md), and [scaffold verification](docs/sdd/project-scaffold/VERIFICATION.md), and
 [image-opening verification](docs/sdd/image-document/VERIFICATION.md), and
 [image-inspection verification](docs/sdd/image-inspection/VERIFICATION.md), and
-[folder-browsing verification](docs/sdd/folder-browsing/VERIFICATION.md).
+[folder-browsing verification](docs/sdd/folder-browsing/VERIFICATION.md), and
+[static-workflow verification](docs/sdd/static-image-workflow/VERIFICATION.md).
 Licensed GPL-3.0-or-later; see LICENSE.
 
 `task run` registers the selected development build's desktop entry and icon under

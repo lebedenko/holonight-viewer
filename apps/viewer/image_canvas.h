@@ -8,6 +8,7 @@
 class ImageCanvas : public QQuickPaintedItem {
   Q_OBJECT
   QML_ELEMENT
+  Q_PROPERTY(int orientation READ orientation WRITE setOrientation NOTIFY orientationChanged)
   Q_PROPERTY(QImage image READ image WRITE setImage NOTIFY imageChanged)
   Q_PROPERTY(qreal displayPixelRatio READ displayPixelRatio WRITE setDisplayPixelRatio NOTIFY viewportChanged)
   Q_PROPERTY(bool fitting READ fitting NOTIFY viewChanged)
@@ -16,6 +17,8 @@ class ImageCanvas : public QQuickPaintedItem {
   Q_PROPERTY(QRectF imageRect READ imageRect NOTIFY viewChanged)
  public:
   explicit ImageCanvas(QQuickItem* parent = nullptr);
+  int orientation() const { return orientation_; }
+  void setOrientation(int orientation);
   QImage image() const { return image_; }
   void setImage(const QImage& image);
   qreal displayPixelRatio() const { return pixel_ratio_; }
@@ -33,6 +36,7 @@ class ImageCanvas : public QQuickPaintedItem {
   static QRectF fitRect(QSize image, QSizeF canvas);
  signals:
   void imageChanged();
+  void orientationChanged();
   void viewChanged();
   void viewportChanged();
 
@@ -41,6 +45,7 @@ class ImageCanvas : public QQuickPaintedItem {
 
  private:
   void refresh();
+  int orientation_ = 0;
   QImage image_;
   ViewGeometry view_;
   qreal pixel_ratio_ = 1;

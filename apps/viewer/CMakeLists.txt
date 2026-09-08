@@ -4,7 +4,7 @@ qt_add_qml_module(viewer-ui
   OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/HolonightViewer"
   IMPORT_PATH "${HOLONIGHT_QML_IMPORT_PATH}"
   QML_FILES Main.qml
-  SOURCES directory_model.h directory_model.cpp decoded_image_cache.h decoded_image_cache.cpp image_document.h image_document.cpp image_canvas.h image_canvas.cpp view_geometry.h view_geometry.cpp
+  SOURCES image_orientation.h image_orientation.cpp clipboard_controller.h clipboard_controller.cpp directory_model.h directory_model.cpp decoded_image_cache.h decoded_image_cache.cpp image_document.h image_document.cpp image_canvas.h image_canvas.cpp view_geometry.h view_geometry.cpp
   NO_IMPORT_SCAN)
 target_link_libraries(viewer-ui PUBLIC Qt6::Quick Qt6::QuickControls2 HolonightQt::Core HolonightQt::Controls)
 target_include_directories(viewer-ui PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")

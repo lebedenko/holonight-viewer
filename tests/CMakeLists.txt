@@ -1,5 +1,5 @@
 set_source_files_properties(../apps/viewer/Main.qml PROPERTIES QT_RESOURCE_ALIAS Main.qml)
-qt_add_executable(viewer-smoke smoke.cpp folder_browsing_test.cpp image_document_test.cpp view_geometry_test.cpp image_inspection_test.cpp)
+qt_add_executable(viewer-smoke smoke.cpp static_workflow_test.cpp folder_browsing_test.cpp image_document_test.cpp view_geometry_test.cpp image_inspection_test.cpp)
 qt_add_resources(viewer-smoke test-config PREFIX "/" BASE ../apps/viewer FILES ../apps/viewer/qtquickcontrols2.conf)
 target_link_libraries(viewer-smoke PRIVATE viewer-ui viewer-uiplugin Qt6::Test GTest::gtest)
 add_test(NAME viewer-smoke COMMAND viewer-smoke)
@@ -30,3 +30,8 @@ add_test(NAME viewer-opening COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/
 set_tests_properties(viewer-opening PROPERTIES TIMEOUT 30 ENVIRONMENT
   "QML_IMPORT_PATH=${HOLONIGHT_QML_IMPORT_PATH};LD_LIBRARY_PATH=${HOLONIGHT_DEPENDENCY_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
 set_tests_properties(viewer-smoke PROPERTIES TIMEOUT 60)
+
+qt_add_executable(clipboard-probe clipboard_probe.cpp)
+target_link_libraries(clipboard-probe PRIVATE Qt6::Quick)
+target_compile_definitions(viewer-smoke PRIVATE VIEWER_CLIPBOARD_PROBE="$<TARGET_FILE:clipboard-probe>")
+add_dependencies(viewer-smoke clipboard-probe)

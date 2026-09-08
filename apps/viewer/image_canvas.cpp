@@ -1,5 +1,7 @@
 #include "image_canvas.h"
 
+#include "image_orientation.h"
+
 #include <QPainter>
 
 #include <algorithm>
@@ -15,9 +17,19 @@ void ImageCanvas::setImage(const QImage& image) {
     return;
   }
   image_ = image;
-  view_.setImage(image.size());
+  view_.setImage(ImageOrientation::dimensions(orientation_, image.size()));
   refresh();
   emit imageChanged();
+}
+void ImageCanvas::setOrientation(int orientation) {
+  if (orientation < 0 || orientation > 7) {
+    return;
+  }
+  orientation_ = orientation;
+  view_.setImage(ImageOrientation::dimensions(orientation_, image_.size()));
+  view_.fit();
+  refresh();
+  emit orientationChanged();
 }
 void ImageCanvas::setDisplayPixelRatio(qreal ratio) {
   if (!std::isfinite(ratio) || ratio <= 0 || ratio == pixel_ratio_) {
@@ -72,5 +84,10 @@ void ImageCanvas::paint(QPainter* painter) {
   const QRectF source((visible.topLeft() - destination.topLeft()) / view_.scale(), visible.size() / view_.scale());
   painter->setClipRect(boundingRect());
   painter->setRenderHint(QPainter::SmoothPixmapTransform, view_.magnification() < 1);
-  painter->drawImage(visible, image_, source);
+  const auto mapping = ImageOrientation::mapping(orientation_, image_.size());
+  const auto decodedSource = mapping.inverted().mapRect(source);
+  painter->translate(destination.topLeft());
+  painter->scale(view_.scale(), view_.scale());
+  painter->setTransform(mapping, true);
+  painter->drawImage(decodedSource, image_, decodedSource);
 }

@@ -40,8 +40,18 @@ The 20,000-entry exercise measured a 625 ms scan, 363 ms for two large-image
 navigations and 241,660 KiB peak RSS with continuing GUI timer progress. See the
 [verification record](sdd/folder-browsing/VERIFICATION.md) for measurement scope
 and limitations. Earlier native-desktop gates remain pending independently.
-This reaches the first usable checkpoint; collect everyday browsing friction
-before expanding into stage 4.
+This reaches the first usable checkpoint.
+
+[Stage 4 requirements](sdd/static-image-workflow/SPEC.md),
+[design](sdd/static-image-workflow/DESIGN.md), and
+[tasks](sdd/static-image-workflow/TASKS.md) are approved through the supplied plan.
+Temporary composable transforms, information snapshots, asynchronous image copying,
+path copying, Actions and shortcut help are implemented. Automated pixel/input/
+metadata/lifecycle tests and XWayland separate-process clipboard transfer provide
+local evidence. Stage 4 is **not accepted**: native Wayland clipboard transfer
+remains unresolved. Earlier native-desktop gates remain pending independently.
+See the [verification record](sdd/static-image-workflow/VERIFICATION.md) for measured
+memory/latency, visual checks, and the exact remaining acceptance boundary.
 
 ## After the first release
 

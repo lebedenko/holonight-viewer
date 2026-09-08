@@ -114,6 +114,12 @@ TEST(Document, Orientation) {
         writeFixture(QStringLiteral("orientation-%1.jpg").arg(orientation), jpeg.left(2) + exif + jpeg.mid(2));
     const auto result = decodeImage(url, cancel);
     ASSERT_FALSE(result.image.isNull()) << result.error.toStdString();
+    EXPECT_EQ(result.information.decodedSize, result.image.size());
+    EXPECT_EQ(result.information.format, "JPEG");
+    for (int temporary = 0; temporary < 8; ++temporary) {
+      EXPECT_EQ(ImageOrientation::apply(result.image, temporary).size(),
+                ImageOrientation::dimensions(temporary, result.image.size()));
+    }
     const auto width = base.width();
     const auto height = base.height();
     EXPECT_EQ(result.image.size(), orientation < 5 ? base.size() : QSize(height, width));

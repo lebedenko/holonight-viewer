@@ -7,11 +7,19 @@
 #include <list>
 #include <optional>
 
+struct ImageInformation {
+  QString format;
+  qint64 encodedSize = -1;
+  QDateTime modified;
+  QSize decodedSize;
+};
+
 struct CachedImage {
   QUrl url;
   qint64 size = -1;
   QDateTime modified;
   QImage image;
+  ImageInformation information;
 };
 
 // Used only on the decode worker. The front is the most recently used entry.
