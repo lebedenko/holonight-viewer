@@ -30,6 +30,19 @@ with local automated and live Wayland checks passed; see its
 pending native mixed-scale display check. Stage 0 and stage 1 acceptance remain
 open independently.
 
+[Stage 3 requirements](sdd/folder-browsing/SPEC.md),
+[design](sdd/folder-browsing/DESIGN.md) and
+[tasks](sdd/folder-browsing/TASKS.md) are approved through the implementation plan.
+Folder browsing is implemented and its local acceptance checks pass: natural
+supported-sibling snapshots, Page Up/Down and buttons, boundaries, error positions,
+F5 refresh, bounded cache/prefetch, production input, and dark/light scale checks.
+The 20,000-entry exercise measured a 625 ms scan, 363 ms for two large-image
+navigations and 241,660 KiB peak RSS with continuing GUI timer progress. See the
+[verification record](sdd/folder-browsing/VERIFICATION.md) for measurement scope
+and limitations. Earlier native-desktop gates remain pending independently.
+This reaches the first usable checkpoint; collect everyday browsing friction
+before expanding into stage 4.
+
 ## After the first release
 
 1. GIF/WebP animation: playback, pause/resume, frame timing, bounded resources.

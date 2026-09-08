@@ -1,5 +1,8 @@
 #pragma once
 
+#include "decoded_image_cache.h"
+#include "directory_model.h"
+
 #include <QImage>
 #include <QObject>
 #include <QThread>
@@ -27,6 +30,12 @@ class ImageDocument : public QObject {
   Q_PROPERTY(QString fileName READ fileName NOTIFY changed)
   Q_PROPERTY(QString error READ error NOTIFY changed)
   Q_PROPERTY(QImage image READ image NOTIFY changed)
+  Q_PROPERTY(int position READ position NOTIFY changed)
+  Q_PROPERTY(int count READ count NOTIFY changed)
+  Q_PROPERTY(bool scanning READ scanning NOTIFY changed)
+  Q_PROPERTY(bool canPrevious READ canPrevious NOTIFY changed)
+  Q_PROPERTY(bool canNext READ canNext NOTIFY changed)
+  Q_PROPERTY(QString folderError READ folderError NOTIFY changed)
   Q_PROPERTY(QStringList nameFilters READ nameFilters CONSTANT)
 
  public:
@@ -40,6 +49,15 @@ class ImageDocument : public QObject {
   QString fileName() const { return file_name_; }
   QString error() const { return error_; }
   QImage image() const { return image_; }
+  int position() const { return selected_index_ + 1; }
+  int count() const { return directory_.rowCount(); }
+  bool scanning() const { return directory_.scanning(); }
+  bool canPrevious() const { return !stopping_ && !scanning() && selected_index_ > 0; }
+  bool canNext() const { return !stopping_ && !scanning() && selected_index_ >= 0 && selected_index_ + 1 < count(); }
+  QString folderError() const { return directory_.error(); }
+  Q_INVOKABLE void previous();
+  Q_INVOKABLE void next();
+  Q_INVOKABLE void refresh();
   static QStringList nameFilters();
   static bool isLocalUrl(const QUrl& url);
   Q_INVOKABLE void open(const QList<QUrl>& urls);
@@ -53,9 +71,26 @@ class ImageDocument : public QObject {
   struct Request {
     quint64 request_id;
     QUrl url;
+    quint64 cache_epoch;
+    bool prefetch = false;
   };
   void startPending();
-  void complete(quint64 request_id, DecodeResult result);
+  void complete(const Request& request, DecodeResult result);
+  void select(const QUrl& url);
+  void navigate(int direction);
+  void maybePrefetch();
+  void workerFinished();
+  DirectoryModel directory_;
+  QUrl selected_url_;
+  int selected_index_ = -1;
+  int direction_ = 1;
+  quint64 prefetched_selection_ = 0;
+  quint64 cache_epoch_ = 0;
+  int finished_workers_ = 0;
+  // Accessed exclusively by the decode worker.
+  quint64 worker_cache_epoch_ = 0;
+  DecodedImageCache cache_;
+  std::optional<CachedImage> displayed_;
   QThread thread_;
   QObject* worker_;
   Decoder decoder_;

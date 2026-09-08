@@ -48,6 +48,35 @@ HnApplicationWindow {
         onActivated: window.zoomImage(-1)
     }
 
+    Shortcut {
+        sequence: "PgUp"
+        enabled: !window.dialogRequested && window.document.canPrevious
+        onActivated: window.browse(-1)
+    }
+    Shortcut {
+        sequence: "PgDown"
+        enabled: !window.dialogRequested && window.document.canNext
+        onActivated: window.browse(1)
+    }
+    Shortcut {
+        sequence: "F5"
+        enabled: !window.dialogRequested && window.document.count > 0
+        onActivated: window.refreshFolder()
+    }
+
+    function browse(direction: int): void {
+        if (direction < 0)
+            window.document.previous();
+        else
+            window.document.next();
+        canvas.forceActiveFocus(Qt.OtherFocusReason);
+    }
+
+    function refreshFolder(): void {
+        window.document.refresh();
+        canvas.forceActiveFocus(Qt.OtherFocusReason);
+    }
+
     function fitImage(): void {
         canvas.fit();
         canvas.forceActiveFocus(Qt.OtherFocusReason);
@@ -172,6 +201,39 @@ HnApplicationWindow {
             }
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            Button {
+                objectName: "previousButton"
+                text: qsTr("Previous")
+                enabled: !window.dialogRequested && window.document.canPrevious
+                onClicked: window.browse(-1)
+            }
+            Button {
+                objectName: "nextButton"
+                text: qsTr("Next")
+                enabled: !window.dialogRequested && window.document.canNext
+                onClicked: window.browse(1)
+            }
+            HnLabel {
+                objectName: "folderPosition"
+                Layout.fillWidth: true
+                textFormat: Text.PlainText
+                rawText: window.document.scanning ? qsTr("Scanning…") : qsTr("%1 / %2").arg(window.document.position).arg(window.document.count)
+                Accessible.name: rawText
+            }
+        }
+
+        HnLabel {
+            objectName: "folderError"
+            Layout.fillWidth: true
+            visible: window.document.folderError.length > 0
+            textFormat: Text.PlainText
+            wrapMode: Text.Wrap
+            rawText: window.document.folderError
+            Accessible.name: rawText
+        }
+
         HnLabel {
             objectName: "zoomStatus"
             Layout.fillWidth: true
@@ -191,7 +253,7 @@ HnApplicationWindow {
                 anchors.fill: parent
                 image: window.document.image
                 displayPixelRatio: window.devicePixelRatio
-                activeFocusOnTab: window.canInspect
+                activeFocusOnTab: true
                 onImageChanged: ++window.inputEpoch
                 onViewportChanged: ++window.inputEpoch
                 Keys.enabled: window.canInspect
@@ -276,7 +338,7 @@ HnApplicationWindow {
             color: HoloniightPalette.textMuted
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
-            rawText: window.visibility === Window.FullScreen ? qsTr("Ctrl+O  open    f  windowed    Esc  leave fullscreen    q  quit\n0  fit    1  actual size    +/− or wheel  zoom    drag  pan    arrows  pan focused canvas") : qsTr("Ctrl+O  open    f  fullscreen    q  quit\n0  fit    1  actual size    +/− or wheel  zoom    drag  pan    arrows  pan focused canvas")
+            rawText: window.visibility === Window.FullScreen ? qsTr("Ctrl+O  open    f  windowed    Esc  leave fullscreen    q  quit\n0  fit    1  actual size    +/− or wheel  zoom    drag  pan    arrows  pan focused canvas\nPage Up/Down  browse    F5  refresh") : qsTr("Ctrl+O  open    f  fullscreen    q  quit\n0  fit    1  actual size    +/− or wheel  zoom    drag  pan    arrows  pan focused canvas\nPage Up/Down  browse    F5  refresh")
         }
     }
 

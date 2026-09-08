@@ -4,8 +4,8 @@ A standalone, keyboard-first HoloNight static-image viewer. Open one local image
 with **Open…**, **Ctrl+O**, a file drop, or a command-line path. Images decode in
 the background, honor embedded orientation, and fit the window. PNG and JPEG are
 required; additional formats depend on installed Qt image plugins. Animated files
-show their first frame only. Inspect with fit, actual size, zoom and pan; folder
-browsing is a later roadmap stage.
+show their first frame only. Inspect with fit, actual size, zoom and pan, then
+browse supported images in the containing folder.
 
 Requires C++23, Qt 6.11+, CMake 3.25+, Ninja, Task, tomlplusplus, and installed
 HolonightQt::Core / HolonightQt::Controls. Tests use Qt Test and GTest. Checks need
@@ -44,6 +44,8 @@ normal/maximized state. Global fullscreen/quit shortcuts pause while Open is act
 
 | Image control | Action |
 | --- | --- |
+| `Page Up` / Previous, `Page Down` / Next | Browse siblings, stopping at folder boundaries |
+| `F5` | Rescan the folder and reload the selected image, clearing the cache |
 | `0` / Fit | Center the whole image and fit it as the window changes |
 | `1` / Actual Size | Center at one source pixel per physical display pixel |
 | `+` or `=` / `−` | Zoom in/out around the canvas center |
@@ -51,7 +53,7 @@ normal/maximized state. Global fullscreen/quit shortcuts pause while Open is act
 | Left-button drag | Pan the image |
 | Arrow keys with the canvas focused | Pan the viewed region in that direction |
 
-Zoom, Fit and Actual Size focus the canvas so arrow-key panning works immediately.
+Navigation, Refresh, Zoom, Fit and Actual Size focus the canvas so arrow-key panning works immediately.
 Tab reaches the canvas and buttons; clicking the canvas also focuses it. Manual
 zoom preserves magnification during resize/fullscreen and display-scale changes.
 100% means physical pixels even at fractional display scaling. Zoom normally
@@ -61,12 +63,32 @@ resets to Fit; canceling Open preserves the view. Image controls pause while the
 dialog is open. Zoom/pan reuse the decoded image and a canvas-sized rendering
 surface without changing the original file.
 
+Opening starts a nonrecursive folder scan without delaying the image. Supported
+suffixes follow installed Qt handlers, case-insensitively. Hidden siblings are
+excluded; the explicitly opened file stays included even if hidden, extensionless
+or missing. Filenames use natural order (`image2` before `image10`), case-insensitive
+text and original-name tie breaking. Symlink paths retain the folder you opened.
+The position indicator shows scanning feedback until the snapshot is ready.
+Navigation remains available while decoding or showing an image error. Broken
+files keep their positions; F5 retains a deleted selection so you can navigate
+away. Folder-read failures appear separately and preserve single-image viewing.
+There is no live watcher: use F5 after additions, renames or external edits.
+A local 20,000-entry exercise measured a 625 ms scan and 363 ms for two 6000×4000
+image navigations, with GUI timer progress and 241,660 KiB peak RSS. These are
+machine-specific decoder/cache measurements, excluding window rendering; see the
+folder-browsing verification record for the method and limits.
+
 Viewing limits are 256 MiB encoded input, 32 million pixels, 32,768 pixels on either
 axis, and 128 MiB per decoded image. Unsupported dimensions and oversized images
 produce an error instead of a lower-resolution substitute. Decoding/conversion and
 canvas textures add temporary memory beyond that per-image bound; codec-private
-allocations are not a whole-process memory guarantee. There is one active decoder
-and only the newest pending request. Closing keeps the event loop responsive and
+allocations are not a whole-process memory guarantee. The decoded LRU holds at most two entries and 128 MiB, excluding the displayed
+image; retained display plus cache is at most 256 MiB. Cache hits are checked on
+the worker by absolute path, file size and modification time; edits preserving
+both metadata fields require F5. Only the next neighbor in the latest direction
+is prefetched, initially forward. There is one active decoder and only the newest
+pending foreground request, which takes priority over queued prefetch. A separate
+scan worker likewise retains one active and one newest pending scan. Closing keeps the event loop responsive and
 waits for the active read to finish; a hung codec/filesystem has no hard exit deadline.
 Original image files are opened read-only. Desktop MIME association is deferred to
 release readiness.
@@ -90,7 +112,8 @@ LD_LIBRARY_PATH=<prefix>/lib. No source-tree imports are embedded in the binary.
 See [contributor workflow](CONTRIBUTING.md), [project brief](docs/PROJECT_BRIEF.md),
 [backlog](docs/BACKLOG.md), and [scaffold verification](docs/sdd/project-scaffold/VERIFICATION.md), and
 [image-opening verification](docs/sdd/image-document/VERIFICATION.md), and
-[image-inspection verification](docs/sdd/image-inspection/VERIFICATION.md).
+[image-inspection verification](docs/sdd/image-inspection/VERIFICATION.md), and
+[folder-browsing verification](docs/sdd/folder-browsing/VERIFICATION.md).
 Licensed GPL-3.0-or-later; see LICENSE.
 
 `task run` registers the selected development build's desktop entry and icon under
