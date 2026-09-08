@@ -4,7 +4,8 @@ A standalone, keyboard-first HoloNight static-image viewer. Open one local image
 with **Open…**, **Ctrl+O**, a file drop, or a command-line path. Images decode in
 the background, honor embedded orientation, and fit the window. PNG and JPEG are
 required; additional formats depend on installed Qt image plugins. Animated files
-show their first frame only. Zoom and folder browsing are later roadmap stages.
+show their first frame only. Inspect with fit, actual size, zoom and pan; folder
+browsing is a later roadmap stage.
 
 Requires C++23, Qt 6.11+, CMake 3.25+, Ninja, Task, tomlplusplus, and installed
 HolonightQt::Core / HolonightQt::Controls. Tests use Qt Test and GTest. Checks need
@@ -41,6 +42,25 @@ build/debug/apps/viewer/holonight-viewer -- './photo with spaces.png'
 Native decorations belong to Qt/the compositor. Fullscreen restores the previous
 normal/maximized state. Global fullscreen/quit shortcuts pause while Open is active.
 
+| Image control | Action |
+| --- | --- |
+| `0` / Fit | Center the whole image and fit it as the window changes |
+| `1` / Actual Size | Center at one source pixel per physical display pixel |
+| `+` or `=` / `−` | Zoom in/out around the canvas center |
+| Vertical wheel or trackpad scroll over the canvas | Zoom around the pointer |
+| Left-button drag | Pan the image |
+| Arrow keys with the canvas focused | Pan the viewed region in that direction |
+
+Zoom, Fit and Actual Size focus the canvas so arrow-key panning works immediately.
+Tab reaches the canvas and buttons; clicking the canvas also focuses it. Manual
+zoom preserves magnification during resize/fullscreen and display-scale changes.
+100% means physical pixels even at fractional display scaling. Zoom normally
+ranges from 1% to 3200%, extending to include Fit for unusually small/large images.
+Panning stops at image edges and centers axes that fit. Opening another image
+resets to Fit; canceling Open preserves the view. Image controls pause while the
+dialog is open. Zoom/pan reuse the decoded image and a canvas-sized rendering
+surface without changing the original file.
+
 Viewing limits are 256 MiB encoded input, 32 million pixels, 32,768 pixels on either
 axis, and 128 MiB per decoded image. Unsupported dimensions and oversized images
 produce an error instead of a lower-resolution substitute. Decoding/conversion and
@@ -69,7 +89,8 @@ LD_LIBRARY_PATH=<prefix>/lib. No source-tree imports are embedded in the binary.
 
 See [contributor workflow](CONTRIBUTING.md), [project brief](docs/PROJECT_BRIEF.md),
 [backlog](docs/BACKLOG.md), and [scaffold verification](docs/sdd/project-scaffold/VERIFICATION.md), and
-[image-opening verification](docs/sdd/image-document/VERIFICATION.md).
+[image-opening verification](docs/sdd/image-document/VERIFICATION.md), and
+[image-inspection verification](docs/sdd/image-inspection/VERIFICATION.md).
 Licensed GPL-3.0-or-later; see LICENSE.
 
 `task run` registers the selected development build's desktop entry and icon under

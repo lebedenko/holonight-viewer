@@ -22,6 +22,14 @@ Stage 0 retains the approved [scaffold cycle](sdd/project-scaffold/SPEC.md).
 are approved. Image opening is implemented; see its verification record for
 automated evidence and remaining native desktop acceptance.
 
+[Stage 2 requirements](sdd/image-inspection/SPEC.md),
+[design](sdd/image-inspection/DESIGN.md) and
+[tasks](sdd/image-inspection/TASKS.md) are approved. Image inspection is implemented
+with local automated and live Wayland checks passed; see its
+[verification record](sdd/image-inspection/VERIFICATION.md) for evidence and the
+pending native mixed-scale display check. Stage 0 and stage 1 acceptance remain
+open independently.
+
 ## After the first release
 
 1. GIF/WebP animation: playback, pause/resume, frame timing, bounded resources.
