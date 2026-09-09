@@ -79,7 +79,8 @@ five seconds; any keyboard input hides them immediately. An independent five-sec
 details strip appears after a new or refreshed image first renders. Mouse movement
 restarts its timeout; ordinary repaints and keyboard inspection do not. The strip
 shows transformed dimensions, decimal file size, physical-pixel scale (including
-Fit), and folder position without resizing the canvas. Viewer-owned controls retain
+Fit), and folder position as separate labels with themed separators, wrapping at
+narrow widths without resizing the canvas. Viewer-owned controls retain
 keyboard focus and activation without focus-dependent decoration. Typography
 inherits the shared theme’s point-based font sizes.
 

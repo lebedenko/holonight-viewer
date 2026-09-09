@@ -17,3 +17,6 @@ VERIFICATION.md for scope and skipped opt-in checks.
 
 - [x] R7: Add resource-backed SVG header icons and inset popup placement.
 - [x] R7: Verify runtime resource loading, menu bounds, themes/scales and required checks.
+
+- [x] R8: Render reactive metadata sections with a Repeater and HnSeparator.
+- [x] R8: Run required checks and inspect normal/narrow overlay captures.

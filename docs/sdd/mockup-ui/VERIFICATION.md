@@ -82,3 +82,22 @@ format-check and installation pass. Explicit dark/light startup probes at 125%
 scaling with an image loaded report no binding-loop or conflicting font-size
 warnings; the full CTest runtime log also contains neither warning. Evidence:
 `build/icon-binding/`.
+
+## Metadata sections (R8)
+
+Replaced the pipe-delimited metadata string with an array-backed Repeater. Each
+section uses a plain-text HnLabel and vertical HnSeparator. Field order, reactive
+formatting, filename elision, wrapping and overlay timing remain intact.
+
+Passed `task deps`, `task build`, `task test` (all seven CTest targets),
+`task build PRESET=release`, `task format`, `task format-check`, `task tidy`,
+`task qml-lint`, `task license-check`, `task install-check` and `task visual-check`.
+The license check initially hit a sandbox socket restriction; its authorized
+outside-sandbox rerun passed. All 36 visual test executions passed across dark/light
+themes and 100%, 125%, 150% scale. Inspected normal/narrow dark captures and the
+narrow light capture at 125%: separators render and filename elision/wrapping remain
+readable. No QML binding-loop or reference/type errors appeared in runtime logs.
+
+Evidence: `build/metadata-*.log`, `build/test/Testing/Temporary/LastTest.log` and
+`build/visual/` captures. Visual verification uses offscreen/software rendering;
+earlier native-desktop acceptance limitations remain open independently.

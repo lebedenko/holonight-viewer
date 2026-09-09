@@ -15,3 +15,8 @@ point-based typography rather than applying pixel-sized font overrides.
 Approved by the user’s typography correction.
 
 R7: Header actions shall use consistent scalable SVG icons, not font glyphs. The Actions popup shall retain a visible inset from every client-area edge. Approved by the user’s icon and menu-spacing correction.
+
+R8: When image details are visible, the Viewer shall render metadata sections
+from an array through a Repeater, separated by shared HnSeparator controls,
+preserving field order, reactive values, filename elision and narrow-width wrapping.
+Approved by the user’s metadata refactor request.

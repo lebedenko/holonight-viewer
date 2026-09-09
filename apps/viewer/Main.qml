@@ -613,7 +613,7 @@ HnApplicationWindow {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: 12
-                width: Math.min(parent.width - 24, stripFilename.implicitWidth + metadata.implicitWidth + 36)
+                width: Math.min(parent.width - 24, stripFilename.implicitWidth + metadata.naturalWidth + 36)
                 height: detailsFlow.height + 16
                 radius: HnMetrics.internalSpacing(HnControlSize.Compact)
                 color: Qt.alpha(HoloniightPalette.surface, 0.85)
@@ -627,17 +627,44 @@ HnApplicationWindow {
                     spacing: 12
                     HnLabel {
                         id: stripFilename
-                        width: Math.min(implicitWidth, Math.max(80, detailsFlow.width - metadata.implicitWidth - 12))
+                        width: Math.min(implicitWidth, Math.max(80, detailsFlow.width - metadata.naturalWidth - 12))
                         rawText: window.document.fileName
                         elide: Text.ElideMiddle
                         textFormat: Text.PlainText
                     }
-                    HnLabel {
+                    Flow {
                         id: metadata
-                        width: Math.min(implicitWidth, detailsFlow.width)
-                        wrapMode: Text.Wrap
-                        rawText: qsTr("|  %1 × %2  |  %3  |  %4%  |  %5 / %6").arg(window.document.transformedDimensions.width).arg(window.document.transformedDimensions.height).arg(window.document.formattedFileSize).arg(Number(canvas.magnification * 100).toLocaleString(Qt.locale(), 'f', canvas.magnification < 0.01 ? 4 : 1)).arg(window.document.position).arg(window.document.count)
-                        textFormat: Text.PlainText
+                        readonly property real naturalWidth: {
+                            let total = Math.max(0, metadataSections.count - 1) * spacing;
+                            for (let i = 0; i < metadataSections.count; ++i) {
+                                const section = metadataSections.itemAt(i);
+                                if (section)
+                                    total += section.implicitWidth;
+                            }
+                            return total;
+                        }
+                        width: Math.min(naturalWidth, detailsFlow.width)
+                        spacing: 12
+                        Repeater {
+                            id: metadataSections
+                            model: [qsTr("%1 × %2").arg(window.document.transformedDimensions.width).arg(window.document.transformedDimensions.height), window.document.formattedFileSize, qsTr("%1%").arg(Number(canvas.magnification * 100).toLocaleString(Qt.locale(), 'f', canvas.magnification < 0.01 ? 4 : 1)), qsTr("%1 / %2").arg(window.document.position).arg(window.document.count)]
+                            RowLayout {
+                                id: section
+                                required property string modelData
+                                width: Math.min(implicitWidth, metadata.width)
+                                spacing: 12
+                                HnSeparator {
+                                    orientation: Qt.Vertical
+                                    Layout.fillHeight: true
+                                }
+                                HnLabel {
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.Wrap
+                                    rawText: section.modelData
+                                    textFormat: Text.PlainText
+                                }
+                            }
+                        }
                     }
                 }
             }

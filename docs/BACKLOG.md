@@ -59,7 +59,8 @@ memory/latency, visual checks, and the exact remaining acceptance boundary.
 2. Command mode using established shared action definitions.
 3. Mockup-based Viewer presentation: implemented in the approved
    [mockup UI cycle](sdd/mockup-ui/SPEC.md), with local automated and offscreen
-   acceptance passed. See its verification record for native-desktop limitations.
+   acceptance passed. The metadata follow-up renders array-driven sections with
+   shared separators. See its verification record for native-desktop limitations.
 4. A separate trash workflow with confirmation/recovery and explicit failures.
 5. Richer metadata and formats driven by actual usage.
 

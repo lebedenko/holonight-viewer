@@ -33,3 +33,9 @@ Header icon width and height each bind directly to the shared size token. Do
 not bind one icon subproperty to another: updates to the grouped icon value
 caused a runtime binding loop in `icon.height`. This corrects R7 without changing
 the approved icon dimensions or typography.
+
+R8: Keep the filename and outer Flow. Replace the combined metadata label with
+a Flow of repeated rows, each pairing a vertical HnSeparator with a plain-text
+HnLabel. Bind the translated section array to document metadata and magnification.
+Sum natural row widths for filename elision and constrain rows to the strip width.
+This implements the user-requested presentation refactor.
