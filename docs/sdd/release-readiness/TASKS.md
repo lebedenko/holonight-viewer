@@ -70,20 +70,22 @@ Implementation and release acceptance are separate; unchecked current-release ga
 
 ## Current source qualification (approved 2026-09-09)
 
-- [ ] Q1 (R10–R13): Reconcile approved deferrals, retain Stage 4 acceptance and
+- [x] Q1 (R10–R13): Reconcile approved deferrals, retain Stage 4 acceptance and
   historical evidence; commit scope and qualification tooling on a new branch.
-- [ ] Q2 (R11): Five native trials per revision with identical instrumentation;
+- [x] Q2 (R11): Five native trials per revision with identical instrumentation;
   independent receiver pixels, all raw results and median/range/environment record.
 - [ ] Q3 (R12): Present measured latency/memory tradeoffs for explicit user review.
   Do not mark passed before the user accepts.
-- [ ] Q4 (R13): Committed clean checkout: task deps, debug/release builds, test,
+- [x] Q4 (R13): Committed clean checkout: task deps, debug/release builds, test,
   format-check, tidy, qml-lint, license-check, desktop-check, install-check and
   inspected dark/light × 1/1.25/1.5 visual matrix with CI-pinned installed providers.
-- [ ] Q5 (R3/R13): Fresh CI image; installed-runtime container without workspace
+- [x] Q5 (R3/R13): Fresh CI image; installed-runtime container without workspace
   mounts/overrides; empty startup, four formats, assets and runtime paths.
-- [ ] Q6 (R13): Push qualification branch, draft PR, final-head Build and checks
-  and Licensing success with SHA and run URLs. Commit final evidence; no merge,
-  tag, publication or version bump.
+- [x] Q6a (R13): Push qualification branch and draft PR #1; candidate
+  0f137cf passes hosted Build and checks and Licensing; SHA/run URLs recorded.
+- [ ] Q6b (R13): Commit final evidence and verify hosted CI on that PR head.
+  Final head SHA/run URLs/outcomes are recorded in the PR description after CI
+  completes; no merge, tag, publication or version bump.
 
 ## Next release — explicitly deferred, not passed
 

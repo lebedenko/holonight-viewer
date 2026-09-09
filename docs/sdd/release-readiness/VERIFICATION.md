@@ -595,3 +595,147 @@ ordinary user. CI now runs the build/check container with the runner's UID/GID,
 so the mandatory unreadable-file regression exercises real permission denial.
 The test and production handling remain unchanged. Licensing passed on this head
 ([run](https://github.com/lebedenko/holonight-viewer/actions/runs/34397129674)).
+
+### Clean checkout and installed runtime
+
+Full contributor sequence passed at committed source `0b6bc436dce936aa1c59cb1a3b277c60a4d8ab4e`
+in `build/qualification/clean`: task deps, build, build PRESET=release, test (7/7
+CTest entries, 22.31 s), format-check, tidy, qml-lint, license-check, desktop-check,
+install-check and visual-check. Provider sources were separate clean clones beneath
+build/qualification at CI-pinned Config `fe69a59e6b73167fd5349223a4d265d75386c139`
+and Qt `22ded7815727ce483fd91e82a9cc04bfe252ec3b`, installed only into the clean
+Viewer checkout's build/deps/prefix. All three source trees were clean afterward.
+The checkout was then fast-forwarded to `0f137cf5b1efe1046c07f6932b454663a90ffb1a`;
+that change touches only CI UID/GID and documentation, not production/test sources.
+
+Logs: `build/qualification/clean-checks.log` and
+`build/qualification/clean/build/qualification-logs/`. The visual script passed
+42 test executions across dark/light × 1/1.25/1.5. Inspected captures include normal
+canvas/button, minimum-size menu/Help/Close and normal Information in all six
+combinations: visible outlines, bounded dialogs, scrollable minimum-size text and
+unchanged image geometry. These offscreen captures do not pass deferred physical
+mixed-monitor movement. Captures: `build/qualification/clean/build/visual/`.
+
+Fresh CI image built with `docker build --pull --no-cache -t viewer-ci -f
+packaging/Dockerfile.ci .` (image `c3ae167bbd65`). Its fresh installed-runtime image
+used `build/qualification/clean/build/runtime-check.1gLZuX`, followed by
+`docker run --rm --network none viewer-runtime-check` with **no mounts**. Pass:
+empty startup, PNG/JPEG/BMP/WebP decode and CLI recovery, four-format GIO installed
+launcher, installed entry/icon, and no development runtime paths/overrides. Logs:
+`build/qualification/{ci-image,runtime-image,runtime}.log`. This is a local isolated
+runtime result; hosted final-head validation remains separately required.
+
+### Native five-trial comparison
+
+Candidate `0f137cf5b1efe1046c07f6932b454663a90ffb1a` versus production baseline
+`de7ef473eaca2e5d4e2de0b0084dbc691412c473`. Both use identical performance-test and
+receiver source (SHA-256 recorded), Release builds and the same separately installed
+CI-pinned providers. Baseline adds only test-target wiring and this instrumentation;
+its production sources are unchanged. No builds or competing benchmarks ran during
+the five baseline trials followed by five candidate trials. Every trial used fresh
+Viewer and receiver processes, the production Main QML window, and the same fixtures,
+renderer, compositor, size and scale.
+
+Environment: Arch Linux, kernel 7.2.4-arch1-2, Intel i9-9900K (16 logical CPUs),
+labwc 0.20.2/wlroots 0.20.2, Qt Base 6.11.2-3, Declarative/Wayland/Image Formats
+6.11.2-1, Mesa 26.2.2-1, libwebp 1.6.0-2, wtype 0.4-2. Native wayland-0,
+DISPLAY unset, HoloNight platform theme, OpenGL (actual renderer API 3), basic
+render loop, 1000×700 logical window, effective device scale 1.5 in every trial.
+QT_SCALE_FACTOR=1 retains that compositor scale; it does not mean a physical scale
+of 1. Provider QML/library paths point only at the same clean installed prefix.
+
+The existing independent red/green RGBA(255,0,0,128)/(0,255,0,128) 8000×4000 PNGs
+were copied unchanged into `build/qualification/fixtures`, excluding unrelated
+historical received files from folder prefetch. SHA-256:
+`5275d874e1c0a6f63d0b7631b555324f84ed14a7c074b145ceedea8960f23681` (1.png),
+`6af74058a17d0a7b0b40b76e28e0d3bdfb24c8b49e137e7f2c653ffee3de9428` (2.png).
+Independent GdkPixbuf validation compares every received pixel to specified green
+alpha-128 and 4000×8000 quarter-turn dimensions. These uniform fixtures establish
+quarter-turn dimensions/color/alpha; they do not independently distinguish mirror
+handedness. The earlier asymmetric eight-orientation native matrix remains the
+handedness evidence. Source bytes remain unchanged.
+
+**Candidate output: 5/5 pass. Baseline output: 0/5 pass** — all baseline receptions
+have alpha 255 instead of 128, though dimensions and green color match. Baseline
+quicker copy numbers are measurements of incorrect output, not equivalent successful
+transfers. All ten workflows/receivers completed without hangs or crashes.
+
+| Measurement | Baseline median [min–max] | Candidate median [min–max] |
+| --- | --- | --- |
+| Open to updated Qt frame (ms) | 151 [141–152] | 163 [162–175] |
+| Navigation to updated Qt frame (ms) | 211 [210–221] | 216 [215–227] |
+| Eight rendered transforms (ms) | 144 [129–155] | 127 [108–132] |
+| Copy preparation/publication (ms) | 38 [37–38] | 967 [959–980] |
+| Copy initiation to receiver completion (ms) | 432 [404–450] | 1359 [1333–1372] |
+| Receiver read/conversion only (ms) | 243 [239–257] | 242 [238–250] |
+| Maximum observed GUI timer gap (ms) | 131 [128–149] | 82 [63–105] |
+| Viewer process peak RSS (KiB) | 918736 [917732–918924] | 709136 [708592–709828] |
+| Receiver process peak RSS (KiB) | 604352 [604316–604572] | 508812 [508548–509040] |
+
+All five values below are in trial order; raw per-transform timings, GUI tick counts,
+window metadata, XML/logs, captured window and received PNG/pixel results are retained
+under `build/qualification/native-{baseline,candidate}/run-{1..5}`. Summary/environment
+JSON and source/environment fingerprints live alongside those directories. Runner:
+`build/qualification/run-native.sh`; build recipe: `build/qualification/build-performance.sh`.
+
+| Measurement | Baseline trials 1–5 | Candidate trials 1–5 |
+| --- | --- | --- |
+| Open to updated Qt frame (ms) | 141, 152, 141, 152, 151 | 165, 163, 175, 162, 163 |
+| Navigation to updated Qt frame (ms) | 211, 210, 211, 221, 211 | 215, 227, 227, 216, 216 |
+| Eight rendered transforms (ms) | 152, 129, 144, 155, 137 | 128, 132, 122, 108, 127 |
+| Copy preparation/publication (ms) | 37, 38, 38, 38, 38 | 959, 979, 959, 967, 980 |
+| Copy initiation to receiver completion (ms) | 424, 432, 404, 450, 438 | 1333, 1359, 1342, 1369, 1372 |
+| Receiver read/conversion only (ms) | 243, 243, 239, 257, 246 | 238, 242, 240, 249, 250 |
+| Maximum observed GUI timer gap (ms) | 128, 131, 130, 149, 133 | 78, 82, 105, 63, 82 |
+| Viewer process peak RSS (KiB) | 917732, 918840, 918720, 918736, 918924 | 708660, 709828, 708592, 709136, 709388 |
+| Receiver process peak RSS (KiB) | 604316, 604352, 604328, 604552, 604572 | 508852, 508812, 508548, 509040, 508800 |
+
+Boundaries and tradeoffs:
+
+- Open/navigation start at the document command and finish at frameSwapped after
+  synchronization sees the updated image. Each transform likewise completes an
+  updated frame; the aggregate covers eight separate operations, not only command
+  dispatch. Qt frame completion is not physical display latency. Results are this
+  warmed filesystem/session and fixture corpus, not cold-disk or universal timings.
+- Copy preparation includes worker preparation and publication; the completion poll
+  has roughly 10 ms granularity. End-to-end copy includes launching the receiver,
+  native compositor activation and its generic QClipboard image read/conversion.
+  A shared monotonic timestamp ends the measurement before PNG save/hash work.
+  The owner receives a native input serial first; the receiver reads on wtype Return
+  after confirmed activation. This is compositor automation, not human input timing.
+- GUI gaps use a 1 ms requested timer under QTest event-loop polling. The interval
+  includes rendering, the pre-copy capture, publication and transfer through observed
+  receiver completion; it is not a hard responsiveness guarantee or an attribution
+  of each gap to clipboard code. Candidate gaps range 63–105 ms versus 128–149 ms.
+- RSS is Linux wait4/ru_maxrss for each separate child lifetime, including screenshot
+  capture and receiver save/hash validation. These are kernel resident high-water
+  values, not periodic RSS samples or exact allocation/GPU peaks. They cannot be
+  added into a simultaneous combined peak. Candidate medians are 692.5 MiB Viewer
+  and 496.9 MiB receiver versus 897.2/590.2 MiB baseline; no universal memory bound
+  or statistically significant improvement is claimed from five trials.
+- Correct PNG publication costs a median 967 ms versus baseline's 38 ms preparation,
+  and 1359 ms versus 432 ms through reception. The baseline loses alpha in every
+  run. Candidate open/navigation medians are 12/5 ms higher and transform aggregate
+  17 ms lower; no numeric pass threshold or significance claim is invented.
+- Clipboard persistence-service behavior and memory/transport costs remain deferred,
+  not zero. No persistence service was launched. Existing documented decode/cache
+  limits remain unchanged; rendering/encoding/platform transport add temporary memory.
+
+Measured tradeoffs were presented to the user for explicit review. Performance
+acceptance remains pending until the user responds; successful measurements alone
+do not close R12/Q3. Final hosted PR-head CI remains a separate gate.
+
+### Hosted CI after the permission fix
+
+Both workflows passed on candidate `0f137cf5b1efe1046c07f6932b454663a90ffb1a`:
+[Build and checks](https://github.com/lebedenko/holonight-viewer/actions/runs/34401736186)
+and [Licensing](https://github.com/lebedenko/holonight-viewer/actions/runs/34401736183).
+Build and checks includes its freshly built CI image, all contributor checks and
+the installed-only runtime container; every step passed. The first failure remains
+recorded above and the unreadable-file regression is unchanged.
+
+[Draft PR #1](https://github.com/lebedenko/holonight-viewer/pull/1) remains unmerged.
+The final evidence-only commit must also receive both hosted workflows. Its exact
+head SHA, run URLs and outcomes are recorded in the PR description after those
+runs finish, avoiding a self-referential commit claiming its own future CI result.
+No native rerun is required for unchanged production/tooling sources.
