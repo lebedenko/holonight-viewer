@@ -85,3 +85,8 @@ tradeoffs; successful automated checks alone do not close this gate.
 
 Exclude build/ and .git/ from Docker build contexts: generated local runtime
 payloads may be root-owned and must not be sent as CI-image source context.
+
+Run contributor checks in CI as the runner's UID/GID, preserving filesystem access
+semantics for unreadable-file tests. Root would bypass chmod-000 fixture denial;
+do not weaken or skip that regression. Runtime installation remains in its separate
+installed-only image.

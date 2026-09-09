@@ -586,3 +586,12 @@ A first fresh-image attempt failed while traversing generated, root-owned build
 payloads. `.dockerignore` now excludes build/ and .git/ from source contexts.
 The image retry and final committed clean-checkout/measurement/hosted results will
 be recorded here; current gates remain pending until evidence is complete.
+
+Initial hosted Build and checks failed on `0b6bc436dce936aa1c59cb1a3b277c60a4d8ab4e`
+([PR run](https://github.com/lebedenko/holonight-viewer/actions/runs/34397129680)):
+`Document.UnreadableAndSpecialFiles` decoded a chmod-000 fixture because Docker
+ran the contributor tests as root. The same unchanged test passes locally as the
+ordinary user. CI now runs the build/check container with the runner's UID/GID,
+so the mandatory unreadable-file regression exercises real permission denial.
+The test and production handling remain unchanged. Licensing passed on this head
+([run](https://github.com/lebedenko/holonight-viewer/actions/runs/34397129674)).
