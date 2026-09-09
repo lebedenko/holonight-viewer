@@ -26,10 +26,9 @@ new viewing features, directory opening or single-instance forwarding.
 - R5: When native clipboard acceptance runs, a separate interactive receiver shall
   read on user activation and report pixels/dimensions or text. Native Wayland shall cover eight orientations, alpha, special/symlink paths, navigation
   during preparation and shutdown using real keyboard/menu input.
-- R6: Before release acceptance, native portal selection/cancellation, file-manager
-  drop, stacking decorations, mixed-scale movement, real Orca, committed-checkout CI,
+- R6: Before release acceptance, file-manager drop, stacking decorations, real Orca, committed-checkout CI,
   regression/visual checks and five-run release performance comparisons shall pass.
-  Missing environments or unresolved provider/platform issues shall remain blockers.
+  Missing environments for current-release checks shall remain blockers.
   Evidence shall identify actual environments and retain image/cache limits.
 
 ## Approved Viewer fixes follow-up (2026-09-08)
@@ -60,3 +59,33 @@ navigation shall visibly distinguish its enabled highlighted item. Tab/Shift+Tab
 shortcuts, dialog dismissal, input handling and image geometry shall remain intact.
 Stable window-activation styling shall not suppress keyboard-focus indicators.
 Native Open and provider changes remain outside this repair.
+
+## Approved source qualification scope (2026-09-09)
+
+The supplied “Qualify the current source release” plan supersedes earlier scope:
+Native Open/provider-dialog acceptance, physical mixed-monitor/mixed-scale movement,
+and clipboard persistence-service behavior and memory/transport costs are deferred
+explicitly to the next release. They are not passed and do not block this release.
+Their existing reproductions and acceptance criteria remain in TASKS and the
+provider handoff. R10 remains a documentation requirement.
+
+- R11: When native performance qualification runs, it shall compare baseline
+  `de7ef473eaca2e5d4e2de0b0084dbc691412c473` and the candidate in five sequential
+  fresh processes each, with identical instrumentation, installed providers,
+  8000×4000 alpha fixtures, renderer, window size, scale and compositor. It shall
+  measure open/navigation through an updated rendered frame, transform rendering,
+  copy preparation/publication and copy initiation through interactive receiver
+  completion, GUI timer gaps and separate Viewer/receiver RSS. Native compositor
+  input shall activate reception; independent expected pixels shall verify size,
+  orientation and alpha. Incorrect baseline output shall remain a failure.
+- R12: When accepting performance, the user shall explicitly review latency and
+  memory tradeoffs; no numeric threshold shall be invented. Correct candidate
+  output, completion and absence of hangs/crashes are mandatory. Evidence shall
+  retain all runs, median/range and environment versions, and distinguish Qt frame
+  completion from physical display latency and sampled memory from exact peaks.
+- R13: Before source qualification completes, a committed clean checkout shall
+  pass contributor, visual and installed-only runtime checks with providers pinned
+  by CI; both hosted workflows shall pass on the final draft-PR head. No merge,
+  tag, publication or version bump shall occur. Production changes require affected
+  native remeasurement; documentation-only evidence changes require documentation
+  checks and hosted CI, without repeating unchanged native measurements.

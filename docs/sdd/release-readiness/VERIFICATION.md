@@ -10,7 +10,26 @@ Current fixes follow-up: compact WebP and the native generic Qt clipboard alpha
 matrix now pass. Earlier failures below are retained as historical evidence and
 are superseded by [the fixes results](#viewer-fixes-follow-up-2026-09-08).
 The [HoloNight dialog delegation handoff](../../holonight-qt-dlg-delegation-missed.md)
-is an explicit unresolved provider blocker.
+is unresolved and explicitly deferred to the next release.
+
+## Current pending gates (approved scope, 2026-09-09)
+
+The supplied source-qualification plan supersedes historical pending/blocker
+statements below. Historical failures and human acceptance evidence are retained.
+
+- Native performance: five-run rendering and end-to-end clipboard comparison,
+  responsiveness and separate Viewer/receiver memory, then explicit user acceptance.
+- Final committed clean-checkout contributor, visual and installed-runtime checks.
+- Hosted Build and checks and Licensing on the final draft-PR head.
+
+Native Open/provider-dialog acceptance, physical mixed-monitor/mixed-scale movement,
+and clipboard persistence-service behavior and memory/transport costs are **deferred
+to the next release, not passed** (TASKS N1–N3). They do not block this release.
+No persistence service will be launched; its unmeasured costs are not zero.
+
+Viewer focus/Orca, human clipboard image/path/lifecycle, four-format file-manager
+drop and labwc window behavior passed. Stage 4 is accepted; Stage 5 remains pending
+until the current gates above pass. No publication or version change is authorized.
 
 ## Environment and baseline
 
@@ -545,3 +564,25 @@ capture was supplied; this does not resolve the separate native Open blocker.
 The user explicitly has no second monitor and requested that two-monitor tests
 remain pending. Physical mixed-scale display movement/rendering/focus/dialog
 acceptance is therefore unavailable and remains open, not passed or waived.
+
+## Source qualification execution (2026-09-09)
+
+Approved plan: “Qualify the current source release”. Branch:
+`qualify/source-release`. Existing uncommitted Stage 4 documentation reconciliation
+is included. No production CLI/API, provider sources/revisions or version changed.
+Spark owned the initial performance-test and receiver changes; it hit its usage
+limit during integration corrections. Main completed the corrections locally.
+
+Tooling pilot on labwc 0.20.2/wlroots 0.20.2, Qt 6.11.2, native Wayland, OpenGL,
+basic render loop, 1000×700 logical window at device scale 1.5 passed independent
+4000×8000 green/alpha-128 reception. This debug pilot is not a release measurement.
+The first pilot failed empty reception because the owner had no native input serial;
+the driver now sends native compositor input before clipboard publication. The
+receiver reads after its activation and wtype Return. Its completion timestamp
+precedes save/hash work; process RSS includes the full process lifetime. Timing
+uses the monotonic Qt clock and updated-canvas synchronization/frameSwapped.
+
+A first fresh-image attempt failed while traversing generated, root-owned build
+payloads. `.dockerignore` now excludes build/ and .git/ from source contexts.
+The image retry and final committed clean-checkout/measurement/hosted results will
+be recorded here; current gates remain pending until evidence is complete.

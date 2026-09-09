@@ -178,7 +178,10 @@ file when switching to a system package.
 
 Stage 5 prepares a **source release with CMake install**; it is not release-ready.
 See [release qualification](docs/sdd/release-readiness/VERIFICATION.md) for remaining
-native desktop, accessibility, performance and hosted CI gates. No release
+native rendering/clipboard performance and user review, clean-checkout validation
+and hosted CI gates. Native Open/provider-dialog acceptance, physical mixed-monitor
+and mixed-scale movement, and clipboard persistence-service behavior/costs are
+explicitly deferred to the next release, not passed. No release
 has been published and no distribution packages or bundled providers are supplied.
 
 The guaranteed target formats are static **PNG, JPEG, BMP and WebP**. Install Qt
@@ -244,4 +247,24 @@ receiver as mandatory; explicit PNG reception is a separate diagnostic. See the
 release verification for current results and remaining human input checks.
 Native portal selection/cancellation passed with the per-process
 `QT_QPA_PLATFORMTHEME=xdgdesktopportal` comparison. The default HoloNight theme's
-missing delegation remains a [provider blocker](docs/holonight-qt-dlg-delegation-missed.md).
+missing delegation remains a [next-release provider issue](docs/holonight-qt-dlg-delegation-missed.md).
+
+Opt-in native performance tooling uses the production QML window and a separate
+interactive generic Qt receiver on labwc. With the existing red/green 8000×4000
+alpha fixtures and installed provider paths configured, run:
+
+```sh
+python3 scripts/measure-native-release.py build/performance/tests/viewer-smoke \
+  build/performance/tests/clipboard-probe build/release-readiness/fixes-native-lifecycle \
+  build/qualification/native-candidate --revision COMMIT_SHA
+```
+
+Build the test target in Release mode first. Run both revisions sequentially with
+identical instrumentation and environment; the default is five fresh processes.
+`wtype` activates reception through native compositor input; let these temporary
+windows retain focus during the run. Artifacts remain under `build/`. Frame timing
+ends at Qt frame completion, not physical display. Transfer includes receiver
+startup/activation and ends after read/conversion, before save/hash validation.
+Separate process RSS includes that later validation work. The historical baseline
+may be recorded with `--allow-incorrect-baseline`; incorrect pixels remain failures.
+Performance acceptance requires explicit user review of measured tradeoffs.

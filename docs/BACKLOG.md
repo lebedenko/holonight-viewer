@@ -48,8 +48,9 @@ This reaches the first usable checkpoint.
 Temporary composable transforms, information snapshots, asynchronous image copying,
 path copying, Actions and shortcut help are implemented. Automated pixel/input/
 metadata/lifecycle tests and XWayland separate-process clipboard transfer provide
-local evidence. Stage 4 is **not accepted**: native Wayland clipboard transfer
-remains unresolved. Earlier native-desktop gates remain pending independently.
+local evidence. Subsequent native Wayland pixel/transport results and the completed
+human image/path/lifecycle walkthrough close the clipboard gate: **Stage 4 is
+accepted as of 2026-09-09**. Earlier native-desktop gates remain pending independently.
 See the [verification record](sdd/static-image-workflow/VERIFICATION.md) for measured
 memory/latency, visual checks, and the exact remaining acceptance boundary.
 
@@ -79,12 +80,15 @@ are outside this roadmap. Crop remains an uncommitted later possibility.
 Stage 5 follows the approved [release-readiness cycle](sdd/release-readiness/SPEC.md).
 Source installation qualification, four-format declarations, file-aware desktop
 integration, accessibility announcements and interactive clipboard tooling are
-implemented. **Stage 5 is not accepted**: full native desktop/accessibility/mixed-scale,
-human clipboard lifecycle/performance and hosted CI gates remain open.
+implemented. **Stage 5 is not accepted**: native rendering/transfer performance
+and explicit user review, final committed-tree validation and hosted CI remain open.
+Native Open, physical mixed-scale displays and clipboard-service qualification
+are explicitly deferred to the next release, not passed. Viewer accessibility, human
+clipboard transfer/lifecycle, four-format drop and labwc window checks have passed.
 The approved Viewer fixes add explicit PNG clipboard publication and a bounded
 simple-WebP fallback; compact decoding and the compositor-input generic Qt alpha
 matrix now pass. Default HoloNight native Open remains an unresolved
-[provider delegation blocker](holonight-qt-dlg-delegation-missed.md).
+[next-release provider delegation issue](holonight-qt-dlg-delegation-missed.md).
 Installed-only container validation and basic native Orca/PNG clipboard checks pass. See the
 [verification record](sdd/release-readiness/VERIFICATION.md) for actual evidence.
 
@@ -115,3 +119,16 @@ The user subsequently reported Viewer working as expected on labwc after the
 stacking-window guide. This closes that human window-behavior check. Two-monitor
 mixed-scale acceptance remains pending at the user's request because no second
 monitor is available; native Open and other release qualification gates remain.
+
+## Next-release qualification deferrals (approved 2026-09-09)
+
+This scope supersedes historical pending/blocker wording above. Grouped tasks and
+retained reproduction/acceptance criteria: [release tasks N1–N3](sdd/release-readiness/TASKS.md).
+
+- Native Open and provider/dialog acceptance: unresolved; provider handoff retained.
+- Physical mixed-monitor/mixed-scale movement: unavailable with one monitor;
+  simulated fractional-scale checks do not establish physical movement acceptance.
+- Clipboard persistence-service behavior and memory/transport costs: untested;
+  no service will be launched for this release and its costs are not reported as zero.
+
+These are next-release gates, not current-release blockers or successful checks.
