@@ -83,9 +83,10 @@ Implementation and release acceptance are separate; unchecked current-release ga
   mounts/overrides; empty startup, four formats, assets and runtime paths.
 - [x] Q6a (R13): Push qualification branch and draft PR #1; candidate
   0f137cf passes hosted Build and checks and Licensing; SHA/run URLs recorded.
-- [ ] Q6b (R13): Commit final evidence and verify hosted CI on that PR head.
-  Final head SHA/run URLs/outcomes are recorded in the PR description after CI
-  completes; no merge, tag, publication or version bump.
+- Q6b (R13): Final evidence-head CI uses the live checklist in
+  [draft PR #1](https://github.com/lebedenko/holonight-viewer/pull/1). Record its exact
+  head SHA, both run URLs and outcomes there after CI completes; that checklist is
+  the completion record for this task. No merge, tag, publication or version bump.
 
 ## Next release — explicitly deferred, not passed
 

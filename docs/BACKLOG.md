@@ -80,8 +80,10 @@ are outside this roadmap. Crop remains an uncommitted later possibility.
 Stage 5 follows the approved [release-readiness cycle](sdd/release-readiness/SPEC.md).
 Source installation qualification, four-format declarations, file-aware desktop
 integration, accessibility announcements and interactive clipboard tooling are
-implemented. **Stage 5 is not accepted**: native rendering/transfer performance
-and explicit user review, final committed-tree validation and hosted CI remain open.
+implemented. **Stage 5 is not accepted**: explicit user performance review remains
+open; final evidence-head CI is tracked in draft PR #1. Native rendering/transfer
+measurements, committed clean-checkout checks and fresh installed-runtime validation
+have passed, with candidate hosted CI success recorded in the verification record.
 Native Open, physical mixed-scale displays and clipboard-service qualification
 are explicitly deferred to the next release, not passed. Viewer accessibility, human
 clipboard transfer/lifecycle, four-format drop and labwc window checks have passed.

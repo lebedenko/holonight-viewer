@@ -178,8 +178,9 @@ file when switching to a system package.
 
 Stage 5 prepares a **source release with CMake install**; it is not release-ready.
 See [release qualification](docs/sdd/release-readiness/VERIFICATION.md) for remaining
-native rendering/clipboard performance and user review, clean-checkout validation
-and hosted CI gates. Native Open/provider-dialog acceptance, physical mixed-monitor
+explicit user performance review and final evidence-head hosted CI status.
+Native rendering/clipboard measurements and clean-checkout/installed-runtime
+validation have passed; candidate hosted CI succeeded. Native Open/provider-dialog acceptance, physical mixed-monitor
 and mixed-scale movement, and clipboard persistence-service behavior/costs are
 explicitly deferred to the next release, not passed. No release
 has been published and no distribution packages or bundled providers are supplied.

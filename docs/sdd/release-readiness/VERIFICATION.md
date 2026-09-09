@@ -1,6 +1,6 @@
 # Stage 5 verification
 
-Status: **not release-ready; acceptance remains blocked**. This iteration does
+Status: **qualification measurements/checks complete; user performance acceptance pending**. This iteration does
 not publish, tag, bump a version, package a distribution or change provider sources.
 The supplied implementation plan approved SPEC, DESIGN and TASKS scope under
 CONTRIBUTING.md. Generated logs, fixtures, screenshots and benchmark checkouts are
@@ -17,10 +17,15 @@ is unresolved and explicitly deferred to the next release.
 The supplied source-qualification plan supersedes historical pending/blocker
 statements below. Historical failures and human acceptance evidence are retained.
 
-- Native performance: five-run rendering and end-to-end clipboard comparison,
-  responsiveness and separate Viewer/receiver memory, then explicit user acceptance.
-- Final committed clean-checkout contributor, visual and installed-runtime checks.
-- Hosted Build and checks and Licensing on the final draft-PR head.
+- Explicit user acceptance of the completed native latency/memory measurements.
+- Final-head hosted CI status is recorded in [draft PR #1](https://github.com/lebedenko/holonight-viewer/pull/1)
+  after the evidence commit. Candidate hosted CI has passed; the PR checklist is
+  authoritative for the later documentation-only head.
+
+Five native trials per revision, the committed clean-checkout contributor/visual
+checks and the fresh installed-only runtime container have passed their current
+acceptance boundaries, as detailed in the source-qualification execution below.
+Baseline incorrect alpha remains a recorded failure.
 
 Native Open/provider-dialog acceptance, physical mixed-monitor/mixed-scale movement,
 and clipboard persistence-service behavior and memory/transport costs are **deferred
@@ -584,8 +589,7 @@ uses the monotonic Qt clock and updated-canvas synchronization/frameSwapped.
 
 A first fresh-image attempt failed while traversing generated, root-owned build
 payloads. `.dockerignore` now excludes build/ and .git/ from source contexts.
-The image retry and final committed clean-checkout/measurement/hosted results will
-be recorded here; current gates remain pending until evidence is complete.
+The successful retry, clean-checkout, measurement and hosted results follow below.
 
 Initial hosted Build and checks failed on `0b6bc436dce936aa1c59cb1a3b277c60a4d8ab4e`
 ([PR run](https://github.com/lebedenko/holonight-viewer/actions/runs/34397129680)):
