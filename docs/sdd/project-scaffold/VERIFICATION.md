@@ -1,5 +1,11 @@
 # Verification results
 
+Follow-up (2026-09-09): the user completed the guided stacking-window walkthrough
+on labwc and reported Viewer working as expected. This supersedes the historical
+stacking-environment limitations below for that human check; see
+[release evidence](../release-readiness/VERIFICATION.md). Physical two-monitor
+mixed-scale checks remain pending because the user has no second monitor.
+
 Verified locally on 2026-09-08, Arch Linux, Qt 6.11.2, GCC 16.2.1,
 clang 22.1.8, and REUSE 6.2.0. No sibling or umbrella source changes were made.
 

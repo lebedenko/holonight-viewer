@@ -81,7 +81,8 @@ restarts its timeout; ordinary repaints and keyboard inspection do not. The stri
 shows transformed dimensions, decimal file size, physical-pixel scale (including
 Fit), and folder position as separate labels with themed separators, wrapping at
 narrow widths without resizing the canvas. Viewer-owned controls retain
-keyboard focus and activation without focus-dependent decoration. Typography
+keyboard focus and activation with visible keyboard-focus indicators. Window
+activation alone does not change Viewer-owned styling. Typography
 inherits the shared theme’s point-based font sizes.
 
 Transforms compose in invocation order, reset zoom/pan to Fit, and do

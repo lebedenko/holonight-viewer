@@ -5,7 +5,7 @@ Approved through the supplied implementation plan.
 - [x] R1/R4: Header, footer, menu and responsive overlay layout.
 - [x] R2/R3: Passive input observation, independent timers and generation-safe rendering.
 - [x] R4: Snapshot size formatting and transformed/physical scale display.
-- [x] R5: Local focus-independent presentation and retained interactions.
+- [x] R5: Local window-activation-independent presentation with keyboard-focus indicators and retained interactions.
 - [x] R1–R5: Update tests, run required checks, inspect theme/scale captures and record limitations.
 
 Local implementation and acceptance checks are complete. Native compositor and

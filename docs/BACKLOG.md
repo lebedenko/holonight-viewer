@@ -91,4 +91,27 @@ Installed-only container validation and basic native Orca/PNG clipboard checks p
 Fullscreen restoration follow-up: Viewer now changes only the fullscreen state
 flag, preserving compositor-managed tiling. The native Hyprland regression passes;
 see the [scaffold verification](sdd/project-scaffold/VERIFICATION.md) for evidence
-and the separate stacking-desktop acceptance limitation.
+and the subsequent human labwc acceptance recorded in release-readiness evidence.
+
+Visible-focus follow-up: Viewer button/menu/dialog/canvas indicators are restored
+under the approved release-readiness repair. Automated focus state alone did not
+catch the manual failure; rendered-indicator regressions now accompany keyboard
+transitions. Human visible-focus acceptance (K3) passed on user report on
+2026-09-09; the subsequent user “orca pass” closes the Viewer Orca walkthrough
+(T4c). Native Open and broader release gates remain open.
+
+Human clipboard follow-up (2026-09-09): initial image/rotated/menu/path transfers
+passed, but clipboard content did not survive Viewer exit. The user confirms no
+persistence service, so this is expected session behavior. Persistence with a
+service and its transport/storage costs remain untested under T6b/F4c.
+Export direction subsequently confirmed: Viewer → GIMP works while Viewer is
+open; after Viewer exits, GIMP reports no image in the clipboard.
+The human eight-orientation Viewer → GIMP visual matrix subsequently passed;
+the special/symlink path check also passed. The subsequent user report confirms
+in-progress navigation and shutdown pass, completing the human T5c2 walkthrough.
+Human PCManFM-Qt → Viewer file drop also passed for PNG/JPEG/BMP/WebP; the
+remaining native window/display and release qualification gates stay open.
+The user subsequently reported Viewer working as expected on labwc after the
+stacking-window guide. This closes that human window-behavior check. Two-monitor
+mixed-scale acceptance remains pending at the user's request because no second
+monitor is available; native Open and other release qualification gates remain.

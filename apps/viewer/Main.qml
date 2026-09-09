@@ -29,7 +29,8 @@ HnApplicationWindow {
         implicitWidth: Math.max(implicitContentWidth + leftPadding + rightPadding, HnMetrics.controlHeight(HnControlSize.Normal))
         background: Rectangle {
             color: control.down ? HoloniightPalette.surface : control.hovered ? HoloniightPalette.surfaceHover : control.floating ? Qt.alpha(HoloniightPalette.surface, 0.85) : "transparent"
-            border.color: control.floating ? HoloniightPalette.borderPassive : "transparent"
+            border.width: control.visualFocus ? HnMetrics.focusBorderWidth : control.floating ? HnMetrics.borderWidth : 0
+            border.color: control.visualFocus ? HoloniightPalette.borderFocus : control.floating ? HoloniightPalette.borderPassive : "transparent"
             radius: HnMetrics.internalSpacing(HnControlSize.Compact)
         }
     }
@@ -49,6 +50,8 @@ HnApplicationWindow {
         }
         background: Rectangle {
             color: control.down ? HoloniightPalette.surface : control.hovered ? HoloniightPalette.surfaceHover : "transparent"
+            border.width: control.enabled && (control.visualFocus || control.highlighted) ? HnMetrics.focusBorderWidth : 0
+            border.color: control.enabled && (control.visualFocus || control.highlighted) ? HoloniightPalette.borderFocus : "transparent"
         }
     }
     property bool rendered: false
@@ -327,10 +330,12 @@ HnApplicationWindow {
                     contentWidth: availableWidth
                     ScrollBar.vertical.active: true
                     HnStyle.TextArea {
+                        id: detailsText
                         objectName: "detailsText"
                         background: Rectangle {
                             color: HoloniightPalette.surface
-                            border.color: HoloniightPalette.borderPassive
+                            border.width: detailsText.activeFocus ? HnMetrics.focusBorderWidth : HnMetrics.borderWidth
+                            border.color: detailsText.activeFocus ? HoloniightPalette.borderFocus : HoloniightPalette.borderPassive
                         }
                         readOnly: true
                         selectByMouse: true
@@ -581,6 +586,18 @@ HnApplicationWindow {
                         }
                     }
                 }
+            }
+            Rectangle {
+                objectName: "canvasFocusOutline"
+                visible: canvas.activeFocus
+                anchors.fill: canvas
+                anchors.margins: HnMetrics.focusBorderWidth
+                color: "transparent"
+                border.width: canvas.activeFocus ? HnMetrics.focusBorderWidth : 0
+                border.color: HoloniightPalette.borderFocus
+                radius: HnMetrics.internalSpacing(HnControlSize.Compact)
+                enabled: false
+                Accessible.ignored: true
             }
             ViewerButton {
                 objectName: "previousButton"

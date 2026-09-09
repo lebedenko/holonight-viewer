@@ -375,3 +375,173 @@ persistence/manager costs after exit, native rendering/transfer performance,
 file-manager drop, stacking-compositor decorations, physical mixed-scale displays,
 final committed-checkout checks and hosted CI remain open. X11/XWayland are
 outside acceptance. These Viewer fixes do not establish release readiness.
+
+## Visible keyboard-focus repair (2026-09-09)
+
+The supplied plan records a confirmed manual failure: keyboard navigation worked,
+but Viewer-owned focused controls lacked visible indicators. Earlier focus-state
+and capture evidence did not establish visible-focus acceptance. The mockup
+requirement is clarified to preserve stable window-activation styling while
+retaining keyboard-focus feedback. Native Open remains outside this repair.
+
+Buttons now use visualFocus, dialog text uses activeFocus, and the canvas has an
+inset, decorative outline. Each uses the installed shared focus color/width.
+Actions menu enabled highlighted items receive the same outline; existing disabled
+text and mouse feedback remain. Layout, focus order, image geometry and provider
+APIs are unchanged.
+
+The new Accessibility.VisibleKeyboardFocus regression uses Tab/Shift+Tab, menu
+Down/Up, F1/I, Space on Close and Escape. It samples actual window pixels at
+indicator edges and checks departure, dialog restoration, normal/minimum sizes.
+The existing accessibility regression also checks disabled menu indicator state.
+
+Native compositor-input repetition (`build/focus-compositor.py`,
+`build/focus-compositor.log`) passed on Hyprland/Wayland: forward/backward Tab
+reached Information, Fullscreen, Actions and canvas; F1/I reached selectable text
+and Close; menu Down/Down/Up identified Open/Fit/Open; Escape restored canvas.
+AT-SPI focused roles/names were recorded without launching or replacing Orca.
+This is compositor-driven automation, not a physical human walkthrough.
+
+First-pass integration caught a missing text-area id and corrected it. Pixel-test
+refinements account for the installed one-pixel focus token, actual capture/window
+scale, and native channel quantization (maximum five channel levels). These do not
+relax the requirement that the focus color be rendered and disappear on departure.
+
+Final contributor validation passes: `task deps`, debug/release builds (also
+rebuilt by QML lint and install checks), `task format`, `task format-check`,
+`task qml-lint`, `task license-check`, `task install-check`, and full `task tidy`.
+After the final pixel-test adjustments, focused clang-tidy on
+`tests/accessibility_test.cpp` and `ctest --preset test` pass (7/7 CTest entries,
+22.81 s; three opt-in performance/native-clipboard cases remain skipped normally).
+Logs: `build/focus-{build,release,format,format-check,qml-lint,license,install,tidy}.log`,
+`build/focus-tidy-final-test.log`, `build/focus-test-final.log`. REUSE required
+approved host execution because the sandbox blocked its multiprocessing socket.
+
+Native Wayland QTest keyboard/rendered-indicator runs pass in both themes at
+1000×700 and 420×280 logical sizes on the current 1.5-scale display. Captures are
+under `build/focus-native/`; command/log are `build/focus-native.sh` and
+`build/focus-native.log`. These capture Qt window rendering, not compositor
+screenshots. Inspected native dark/light canvas, button, dialog text and Close
+captures show identifiable outlines. No native Open path was exercised.
+
+At completion of automation, human keyboard-only visible-focus acceptance and
+full Orca reading-order checks remained open (T4c/K3). Neither QTest nor
+compositor-injected input establishes physical human acceptance; no Stage 5
+acceptance or provider-dialog resolution is claimed by this repair.
+
+Final `bash scripts/check-visual.sh` passes all six dark/light × 1/1.25/1.5
+combinations (42 test executions), including keyboard indicator assertions at
+1000×700 and 420×280. Log: `build/focus-visual.log`; captures:
+`build/visual/*-keyboard-*.png`. Inspected dark/light normal/minimum canvas,
+Actions button/menu, help/information text and Close captures, including 1.25/1.5
+scaling, show visible indicators without changing image geometry or layout.
+
+### Human focus acceptance (2026-09-09)
+
+After the guided physical keyboard walkthrough covering forward/backward Tab,
+Actions menu arrows, Help/Information text and Close controls, dismissal and
+canvas restoration, the user reported “focus pass”. This closes K3. The guide
+also requested dark/light, normal/minimum sizes and fractional scaling; the user
+did not specify exact configurations, so no additional configuration-specific
+human evidence is claimed. At this point Orca acceptance (T4c), native Open and
+other release gates remained open.
+
+### Human Viewer Orca acceptance (2026-09-09)
+
+The user reported “orca pass” after the guided Viewer walkthrough: forward and
+backward reading order, control/canvas names, Actions menu names and available
+state feedback, Help/Information text and Close controls, dialog dismissal and
+focus restoration, and image-copy/path-copy speech. Together with the focus pass,
+this closes the Viewer T4c walkthrough. No new Orca version/session details were
+provided. Native Open was explicitly excluded and remains a separate unresolved
+provider/native release gate. Physical clipboard transfer and other release
+acceptance are not established by this report.
+
+### Human clipboard transfer, partial acceptance (2026-09-09)
+
+The user reported that the first four guided steps passed: keyboard image copy
+and visual paste checks (dimensions/appearance/transparency), rotated image copy,
+keyboard Actions menu copy, and exact full-path paste into a text editor. The
+final step failed: after copying, waiting for completion and quitting Viewer,
+clipboard content did not survive. Receiving application names/versions and
+clipboard-manager configuration were not supplied. This is human visual evidence,
+not a new independent pixel comparison or full eight-orientation/lifecycle matrix.
+T5c2 remains open, with post-exit persistence recorded as failed in this session.
+
+Initial source inspection finds PNG publication through QClipboard and no explicit
+clipboard clear in ClipboardController shutdown. A limited process-name check
+found no wl-paste, cliphist, copyq, clipman, klipper or clipse process; this does not
+exclude another clipboard service. Missing desktop persistence is a hypothesis,
+not an established Viewer defect or a waived acceptance gate.
+
+Subsequent clarification: the user tried PCManFM-Qt file copy → Viewer Ctrl+V
+and GIMP region copy → Viewer Ctrl+V; neither produced an action. The same GIMP
+region pasted into a new GIMP image successfully. Viewer currently implements
+Copy Image/Copy Path, with no paste action or Ctrl+V binding. These incoming-paste
+attempts do not test Viewer clipboard export or post-exit persistence. The earlier
+reported export results required direction-specific confirmation at that point.
+
+The user then explicitly confirmed Viewer Ctrl+C → GIMP Ctrl+Shift+V works while
+Viewer remains open. Closing Viewer before pasting causes GIMP to report that
+there is no image in the clipboard. This resolves the transfer-direction ambiguity
+and confirms post-exit image unavailability with GIMP as receiver. GIMP version
+and clipboard-manager configuration remain unspecified. A follow-up process check
+also found no wl-clip-persist process or executable on PATH. This limited check
+does not establish the absence of all desktop persistence services. No persistence
+cause has been established, and T5c2 remains open.
+
+The user subsequently confirmed that no clipboard persistence service is used.
+Post-exit image loss is therefore classified as expected for this session without
+desktop persistence, consistent with README's desktop-managed persistence contract,
+rather than a confirmed Viewer defect. The observed GIMP result remains recorded;
+persistence with a service and its storage/transfer costs remain untested. No
+service was installed or configured. T5c2 remains open for the rest of the full
+human transfer/lifecycle matrix.
+
+The user then reported “8 orientations pass” for the guided Viewer → GIMP
+sequence: Reset Transform, initial copy/paste, three successive R rotations with
+copy/paste after each, H with copy/paste, then three more R rotations with
+copy/paste after each. The guide requested comparison of orientation, dimensions
+and transparency with Viewer kept open. This records a human visual pass for all
+eight orientations; it does not add an independent pixel measurement. Special
+and symlink paths and confirmed in-progress navigation/shutdown remain pending
+for the human walkthrough.
+
+The user reported “path pass” for the prepared symlink
+`build/manual-acceptance/- Фото 100%.png`. The guided check compared the pasted
+normalized absolute path exactly, including the leading dash in the filename,
+Unicode, spaces and percent sign, without added quoting/escaping or resolution to
+the target `source.png`. Human special/symlink path acceptance passes. Confirmed
+in-progress navigation/shutdown checks remain pending.
+
+The user subsequently reported “navigation pass / quit pass” for the prepared
+8000×4000 fixtures: copy the red image, navigate to the green image during
+“Preparing…”, then paste the original red/transparent snapshot into GIMP; start
+another copy and quit during preparation without a hang or crash. This completes
+the guided physical image/path transfer and lifecycle walkthrough (T5c2) for the
+user's session. Local `gimp --version` reports 3.2.4; no new receiver backend
+measurement was made. Human visual evidence complements the existing automated
+native pixel/transport checks. Desktop-service persistence and transport/manager
+performance qualification remain open under T6b/F4c; no service was enabled and
+no release acceptance is claimed.
+
+### Human file-manager drop acceptance (2026-09-09)
+
+The user reported “drop pass - all four formats” after the guided PCManFM-Qt →
+Viewer single-file drag-and-drop checks for PNG, JPEG, BMP and WebP. The guide
+requested correct image/filename updates without hangs or unexpected dialogs.
+This closes the human file-manager drop portion of T6b. Native Open, stacking
+decorations, physical mixed-scale displays, performance qualification and final
+committed-tree/hosted-CI gates remain separate.
+
+### Human labwc window acceptance (2026-09-09)
+
+Following the guided stacking-Wayland checks (native title bar, move/resize,
+maximize/restore, fullscreen entry/exit and dialog placement), the user reported
+logging into labwc and that Viewer “works as expected”. This records a human pass
+for the labwc window-behavior portion of T6b. No labwc version or per-operation
+capture was supplied; this does not resolve the separate native Open blocker.
+
+The user explicitly has no second monitor and requested that two-monitor tests
+remain pending. Physical mixed-scale display movement/rendering/focus/dialog
+acceptance is therefore unavailable and remains open, not passed or waived.

@@ -50,3 +50,13 @@ requirements/design/task extension. Acceptance is native Wayland only.
   pkg-config while retaining required Qt format-plugin qualification.
 - R10: Viewer shall document the unresolved provider native-dialog delegation gap
   and its acceptance checks without provider edits or global environment changes.
+
+## Approved visible-focus repair (2026-09-09)
+
+The supplied restore-visible-keyboard-focus plan authorizes this R4 clarification:
+when keyboard focus moves, buttons, the canvas, dialog text and Close controls shall
+show a shared-token focus outline only on the focused target. Actions menu arrow
+navigation shall visibly distinguish its enabled highlighted item. Tab/Shift+Tab,
+shortcuts, dialog dismissal, input handling and image geometry shall remain intact.
+Stable window-activation styling shall not suppress keyboard-focus indicators.
+Native Open and provider changes remain outside this repair.

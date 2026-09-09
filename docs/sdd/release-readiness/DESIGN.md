@@ -48,3 +48,13 @@ QImage allocation; WebPDecodeRGBAInto receives its byte capacity and stride. Fee
 success through existing normalization. Link required PkgConfig::WebP privately.
 Provider portal delegation belongs in a separate handoff document; no public
 runtime API, provider revisions, viewing features or global settings change.
+
+## Visible-focus repair
+
+Use visualFocus for Viewer button borders and activeFocus for text/canvas, with
+HoloniightPalette.borderFocus and HnMetrics.focusBorderWidth. The canvas outline
+is an accessible-ignored, non-interactive overlay within its existing bounds. Menu
+highlighting uses the shared focus outline while retaining disabled/mouse states.
+Keyboard-driven regression checks sample rendered indicators and focus departure;
+capture both themes at normal/minimum sizes and fractional scale. Native human
+visible-focus acceptance remains separate from automated input evidence.
