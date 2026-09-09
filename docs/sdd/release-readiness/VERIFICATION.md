@@ -1,6 +1,7 @@
 # Stage 5 verification
 
-Status: **qualification measurements/checks complete; user performance acceptance pending**. This iteration does
+Status: **current-source acceptance recorded on 2026-09-10**. Latest evidence-head
+CI is tracked in [draft PR #1](https://github.com/lebedenko/holonight-viewer/pull/1). This iteration does
 not publish, tag, bump a version, package a distribution or change provider sources.
 The supplied implementation plan approved SPEC, DESIGN and TASKS scope under
 CONTRIBUTING.md. Generated logs, fixtures, screenshots and benchmark checkouts are
@@ -12,15 +13,17 @@ are superseded by [the fixes results](#viewer-fixes-follow-up-2026-09-08).
 The [HoloNight dialog delegation handoff](../../holonight-qt-dlg-delegation-missed.md)
 is unresolved and explicitly deferred to the next release.
 
-## Current pending gates (approved scope, 2026-09-09)
+## Current qualification status (2026-09-10)
 
 The supplied source-qualification plan supersedes historical pending/blocker
 statements below. Historical failures and human acceptance evidence are retained.
 
-- Explicit user acceptance of the completed native latency/memory measurements.
-- Final-head hosted CI status is recorded in [draft PR #1](https://github.com/lebedenko/holonight-viewer/pull/1)
-  after the evidence commit. Candidate hosted CI has passed; the PR checklist is
-  authoritative for the later documentation-only head.
+- User performance acceptance passed on 2026-09-10; the user replied “I do” to
+  the explicit measured-tradeoff approval request. See the acceptance record below.
+- Both hosted workflows passed on evidence head
+  `3f37105785edac3194a8d55c49305e3dc001a16c`. CI for the acceptance-record commit
+  is recorded in [draft PR #1](https://github.com/lebedenko/holonight-viewer/pull/1)
+  after it finishes; that live checklist is the authoritative final-head record.
 
 Five native trials per revision, the committed clean-checkout contributor/visual
 checks and the fresh installed-only runtime container have passed their current
@@ -33,8 +36,9 @@ to the next release, not passed** (TASKS N1–N3). They do not block this releas
 No persistence service will be launched; its unmeasured costs are not zero.
 
 Viewer focus/Orca, human clipboard image/path/lifecycle, four-format file-manager
-drop and labwc window behavior passed. Stage 4 is accepted; Stage 5 remains pending
-until the current gates above pass. No publication or version change is authorized.
+drop and labwc window behavior passed. Stages 4 and 5 source acceptance are
+recorded under the revised scope. Each subsequent evidence-only head must also pass
+hosted CI before final qualification closes. No publication or version change is authorized.
 
 ## Environment and baseline
 
@@ -725,9 +729,9 @@ Boundaries and tradeoffs:
   not zero. No persistence service was launched. Existing documented decode/cache
   limits remain unchanged; rendering/encoding/platform transport add temporary memory.
 
-Measured tradeoffs were presented to the user for explicit review. Performance
-acceptance remains pending until the user responds; successful measurements alone
-do not close R12/Q3. Final hosted PR-head CI remains a separate gate.
+Measured tradeoffs were presented to the user for explicit review. At measurement
+completion, performance acceptance was pending; the 2026-09-10 response recorded
+below closes R12/Q3. Hosted PR-head CI remains a separate requirement.
 
 ### Hosted CI after the permission fix
 
@@ -743,3 +747,37 @@ The final evidence-only commit must also receive both hosted workflows. Its exac
 head SHA, run URLs and outcomes are recorded in the PR description after those
 runs finish, avoiding a self-referential commit claiming its own future CI result.
 No native rerun is required for unchanged production/tooling sources.
+
+
+### Explicit performance acceptance (2026-09-10)
+
+The user replied **“I do”** to: “Your plan requires explicit review before
+qualification closes. Do you accept these measured tradeoffs?” The request reported
+candidate correct transfer in 1.333–1.372 seconds (5/5), approximately 693 MiB Viewer
+and 497 MiB receiver peak RSS, and the faster baseline's alpha failure in all five
+trials. The preceding comparison also presented open/navigation/transform timings,
+copy preparation, GUI timer gaps and measurement boundaries.
+
+This is explicit acceptance of the recorded latency/memory tradeoffs and closes
+R12/Q3, T6b and F4c for the approved current-release scope. It does not convert the
+incorrect baseline output into a pass or resolve the three next-release deferrals.
+No new performance thresholds, production changes or additional native measurements
+were introduced by this documentation-only acceptance update.
+
+Evidence head `3f37105785edac3194a8d55c49305e3dc001a16c` passed
+[Build and checks](https://github.com/lebedenko/holonight-viewer/actions/runs/34404768782)
+and [Licensing](https://github.com/lebedenko/holonight-viewer/actions/runs/34404768731).
+The acceptance-record commit must receive both workflows too; its exact SHA, run
+URLs and outcomes are recorded in the live draft-PR checklist after completion.
+This preserves an auditable final-head result without a commit claiming its own
+future CI outcome. Unchanged native measurements remain applicable.
+
+Spark was asked to reconcile README/backlog independently for this follow-up but
+remained unavailable due to its usage limit; main completed the documentation
+locally. The qualification branch and draft PR remain the delivery artifacts;
+merging, tagging, publication and a version bump remain outside authorization.
+
+Acceptance-record documentation checks: local Markdown file links, `git diff
+--check` and `task license-check` passed (103/103 files covered). License log:
+`build/qualification/acceptance/license.log`. Final hosted checks are tracked in
+PR #1; native runs are not repeated for this documentation-only update.

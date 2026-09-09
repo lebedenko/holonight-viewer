@@ -11,7 +11,8 @@ Implementation and release acceptance are separate; unchecked current-release ga
 - [x] T3a (R3): Installed-runtime probe/context scripts, CI wiring and source/custom
   prefix installation documentation; probe validated locally.
 - [x] T3b (R3): Execute isolated installed runtime container with no workspace mounts.
-- [ ] T3c (R6): Final committed-tree hosted CI.
+- [x] T3c (R6): Committed evidence head 3f37105 passes both hosted workflows.
+  Acceptance-record head CI is tracked by the Q6b live PR checklist.
 - [x] T4a (R4): Accessibility names/focus and completion/error/clipboard announcements;
   automated tree, focus, event and dialog text-copy checks.
 - [x] T4b (R4): Basic real Orca/AT-SPI smoke and load/error/clipboard speech.
@@ -38,13 +39,15 @@ Implementation and release acceptance are separate; unchecked current-release ga
   next-release items N3 below.
 - [x] T6a (R6): Debug/release builds, format, tidy, QML lint, licensing, staged install,
   desktop checks, offscreen visual inspection and five-run local performance tools.
-- [ ] T6b (R6/R11–R13): Current-release rendering/transport performance,
-  clean-checkout and hosted qualification. Native drop and stacking results retained.
+- [x] T6b (R6/R11–R13): Current-release rendering/transport performance,
+  clean-checkout and hosted qualification. User accepted measured performance on
+  2026-09-10; hosted evidence-head CI passed. Native drop and stacking results retained.
   Human PCManFM-Qt file drop passed for PNG/JPEG/BMP/WebP (2026-09-09).
   Human stacking-window walkthrough passed on labwc by user report (2026-09-09).
   Physical mixed-scale/two-monitor checks are deferred to N2: user has one monitor.
 - [x] T7 (R1–R6): README/backlog and verification records distinguish local evidence
-  from remaining blockers. No release publication or Stage 5 acceptance.
+  from next-release deferrals. Current-source acceptance recorded on 2026-09-10;
+  no release publication.
 
 ## Approved fixes tasks (2026-09-08)
 
@@ -54,8 +57,9 @@ Implementation and release acceptance are separate; unchecked current-release ga
 - [x] F4a (R5–R9): Contributor checks, installed runtime and five-run baseline comparison.
 - [x] F4b (R5/R7): Native generic receiver/wl-paste matrix with compositor keyboard
   activation, exact Qt text reception, navigation and quit during preparation.
-- [ ] F4c (R5/R6): Native rendering, transfer/receiver costs and hosted-CI gates
-  remain open as recorded in VERIFICATION; no release readiness declaration.
+- [x] F4c (R5/R6): Native rendering and transfer/receiver measurements accepted
+  by the user on 2026-09-10; hosted evidence-head CI passed. Q6b tracks later
+  documentation-only head CI.
 
 ## Approved visible-focus repair (2026-09-09)
 
@@ -74,8 +78,8 @@ Implementation and release acceptance are separate; unchecked current-release ga
   historical evidence; commit scope and qualification tooling on a new branch.
 - [x] Q2 (R11): Five native trials per revision with identical instrumentation;
   independent receiver pixels, all raw results and median/range/environment record.
-- [ ] Q3 (R12): Present measured latency/memory tradeoffs for explicit user review.
-  Do not mark passed before the user accepts.
+- [x] Q3 (R12): User explicitly accepted the presented latency/memory tradeoffs
+  with “I do” on 2026-09-10; see the acceptance record in VERIFICATION.md.
 - [x] Q4 (R13): Committed clean checkout: task deps, debug/release builds, test,
   format-check, tidy, qml-lint, license-check, desktop-check, install-check and
   inspected dark/light × 1/1.25/1.5 visual matrix with CI-pinned installed providers.

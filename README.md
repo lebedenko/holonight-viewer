@@ -176,11 +176,12 @@ rerun the task after moving the checkout or switching builds. This user entry ta
 precedence over a system installation; remove its applications/org.holonight.Viewer.desktop
 file when switching to a system package.
 
-Stage 5 prepares a **source release with CMake install**; it is not release-ready.
-See [release qualification](docs/sdd/release-readiness/VERIFICATION.md) for remaining
-explicit user performance review and final evidence-head hosted CI status.
-Native rendering/clipboard measurements and clean-checkout/installed-runtime
-validation have passed; candidate hosted CI succeeded. Native Open/provider-dialog acceptance, physical mixed-monitor
+Stage 5 **source-release acceptance with CMake install** is recorded as of
+2026-09-10, including the user's explicit acceptance of measured performance.
+Native rendering/clipboard measurements, clean-checkout/installed-runtime validation
+and evidence-head hosted CI passed. See [release qualification](docs/sdd/release-readiness/VERIFICATION.md)
+and [draft PR #1](https://github.com/lebedenko/holonight-viewer/pull/1) for the latest
+acceptance-record head's CI outcomes. Native Open/provider-dialog acceptance, physical mixed-monitor
 and mixed-scale movement, and clipboard persistence-service behavior/costs are
 explicitly deferred to the next release, not passed. No release
 has been published and no distribution packages or bundled providers are supplied.

@@ -80,10 +80,11 @@ are outside this roadmap. Crop remains an uncommitted later possibility.
 Stage 5 follows the approved [release-readiness cycle](sdd/release-readiness/SPEC.md).
 Source installation qualification, four-format declarations, file-aware desktop
 integration, accessibility announcements and interactive clipboard tooling are
-implemented. **Stage 5 is not accepted**: explicit user performance review remains
-open; final evidence-head CI is tracked in draft PR #1. Native rendering/transfer
-measurements, committed clean-checkout checks and fresh installed-runtime validation
-have passed, with candidate hosted CI success recorded in the verification record.
+implemented. **Stage 5 source acceptance is recorded as of 2026-09-10**: the user
+explicitly accepted the measured performance tradeoffs. Native rendering/transfer
+measurements, committed clean-checkout checks, fresh installed-runtime validation
+and evidence-head hosted CI passed. The latest acceptance-record head's CI outcomes
+are tracked in [draft PR #1](https://github.com/lebedenko/holonight-viewer/pull/1).
 Native Open, physical mixed-scale displays and clipboard-service qualification
 are explicitly deferred to the next release, not passed. Viewer accessibility, human
 clipboard transfer/lifecycle, four-format drop and labwc window checks have passed.
