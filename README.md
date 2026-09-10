@@ -180,11 +180,16 @@ Stage 5 **source-release acceptance with CMake install** is recorded as of
 2026-09-10, including the user's explicit acceptance of measured performance.
 Native rendering/clipboard measurements, clean-checkout/installed-runtime validation
 and evidence-head hosted CI passed. See [release qualification](docs/sdd/release-readiness/VERIFICATION.md)
-and [draft PR #1](https://github.com/lebedenko/holonight-viewer/pull/1) for the latest
+and [PR #1](https://github.com/lebedenko/holonight-viewer/pull/1) for the latest
 acceptance-record head's CI outcomes. Native Open/provider-dialog acceptance, physical mixed-monitor
 and mixed-scale movement, and clipboard persistence-service behavior/costs are
-explicitly deferred to the next release, not passed. No release
-has been published and no distribution packages or bundled providers are supplied.
+explicitly deferred to the next release, not passed. Version **0.1.0** is delivered
+as a source release with CMake installation; no distribution packages, portable
+binaries or bundled providers are supplied. See the [release notes](docs/releases/v0.1.0.md)
+for tested provider revisions and build/install instructions, the
+[publication record](docs/sdd/source-publication/VERIFICATION.md) for validation,
+and the [GitHub release page](https://github.com/lebedenko/holonight-viewer/releases/tag/v0.1.0)
+for publication status and source/checksum assets.
 
 The guaranteed target formats are static **PNG, JPEG, BMP and WebP**. Install Qt
 Base's PNG/BMP support and JPEG plugin, plus Qt Image Formats' WebP plugin (Arch:

@@ -135,3 +135,14 @@ retained reproduction/acceptance criteria: [release tasks N1–N3](sdd/release-r
   no service will be launched for this release and its costs are not reported as zero.
 
 These are next-release gates, not current-release blockers or successful checks.
+
+## First source release delivery (approved 2026-09-10)
+
+The approved [publication cycle](sdd/source-publication/SPEC.md) adds merging
+PR #1, validating main, tagging v0.1.0 and publishing a regular source-only GitHub
+Release. Version and production behavior remain unchanged. See the
+[release notes](releases/v0.1.0.md), [publication evidence](sdd/source-publication/VERIFICATION.md)
+and [release page](https://github.com/lebedenko/holonight-viewer/releases/tag/v0.1.0)
+for delivery details and status. The three next-release deferrals above remain
+unresolved. No distribution packages, portable binaries, bundled providers or
+automatic publishing workflow are added.
