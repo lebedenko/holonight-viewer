@@ -13,67 +13,101 @@ tasks:
     desc: Build sibling providers into project-local directories
     cmds: ['bash scripts/prepare-deps.sh']
   configure:
+    desc: Configure the selected build preset
     cmds: ['cmake --preset {{.PRESET}} -DHOLONIGHT_DEPENDENCY_PREFIX="{{.HOLONIGHT_DEPENDENCY_PREFIX}}" -DHOLONIGHT_QML_IMPORT_PATH="{{.HOLONIGHT_QML_IMPORT_PATH}}"']
   build:
+    desc: Configure and build the selected preset
     cmds:
       - task: configure
         vars: {PRESET: '{{.PRESET}}'}
       - cmake --build --preset {{.PRESET}}
-  desktop-install:
-    desc: Register the development build and icon in the user's XDG data directory
+  run:
+    desc: Build and launch the selected preset with CLI arguments
     cmds:
       - task: build
         vars: {PRESET: '{{.PRESET}}'}
-      - python3 scripts/register-desktop.py 'build/{{.PRESET}}/apps/viewer/holonight-viewer' '{{.HOLONIGHT_DEPENDENCY_PREFIX}}' '{{.HOLONIGHT_QML_IMPORT_PATH}}'
-  run:
-    cmds:
-      - task: desktop-install
-        vars: {PRESET: '{{.PRESET}}'}
       - build/{{.PRESET}}/apps/viewer/holonight-viewer {{.CLI_ARGS}}
 
+  install:
+    desc: Build Release against system providers, install to /usr and refresh desktop metadata
+    cmds:
+      - |
+        set -eu
+        export HOLONIGHT_DEPENDENCY_PREFIX=/usr
+        export HOLONIGHT_QML_IMPORT_PATH=/usr/lib/qt6/qml
+        export CMAKE_PREFIX_PATH=/usr
+        export QML_IMPORT_PATH=/usr/lib/qt6/qml
+        export QML2_IMPORT_PATH=/usr/lib/qt6/qml
+        export LD_LIBRARY_PATH=/usr/lib
+        cmake -S . -B build/system-install -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_PREFIX_PATH=/usr -DHOLONIGHT_DEPENDENCY_PREFIX=/usr -DHOLONIGHT_QML_IMPORT_PATH=/usr/lib/qt6/qml -DHolonightQt_DIR=/usr/lib/cmake/HolonightQt
+        cmake --build build/system-install --parallel 2
+        sudo cmake --install build/system-install
+        sudo update-desktop-database /usr/share/applications
+
   test:
+    desc: Build and run tests
     cmds:
       - task: build
         vars: {PRESET: test}
       - ctest --preset test
   format:
+    desc: Format C++ and QML sources
     cmds:
       - clang-format -i apps/viewer/*.cpp apps/viewer/*.h tests/*.cpp
       - /usr/lib/qt6/bin/qmlformat -i apps/viewer/Main.qml
   format-check:
+    desc: Check C++ and QML formatting
     cmds:
       - clang-format --dry-run --Werror apps/viewer/*.cpp apps/viewer/*.h tests/*.cpp
       - bash scripts/check-qml-format.sh
   tidy:
+    desc: Run C++ clang-tidy checks
     cmds:
       - task: build
         vars: {PRESET: test}
       - cmake --build build/test --target tidy
   qml-lint:
+    desc: Run QML lint checks
     deps: [build]
     cmds: ['cmake --build build/{{.PRESET}} --target qml-lint']
+  lint:
+    desc: Run C++ and QML lint checks
+    cmds:
+      - task: tidy
+      - task: qml-lint
   license-check:
+    desc: Check license metadata with REUSE
     cmds: [reuse lint]
   install-check:
+    desc: Stage Release and verify installed payload and desktop launch
     cmds:
       - task: build
         vars: {PRESET: release}
       - bash scripts/check-install.sh
+  check:
+    desc: Sequentially build, test, check formatting, lint, licenses and staged installation
+    aliases: [verify]
+    cmds:
+      - task: build
+        vars: {PRESET: debug}
+      - task: build
+        vars: {PRESET: release}
+      - task: test
+      - task: format-check
+      - task: lint
+        vars: {PRESET: debug}
+      - task: license-check
+      - task: install-check
+  clean:
+    desc: Remove Viewer build directories while preserving local providers and evidence
+    cmds:
+      - rm -rf -- build/debug build/release build/test build/system-install
   visual-check:
     desc: Capture dark/light renders at normal and fractional scale for inspection
     cmds:
       - task: build
         vars: {PRESET: test}
       - bash scripts/check-visual.sh
-  desktop-check:
-    desc: Verify development registration and packaged entry separation under build/
-    cmds:
-      - task: build
-        vars: {PRESET: debug}
-      - task: build
-        vars: {PRESET: release}
-      - python3 scripts/check-desktop.py
-
   runtime-context:
     desc: Prepare installed payloads for the isolated container check after deps/build/test
     cmds: ['bash scripts/prepare-runtime-check.sh']

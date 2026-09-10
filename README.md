@@ -18,15 +18,14 @@ task deps                 # builds sibling providers locally, without source cha
 task build
 task run
 # Ctrl+O opens an image; f toggles fullscreen, Escape leaves fullscreen, q quits
-task test
-task build PRESET=release
-task format-check
-task tidy
-task qml-lint
-task license-check
-task install-check
-task desktop-check        # isolated development/packaged registration checks
-task visual-check         # captures under build/visual for inspection
+task check                # sequential builds, tests, formatting, lint, licenses, staged install
+task verify               # alias for check
+task lint                 # C++ tidy and QML lint
+task format               # apply C++ and QML formatting
+task install              # Release build against /usr providers; sudo install and desktop refresh
+task clean                # remove Viewer debug/release/test/system-install builds; keep providers
+task --list               # includes individual checks and build commands
+task visual-check         # separate capture workflow under build/visual
 ```
 
 `--help` and `--version` are supported. Pass one local path (quote spaces), or a
@@ -154,7 +153,7 @@ additional installed packages. The debug/release/test presets default to the
 local prefix. Task run/test set the installed QML and library search paths.
 
 Install with `DESTDIR=/your/stage cmake --install build/release` (prefix /usr).
-The application package installs its executable, desktop entry, icon, and license;
+The application package installs its executable, desktop entry, icon, and license files;
 it depends on separately installed HoloNight provider libraries and QML modules.
 A system installation discovers providers via Qt's normal module paths. A custom
 provider prefix needs QML_IMPORT_PATH=<prefix>/lib/qt6/qml and
@@ -168,13 +167,9 @@ See [contributor workflow](CONTRIBUTING.md), [project brief](docs/PROJECT_BRIEF.
 [static-workflow verification](docs/sdd/static-image-workflow/VERIFICATION.md).
 Licensed GPL-3.0-or-later; see LICENSE.
 
-`task run` registers the selected development build's desktop entry and icon under
-`${XDG_DATA_HOME:-~/.local/share}` before launch, so the host portal can resolve
-`org.holonight.Viewer`. Use `task desktop-install` to register without opening a
-window. The entry launches the absolute build executable with its provider paths;
-rerun the task after moving the checkout or switching builds. This user entry takes
-precedence over a system installation; remove its applications/org.holonight.Viewer.desktop
-file when switching to a system package.
+`task run` builds the configured preset and launches the executable with
+the current checkout's provider overrides and CLI arguments. Use `PRESET=release`
+to select Release. It does not create desktop entries or icons in user directories.
 
 Stage 5 **source-release acceptance with CMake install** is recorded as of
 2026-09-10, including the user's explicit acceptance of measured performance.
@@ -204,14 +199,19 @@ animation stay on the Qt path. Source builds require pkg-config and libwebp
 For a system installation, build the separately installed HoloNight providers
 against the same Qt build used by Viewer. Use the dependency revisions in
 [CI](.github/workflows/build.yml); provider private Qt API use ties runtime ABI to
-that Qt build. Configure Viewer against the provider installation, then install:
+that Qt build. Providers must already be installed under `/usr`, including QML
+modules under `/usr/lib/qt6/qml`; `task deps` supplies only development providers.
 
 ```sh
-cmake --preset release -DHOLONIGHT_DEPENDENCY_PREFIX=/usr -DHOLONIGHT_QML_IMPORT_PATH=/usr/lib/qt6/qml
-cmake --build --preset release
-sudo cmake --install build/release
-sudo update-desktop-database /usr/share/applications
+task install
 ```
+
+This configures Release in `build/system-install`, overrides development provider
+settings with system paths, builds, runs `sudo cmake --install`, then runs
+`sudo update-desktop-database /usr/share/applications`. A failed build stops before
+installation. Development build caches remain separate. To stage that configured
+build without changing the host, use
+`DESTDIR="$PWD/build/system-stage" cmake --install build/system-install`.
 
 `DESTDIR` stages the same layout without installing on the host. For a custom
 prefix, set `CMAKE_INSTALL_PREFIX` and provider paths when configuring; expose its
@@ -219,15 +219,24 @@ prefix, set `CMAKE_INSTALL_PREFIX` and provider paths when configuring; expose i
 `QML_IMPORT_PATH` and `LD_LIBRARY_PATH` (adapt `lib` to your platform). Custom-prefix
 overrides are distinct from the standard-location isolated qualification below.
 
-The desktop entry offers one file per process through `holonight-viewer -- %f`
-and advertises PNG/JPEG/BMP/WebP only. Registering availability and refreshing the
-desktop database do not select a default image application. Before switching from
-`task run` to the installed application, remove the generated development entry
+The packaged desktop entry appears in application menus, opens one file per process
+through `holonight-viewer -- %f`, and advertises PNG/JPEG/BMP/WebP. Refreshing the
+desktop database does not change the default image application. If an earlier
+Viewer checkout registered a development entry, remove its
 `${XDG_DATA_HOME:-$HOME/.local/share}/applications/org.holonight.Viewer.desktop`
-and its matching user icon if no longer needed, then refresh that applications
-directory with `update-desktop-database`. The user entry otherwise shadows `/usr`.
+and matching `icons/hicolor/scalable/apps/org.holonight.Viewer.svg` when no longer
+needed, then refresh that user applications directory with
+`update-desktop-database`. An old user entry otherwise shadows the system entry.
 
-CI builds the committed checkout with required codecs and contributor tools, stages
+`task check` (also `task verify`) runs debug and release builds, tests, format
+checking, C++/QML lint, license checking, and staged installation verification in
+sequence. Individual `test`, `format-check`, `tidy`, `qml-lint`, `license-check`,
+and `install-check` tasks remain available. Visual inspection and Docker runtime
+qualification are separate. `task clean` removes only `build/debug`,
+`build/release`, `build/test`, and `build/system-install`; local provider installs
+and verification artifacts remain under `build/`.
+
+CI runs `task deps` and `task check` with required codecs and contributor tools, stages
 Viewer and providers under `/usr`, then launches a second container with installed
 payloads only, no workspace mount, no network and no development runtime overrides.
 To reproduce on a machine with Docker and the provider checkouts used by CI:

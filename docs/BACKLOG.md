@@ -146,3 +146,15 @@ and [release page](https://github.com/lebedenko/holonight-viewer/releases/tag/v0
 for delivery details and status. The three next-release deferrals above remain
 unresolved. No distribution packages, portable binaries, bundled providers or
 automatic publishing workflow are added.
+
+## System installation and maintenance (2026-09-10)
+
+The approved [maintenance cycle](sdd/system-maintenance/SPEC.md) replaces development
+desktop registration with direct `task run`, adds isolated system installation,
+and groups sequential checks under `task check` / `task verify`. Packaged desktop
+metadata and installed-launch qualification remain required. The cycle also adds
+provider-preserving cleanup and task discovery; visual and Docker checks remain
+separate. Local acceptance passed, including the full `task check` and system
+staging; no host installation was performed. See
+[verification](sdd/system-maintenance/VERIFICATION.md) for evidence and limitations. Earlier records describe historical behavior
+and remain unchanged.
