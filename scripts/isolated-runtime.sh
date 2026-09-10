@@ -7,7 +7,7 @@ export QT_QPA_PLATFORM=offscreen QSG_RHI_BACKEND=software
 # No workspace volume may be mounted into this container.
 test ! -e /work/viewer/CMakeLists.txt
 test ! -e /work/viewer/build
-for file in /usr/bin/holonight-viewer /usr/share/applications/org.holonight.Viewer.desktop \
+for file in /usr/bin/hn-viewer /usr/share/applications/org.holonight.Viewer.desktop \
   /usr/share/icons/hicolor/scalable/apps/org.holonight.Viewer.svg; do test -s "$file"; done
 # Installed runtime search paths must not refer to development locations.
 while IFS= read -r -d '' file; do
@@ -15,8 +15,8 @@ while IFS= read -r -d '' file; do
     printf 'Development runtime path in %s\n' "$file" >&2
     exit 1
   fi
-done < <(find /usr/bin/holonight-viewer /usr/lib -type f \( -iname '*holonight*' -o -path '*/Holonight/*' \) -print0)
+done < <(find /usr/bin/hn-viewer /usr/lib -type f \( -name 'hn-viewer' -o -iname '*holonight*' -o -path '*/Holonight/*' \) -print0)
 python3 scripts/format-fixtures.py build/fixtures
 /usr/libexec/holonight-viewer/installed-runtime-probe /opt/check/build/fixtures
-python3 scripts/check-opening.py /usr/bin/holonight-viewer
+python3 scripts/check-opening.py /usr/bin/hn-viewer
 python3 scripts/check-installed-desktop.py /usr/share/applications/org.holonight.Viewer.desktop

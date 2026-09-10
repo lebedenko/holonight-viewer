@@ -26,7 +26,7 @@ tasks:
     cmds:
       - task: build
         vars: {PRESET: '{{.PRESET}}'}
-      - build/{{.PRESET}}/apps/viewer/holonight-viewer {{.CLI_ARGS}}
+      - build/{{.PRESET}}/apps/viewer/hn-viewer {{.CLI_ARGS}}
 
   install:
     desc: Build Release against system providers, install to /usr and refresh desktop metadata
@@ -43,6 +43,14 @@ tasks:
         cmake --build build/system-install --parallel 2
         sudo cmake --install build/system-install
         sudo update-desktop-database /usr/share/applications
+
+  uninstall:
+    desc: Remove the current and legacy Viewer payload from /usr and refresh desktop metadata
+    cmds: ['sudo env -u DESTDIR bash scripts/uninstall.sh']
+
+  uninstall-check:
+    desc: Verify uninstall in disposable staged filesystems with mocked privileged commands
+    cmds: ['python3 scripts/check-uninstall.py']
 
   test:
     desc: Build and run tests
@@ -85,7 +93,7 @@ tasks:
         vars: {PRESET: release}
       - bash scripts/check-install.sh
   check:
-    desc: Sequentially build, test, check formatting, lint, licenses and staged installation
+    desc: Sequentially build, test, check formatting, lint, licenses, staged installation and uninstall
     aliases: [verify]
     cmds:
       - task: build
@@ -98,6 +106,7 @@ tasks:
         vars: {PRESET: debug}
       - task: license-check
       - task: install-check
+      - task: uninstall-check
   clean:
     desc: Remove Viewer build directories while preserving local providers and evidence
     cmds:

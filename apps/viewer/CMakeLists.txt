@@ -18,4 +18,4 @@ target_link_libraries(holonight-viewer PRIVATE viewer-ui viewer-uiplugin)
 target_compile_definitions(holonight-viewer PRIVATE VIEWER_VERSION="${PROJECT_VERSION}")
 install(TARGETS holonight-viewer RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-set_target_properties(holonight-viewer PROPERTIES QT_QML_MODULE_NO_IMPORT_SCAN TRUE)
+set_target_properties(holonight-viewer PROPERTIES OUTPUT_NAME hn-viewer QT_QML_MODULE_NO_IMPORT_SCAN TRUE)

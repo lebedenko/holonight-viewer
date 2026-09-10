@@ -18,10 +18,11 @@ alter requirements return to the relevant approval step.
 Start with `task deps`, then `task build` and `task run` (optional `PRESET=release`
 and arguments after `--`). Run `task check` (alias `task verify`) before submitting:
 it sequentially builds debug and release, runs tests, checks formatting, runs
-`task lint` (C++ tidy and QML lint), checks licenses, and verifies staged installation.
-Individual `test`, `format-check`, `tidy`, `qml-lint`, `license-check`, and
-`install-check` commands remain available. Use `task format` to format sources and
-`task --list` to discover commands. Visual inspection (`task visual-check`) and
+`task lint` (C++ tidy and QML lint), checks licenses, verifies staged installation,
+and checks uninstall in disposable staged trees.
+Individual `test`, `format-check`, `tidy`, `qml-lint`, `license-check`,
+`install-check`, and `uninstall-check` commands remain available. Use `task format`
+to format sources and `task --list` to discover commands. Visual inspection (`task visual-check`) and
 Docker installed-runtime qualification remain separate from `check`.
 
 `task run` does not register development desktop files. `task install` requires
@@ -29,6 +30,12 @@ providers already installed under `/usr` against the same Qt build, with QML
 modules under `/usr/lib/qt6/qml`. It overrides development provider settings,
 builds Release in `build/system-install`, then uses sudo to install and refresh the
 system desktop database. `task deps` does not satisfy the system prerequisite.
+The executable is `hn-viewer`; the internal target and application/settings identity
+remain unchanged. For existing `/usr` installations, run `task uninstall` before
+`task install`. Uninstall uses sudo, requires no configuration or manifest, removes
+only the current/legacy Viewer payload and refreshes desktop metadata. It preserves
+providers and user data. Use `DESTDIR="$PWD/build/system-stage" bash scripts/uninstall.sh`
+for staged removal; normal `task uninstall` always targets `/usr`.
 `task clean` removes only Viewer debug, release, test and system-install build
 directories; it preserves `build/deps` and verification evidence. Record staged
 verification separately from any actual host installation.

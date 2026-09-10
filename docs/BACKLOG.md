@@ -158,3 +158,14 @@ separate. Local acceptance passed, including the full `task check` and system
 staging; no host installation was performed. See
 [verification](sdd/system-maintenance/VERIFICATION.md) for evidence and limitations. Earlier records describe historical behavior
 and remain unchanged.
+
+## Executable naming and uninstall (2026-09-10)
+
+The approved [executable/uninstall cycle](sdd/executable-uninstall/SPEC.md) names
+new builds and installations `hn-viewer`, retaining application/settings identity.
+It adds `task uninstall` for the fixed current/legacy `/usr` payload, preserving
+providers and user data without requiring configuration or an install manifest.
+Existing installations should be uninstalled before reinstalling; no executable
+alias is provided. Full `task check`, staged removal with real database refresh, and mocked
+failure-ordering checks pass. No host installation/removal was performed; see the
+[verification record](sdd/executable-uninstall/VERIFICATION.md).

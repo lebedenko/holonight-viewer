@@ -36,7 +36,7 @@ recoverable error in the window; Open remains available.
 ```sh
 task run -- '/path/to/photo.jpg'
 # Direct launch with the documented provider environment:
-build/debug/apps/viewer/holonight-viewer -- './photo with spaces.png'
+build/debug/apps/viewer/hn-viewer -- './photo with spaces.png'
 ```
 
 Native decorations belong to Qt/the compositor. Fullscreen restores the previous
@@ -206,8 +206,27 @@ modules under `/usr/lib/qt6/qml`; `task deps` supplies only development provider
 task install
 ```
 
-This configures Release in `build/system-install`, overrides development provider
-settings with system paths, builds, runs `sudo cmake --install`, then runs
+For an existing `/usr` installation, uninstall before reinstalling:
+
+```sh
+task uninstall
+task install
+```
+
+The executable is now `hn-viewer`; no compatibility executable alias is provided.
+The application identity and settings paths remain unchanged. `task uninstall`
+uses sudo to remove only `/usr/bin/hn-viewer`, the legacy
+`/usr/bin/holonight-viewer`, the Viewer desktop entry and icon, and the two Viewer
+license files. It removes the license directory only if empty, preserves providers
+and user data, and needs neither configuration nor an install manifest. Missing
+files are harmless. After removal it refreshes the desktop database if the
+applications directory exists; command failures propagate. This task targets
+`/usr` regardless of `DESTDIR`; custom-prefix installations require manual removal.
+For isolated staging, invoke the helper directly:
+`DESTDIR="$PWD/build/system-stage" bash scripts/uninstall.sh`.
+
+`task install` configures Release in `build/system-install`, overrides development
+provider settings with system paths, builds, runs `sudo cmake --install`, then runs
 `sudo update-desktop-database /usr/share/applications`. A failed build stops before
 installation. Development build caches remain separate. To stage that configured
 build without changing the host, use
@@ -220,7 +239,7 @@ prefix, set `CMAKE_INSTALL_PREFIX` and provider paths when configuring; expose i
 overrides are distinct from the standard-location isolated qualification below.
 
 The packaged desktop entry appears in application menus, opens one file per process
-through `holonight-viewer -- %f`, and advertises PNG/JPEG/BMP/WebP. Refreshing the
+through `hn-viewer -- %f`, and advertises PNG/JPEG/BMP/WebP. Refreshing the
 desktop database does not change the default image application. If an earlier
 Viewer checkout registered a development entry, remove its
 `${XDG_DATA_HOME:-$HOME/.local/share}/applications/org.holonight.Viewer.desktop`
@@ -229,10 +248,10 @@ needed, then refresh that user applications directory with
 `update-desktop-database`. An old user entry otherwise shadows the system entry.
 
 `task check` (also `task verify`) runs debug and release builds, tests, format
-checking, C++/QML lint, license checking, and staged installation verification in
-sequence. Individual `test`, `format-check`, `tidy`, `qml-lint`, `license-check`,
-and `install-check` tasks remain available. Visual inspection and Docker runtime
-qualification are separate. `task clean` removes only `build/debug`,
+checking, C++/QML lint, license checking, staged installation verification, and
+isolated uninstall checks in sequence. Individual `test`, `format-check`, `tidy`, `qml-lint`, `license-check`,
+`install-check`, and `uninstall-check` tasks remain available. Visual inspection
+and Docker runtime qualification are separate. `task clean` removes only `build/debug`,
 `build/release`, `build/test`, and `build/system-install`; local provider installs
 and verification artifacts remain under `build/`.
 

@@ -2,7 +2,7 @@
 Type=Application
 Name=HoloNight Viewer
 Comment=Open, inspect and browse local static images
-Exec=holonight-viewer -- %f
+Exec=hn-viewer -- %f
 Icon=org.holonight.Viewer
 Terminal=false
 Categories=Graphics;Viewer;
