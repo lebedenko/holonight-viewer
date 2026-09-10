@@ -1,8 +1,14 @@
 # Stage 4 verification
 
-Implementation is complete; **Stage 4 acceptance remains open** for native
-Wayland clipboard verification with real desktop input. Earlier scaffold,
-image-opening and mixed-display native gates remain open independently.
+Implementation and **Stage 4 acceptance are complete as of 2026-09-09**.
+The native Wayland clipboard gate was closed by subsequent automated native
+pixel/transport results and the user's completed keyboard/menu, eight-orientation,
+special/symlink path and in-progress navigation/shutdown walkthrough. See
+[release evidence](../release-readiness/VERIFICATION.md). Clipboard loss after
+exit without a persistence service is expected under the desktop-managed
+persistence contract. Service qualification and native performance comparisons
+remain Stage 5 gates. Earlier scaffold, image-opening and mixed-display native
+gates remain open independently.
 Requirements/design/tasks were recorded before implementation and authorized by
 the supplied implementation plan. No provider sources were modified.
 
@@ -75,7 +81,8 @@ continued event processing, not a hard maximum-stall guarantee.
 
 Final local results: six CTest entries pass; all seven native XWayland Stage 4
 tests pass. Tidy, QML lint, formatting, licensing, staged installation and desktop
-checks pass. The separate Wayland clipboard gate below remains unresolved.
+checks pass. The separate Wayland clipboard gate was unresolved at this point;
+the later results linked above close it.
 
 Contributor checks: release build (`task build PRESET=release`, also exercised by
 `task install-check`), formatting, tidy, QML lint, REUSE licensing, staged install,
@@ -91,7 +98,10 @@ in-window scrolling list, and restores focus on closure. Dialogs use the install
 style/fallback and HoloNight palette; scrollbars remain visible for overflow.
 Generated contact sheets are inspection aids under build/visual/.
 
-## Open acceptance gate
+## Historical native clipboard failure (superseded)
+
+The following records the original failure and required follow-up, not the current
+acceptance status. Later native tests and human checks linked above supersede it.
 
 Native Wayland production-window shortcut/dialog tests passed before the final
 menu refinements. Automated separate-process clipboard attempts initially could

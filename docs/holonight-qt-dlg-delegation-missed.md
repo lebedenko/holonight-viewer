@@ -3,7 +3,9 @@
 
 # HoloNight native-dialog delegation handoff
 
-Status: **unresolved provider blocker**, owned by holonight-qt. Viewer changes do
+Status: **unresolved, deferred to the next release**, owned by holonight-qt.
+The approved source-qualification plan makes this a next-release acceptance gate,
+not a current-release blocker or a pass. Reproduction and acceptance remain intact. Viewer changes do
 not resolve native Open acceptance with the default HoloNight platform theme.
 See [Viewer verification](sdd/release-readiness/VERIFICATION.md).
 
@@ -76,4 +78,4 @@ requirements, not implemented behavior.
   versions and real native input. Complete Viewer keyboard and Orca dialog checks.
 
 No provider sources, dependency revisions or global environment settings were
-changed for this handoff. The provider blocker remains open until these checks pass.
+changed for this handoff. The next-release provider gate remains open until these checks pass.

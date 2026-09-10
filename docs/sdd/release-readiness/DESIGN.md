@@ -58,3 +58,35 @@ highlighting uses the shared focus outline while retaining disabled/mouse states
 Keyboard-driven regression checks sample rendered indicators and focus departure;
 capture both themes at normal/minimum sizes and fractional scale. Native human
 visible-focus acceptance remains separate from automated input evidence.
+
+## Source qualification design (2026-09-09)
+
+Use a qualification branch and draft PR. Include the existing Stage 4 evidence
+reconciliation. The three next-release deferrals in SPEC supersede historical
+blocker language, without removing observed failures or completed acceptance.
+
+Extend opt-in test tooling around the production QML window, with no production
+CLI/API or dependency changes. Synchronize updated canvas state to Qt frame
+completion; measure each transform through its rendered frame. A separate generic
+Qt image receiver reads only after compositor keyboard activation. Keep fixtures,
+received payloads, logs, captures, clean checkouts and per-run JSON/XML under build/.
+Use the same instrumentation on the baseline and candidate. Report preparation
+and complete transfer separately, retaining baseline alpha failures. Record receiver
+read completion before PNG-save/hash validation overhead, and label any broader
+orchestrator boundary separately. Report Viewer and receiver RSS independently.
+Do not launch a persistence service or report its unmeasured cost as zero.
+
+Run builds before the five-trial sequential measurement series. Validate a fresh
+committed checkout with independently installed, CI-pinned providers; build a fresh
+CI image and installed-runtime image. The latter has no workspace mounts or
+development runtime overrides. Record final hosted workflow SHA, URLs and outcomes.
+Performance remains pending until the user reviews and accepts the measured
+tradeoffs; successful automated checks alone do not close this gate.
+
+Exclude build/ and .git/ from Docker build contexts: generated local runtime
+payloads may be root-owned and must not be sent as CI-image source context.
+
+Run contributor checks in CI as the runner's UID/GID, preserving filesystem access
+semantics for unreadable-file tests. Root would bypass chmod-000 fixture denial;
+do not weaken or skip that regression. Runtime installation remains in its separate
+installed-only image.
