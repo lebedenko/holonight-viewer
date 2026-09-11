@@ -545,7 +545,7 @@ HnApplicationWindow {
                 Keys.onUpPressed: canvas.pan(Qt.point(0, 40))
                 Keys.onDownPressed: canvas.pan(Qt.point(0, -40))
                 Accessible.role: Accessible.Graphic
-                Accessible.name: window.document.fileName || qsTr("Image canvas")
+                Accessible.name: window.document.state === ImageDocument.Empty ? qsTr("No image open") : window.document.fileName || qsTr("Image canvas")
 
                 TapHandler {
                     enabled: window.canInspect
@@ -685,11 +685,23 @@ HnApplicationWindow {
                     }
                 }
             }
-            HnEmptyState {
+            HnIcon {
+                id: emptyDecoration
                 objectName: "emptyState"
-                anchors.centerIn: parent
+                readonly property real shorterDimension: Math.min(canvasArea.width, canvasArea.height)
+                readonly property real padding: Math.max(32, Math.min(64, shorterDimension * 0.08))
+                readonly property int side: Math.max(0, Math.floor(shorterDimension - 2 * padding))
+                readonly property int rasterLimit: Math.max(1, Math.floor(1024 / window.devicePixelRatio))
+                x: (canvasArea.width - width) / 2
+                y: (canvasArea.height - height) / 2
                 visible: window.document.state === ImageDocument.Empty
-                titleText: qsTr("No image open")
+                source: side > 0 ? Qt.resolvedUrl("icons/empty-viewer.svg") : ""
+                // Qt scales sourceSize by DPR; hnicons accepts at most 1024 physical pixels.
+                size: Math.min(side, rasterLimit)
+                width: side
+                height: side
+                normalColor: HoloniightPalette.surface
+                Accessible.ignored: true
             }
             HnLabel {
                 objectName: "documentFeedback"

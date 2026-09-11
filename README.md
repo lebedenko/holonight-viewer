@@ -303,3 +303,9 @@ startup/activation and ends after read/conversion, before save/hash validation.
 Separate process RSS includes that later validation work. The historical baseline
 may be recorded with `--allow-incorrect-baseline`; incorrect pixels remain failures.
 Performance acceptance requires explicit user review of measured tradeoffs.
+
+With no image open, the central canvas shows a large, subtle monochrome Viewer
+icon that follows the theme and available window size. Screen readers retain the
+“No image open” description. Loading and errors keep their text feedback; the
+decoration disappears for opened images, including transparent ones. See the
+[decoration verification](docs/sdd/empty-window-decoration/VERIFICATION.md).

@@ -169,3 +169,18 @@ Existing installations should be uninstalled before reinstalling; no executable
 alias is provided. Full `task check`, staged removal with real database refresh, and mocked
 failure-ordering checks pass. No host installation/removal was performed; see the
 [verification record](sdd/executable-uninstall/VERIFICATION.md).
+
+## Empty-window decoration (2026-09-11)
+
+The approved [decoration cycle](sdd/empty-window-decoration/SPEC.md) replaces the
+visible empty-state title with a responsive monochrome application-icon motif
+using the shared surface palette role, while preserving an accessible description.
+Local acceptance passed: full `task check`, eight dark/light scale runs, live theme
+changes, geometry/state/input/accessibility regressions, and subjective rendered
+inspection. See [verification](sdd/empty-window-decoration/VERIFICATION.md) for
+evidence and native-check limitations.
+
+Decoration warning follow-up: raster requests now respect the installed icon
+provider’s 1024-physical-pixel bound (accounting for window DPR) while the displayed motif retains its responsive
+size; requests wait for a positive canvas side. The regression includes large
+windows and transient provider warnings. See the decoration verification record.

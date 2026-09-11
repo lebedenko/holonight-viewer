@@ -1,0 +1,16 @@
+<!--
+SPDX-FileCopyrightText: 2026 Andrii L <lebeden@gmail.com>
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="136" height="136" viewBox="17 14 136 136">
+  <title>HoloNight Viewer decoration</title>
+  <g stroke="#808080">
+    <path fill="none" stroke-width="1.5" d="m35 42 88-18q8-2 10 6l16 89q2 7-5 9L39 139Z"/>
+    <path fill="none" stroke-width="6" d="M33 42h103q9 0 9 9v77q0 9-9 9H33q-9 0-9-9V51q0-9 9-9Z"/>
+    <g fill="#808080" stroke-linejoin="round" stroke-width="1.5">
+      <path d="m29 133 24-35q7-11 13-1l18 20 20 16Z"/>
+      <path d="m49 134 46-58q6-11 12 1l36 50q4 8-5 8Z"/>
+      <circle cx="54" cy="71" r="9"/>
+    </g>
+  </g>
+</svg>

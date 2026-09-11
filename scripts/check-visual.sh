@@ -4,9 +4,9 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 mkdir -p "$root/build/visual"
 export QT_QPA_PLATFORM=offscreen QSG_RHI_BACKEND=software
 for mode in dark light; do
-  for scale in 1 1.25 1.5; do
+  for scale in 1 1.25 1.5 2; do
     HOLONIGHT_APPEARANCE_FILE="$root/tests/fixtures/$mode.toml" \
       QT_SCALE_FACTOR="$scale" VIEWER_CAPTURE_PREFIX="$root/build/visual/$mode-$scale" \
-      "$root/build/test/tests/viewer-smoke" --gtest_filter=Accessibility.VisibleKeyboardFocus:Viewer.WindowAndKeyboard:Viewer.OpeningCanvasAndAdapters:Viewer.InspectionControlsAndLifecycle:Viewer.FolderBrowsingControls:Viewer.StaticWorkflowControls:Viewer.IndependentOverlayTimers
+      "$root/build/test/tests/viewer-smoke" --gtest_filter=Accessibility.VisibleKeyboardFocus:Viewer.WindowAndKeyboard:Viewer.EmptyDecorationLiveTheme:Viewer.OpeningCanvasAndAdapters:Viewer.InspectionControlsAndLifecycle:Viewer.FolderBrowsingControls:Viewer.StaticWorkflowControls:Viewer.IndependentOverlayTimers
   done
 done
