@@ -176,13 +176,13 @@ HnApplicationWindow {
         id: shortcutHelp
         objectName: "shortcutHelpAction"
         text: qsTr("Shortcut Help")
-        shortcut: "F1"
+        shortcut: "?"
         enabled: !window.modalActive
         onTriggered: window.detailDialog = 2
     }
 
     Shortcut {
-        sequence: "0"
+        sequence: "Ctrl+0"
         enabled: window.canInspect
         onActivated: window.fitImage()
     }
@@ -192,28 +192,28 @@ HnApplicationWindow {
         onActivated: window.actualSizeImage()
     }
     Shortcut {
-        sequences: ["+", "="]
+        sequences: ["Ctrl++", "Ctrl+="]
         enabled: window.canInspect
         onActivated: window.zoomImage(1)
     }
     Shortcut {
-        sequence: "-"
+        sequence: "Ctrl+-"
         enabled: window.canInspect
         onActivated: window.zoomImage(-1)
     }
 
     Shortcut {
-        sequence: "PgUp"
+        sequence: "["
         enabled: !window.modalActive && window.document.canPrevious
         onActivated: window.browse(-1)
     }
     Shortcut {
-        sequence: "PgDown"
+        sequence: "]"
         enabled: !window.modalActive && window.document.canNext
         onActivated: window.browse(1)
     }
     Shortcut {
-        sequence: "F5"
+        sequence: "Ctrl+R"
         enabled: !window.modalActive && window.document.localPath.length > 0
         onActivated: window.refreshFolder()
     }
@@ -342,7 +342,7 @@ HnApplicationWindow {
                         wrapMode: TextEdit.Wrap
                         textFormat: TextEdit.PlainText
                         Accessible.name: details.title
-                        text: window.detailDialog === 1 ? window.document.informationText : qsTr("Ctrl+O — Open image\nPage Up / Page Down — Previous / next image\nF5 — Refresh folder and image\n\n0 — Fit\n1 — Actual Size (physical pixels)\n+ / = / − — Zoom at center\nMouse wheel / touchpad scroll — Zoom at pointer\nLeft-button drag — Pan\nArrow keys — Pan focused canvas\nTab / Shift+Tab — Move keyboard focus\n\nR / Shift+R — Rotate clockwise / counterclockwise\nH / V — Flip horizontally / vertically\nActions → Reset Transform — Clear temporary transforms\nCtrl+C — Copy entire transformed image\nCtrl+Shift+C — Copy file path\nI — Image Information\nF1 — Shortcut Help\n\nF — Toggle fullscreen\nEscape — Close dialog, or leave fullscreen\nQ — Quit\nDrop one local image — Open image")
+                        text: window.detailDialog === 1 ? window.document.informationText : qsTr("Ctrl+O — Open image\n[ / ] — Previous / next image\nCtrl+R — Refresh folder and image\n\nCtrl+0 — Fit\n1 — Actual Size (physical pixels)\nCtrl++ / Ctrl+= / Ctrl+− — Zoom at center\nMouse wheel / touchpad scroll — Zoom at pointer\nLeft-button drag — Pan\nArrow keys — Pan focused canvas\nTab / Shift+Tab — Move keyboard focus\n\nR / Shift+R — Rotate clockwise / counterclockwise\nH / V — Flip horizontally / vertically\nActions → Reset Transform — Clear temporary transforms\nCtrl+C — Copy entire transformed image\nCtrl+Shift+C — Copy file path\nI — Image Information\n? — Shortcut Help\n\nF — Toggle fullscreen\nEscape — Close dialog, or leave fullscreen\nQ — Quit\nDrop one local image — Open image")
                     }
                 }
             }
@@ -733,7 +733,7 @@ HnApplicationWindow {
             Layout.bottomMargin: 6
             spacing: 12
             Repeater {
-                model: [qsTr("PgUp/PgDown  navigate"), qsTr("+/−  zoom"), qsTr("0  fit"), qsTr("1  100%"), qsTr("R  rotate"), qsTr("F  fullscreen"), qsTr("I  information"), qsTr("F1  help"), qsTr("Q  quit")]
+                model: [qsTr("[ / ]  navigate"), qsTr("Ctrl++/−  zoom"), qsTr("Ctrl+0  fit"), qsTr("1  100%"), qsTr("R  rotate"), qsTr("F  fullscreen"), qsTr("I  information"), qsTr("?  help"), qsTr("Q  quit")]
                 HnLabel {
                     required property string modelData
                     role: HnTypographyRole.Caption

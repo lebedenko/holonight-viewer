@@ -193,3 +193,12 @@ reporting and portable formatting discovery. Local acceptance passed, including
 the full `task check`, Task/CMake formatting checks and formatter discovery fixtures. See its
 [verification record](sdd/review-fixes/VERIFICATION.md) for acceptance evidence.
 Existing release deferrals remain unchanged.
+
+## Shortcut remapping (2026-09-11)
+
+The approved [shortcut remapping cycle](sdd/shortcut-remapping/SPEC.md) updates
+primary keyboard shortcuts to standard desktop conventions: previous/next to `[`/`]`,
+folder refresh to `Ctrl+R`, zoom in/out to `Ctrl++`/`Ctrl+=` and `Ctrl+-`, fit to `Ctrl+0`,
+and shortcut help to `?`. Help text, bottom caption strip, and documentation
+reflect the remapped sequences. See the [verification record](sdd/shortcut-remapping/VERIFICATION.md).
+

@@ -72,7 +72,7 @@ TEST(Accessibility, NamesRolesEnabledFocusAndDialogs) {
   ASSERT_NE(disabledBackground, nullptr);
   EXPECT_EQ(QQmlProperty::read(disabledBackground, "border.width").toDouble(), 0);
   QTest::keyClick(window, Qt::Key_Escape);
-  QTest::keyClick(window, Qt::Key_F1);
+  QTest::keyClick(window, Qt::Key_Question);
   ASSERT_TRUE(QTest::qWaitFor([&] { return window->findChild<QQuickItem*>("detailsText") != nullptr; }));
   auto* text = window->findChild<QQuickItem*>("detailsText");
   auto* accessible = QAccessible::queryAccessibleInterface(text);
@@ -209,7 +209,7 @@ TEST(Accessibility, VisibleKeyboardFocus) {
     EXPECT_EQ(window->activeFocusItem(), first);
     expectBorder(firstBackground);
     QTest::keyClick(window, Qt::Key_Escape);
-    for (const auto key : {Qt::Key_F1, Qt::Key_I}) {
+    for (const auto key : {Qt::Key_Question, Qt::Key_I}) {
       QTest::keyClick(window, key);
       ASSERT_TRUE(QTest::qWaitFor([&] { return window->findChild<QQuickItem*>("detailsText") != nullptr; }));
       auto* text = window->findChild<QQuickItem*>("detailsText");
@@ -217,7 +217,7 @@ TEST(Accessibility, VisibleKeyboardFocus) {
       ASSERT_NE(close, nullptr);
       ASSERT_TRUE(tabTo(text));
       expectBorder(background(text));
-      capture(key == Qt::Key_F1 ? "help-text" : "information-text");
+      capture(key == Qt::Key_Question ? "help-text" : "information-text");
       ASSERT_TRUE(tabTo(close));
       EXPECT_FALSE(text->hasActiveFocus());
       EXPECT_NE(QQmlProperty::read(background(text), "border.color").value<QColor>(), focusedColor);

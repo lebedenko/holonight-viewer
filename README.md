@@ -44,11 +44,11 @@ normal/maximized state, including compositor-managed tiling. Viewer shortcuts pa
 
 | Image control | Action |
 | --- | --- |
-| `Page Up` / Previous, `Page Down` / Next | Browse siblings, stopping at folder boundaries |
-| `F5` | Rescan the folder and reload the selected image, clearing the cache |
-| `0` / Fit | Center the whole image and fit it as the window changes |
+| `[` / Previous, `]` / Next | Browse siblings, stopping at folder boundaries |
+| `Ctrl+R` | Rescan the folder and reload the selected image, clearing the cache |
+| `Ctrl+0` / Fit | Center the whole image and fit it as the window changes |
 | `1` / Actual Size | Center at one source pixel per physical display pixel |
-| `+` or `=` / `−` | Zoom in/out around the canvas center |
+| `Ctrl++` or `Ctrl+=` / `Ctrl+−` | Zoom in/out around the canvas center |
 | Vertical wheel or trackpad scroll over the canvas | Zoom around the pointer |
 | Left-button drag | Pan the image |
 | Arrow keys with the canvas focused | Pan the viewed region in that direction |
@@ -58,7 +58,7 @@ normal/maximized state, including compositor-managed tiling. Viewer shortcuts pa
 | `Ctrl+C` | Copy the entire transformed image, including transparency |
 | `Ctrl+Shift+C` | Copy the normalized absolute path, unquoted; retain symlink paths |
 | `I` | Open selectable Image Information |
-| `F1` | Open scrollable shortcut and gesture help |
+| `?` | Open scrollable shortcut and gesture help |
 
 Navigation, Refresh, transforms, Zoom, Fit and Actual Size focus the canvas so arrow-key panning works immediately.
 Tab reaches the canvas and buttons; clicking the canvas also focuses it. Manual
@@ -85,11 +85,11 @@ activation alone does not change Viewer-owned styling. Typography
 inherits the shared theme’s point-based font sizes.
 
 Transforms compose in invocation order, reset zoom/pan to Fit, and do
-not allocate another full-size image while viewing. Open, navigation and F5 clear
+not allocate another full-size image while viewing. Open, navigation and Ctrl+R clear
 them; returning to a file does not restore them. Original files remain unchanged.
 Information shows worker-collected format, encoded size, local modification time,
 decoded dimensions after embedded orientation, and current transformed dimensions.
-Facts follow cached image snapshots; F5 refreshes them. The path and Copy Path
+Facts follow cached image snapshots; Ctrl+R refreshes them. The path and Copy Path
 remain available during loading/errors; unknown facts say “Unavailable.”
 Information and Help support scrolling and text selection/copying. Escape closes
 the dialog before leaving fullscreen; closing restores canvas focus.

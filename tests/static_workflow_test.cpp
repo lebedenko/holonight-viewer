@@ -300,7 +300,7 @@ TEST(Viewer, StaticWorkflowControls) {
   EXPECT_EQ(clipboardPng(), asymmetric());
   QTest::keyClick(window, Qt::Key_F);
   ASSERT_TRUE(QTest::qWaitFor([&] { return window->visibility() == QWindow::FullScreen; }));
-  for (auto key : {Qt::Key_I, Qt::Key_F1}) {
+  for (auto key : {Qt::Key_I, Qt::Key_Question}) {
     QTest::keyClick(window, key);
     ASSERT_TRUE(QTest::qWaitFor([&] { return window->property("modalActive").toBool(); }));
     QTest::qWait(100);
@@ -339,7 +339,7 @@ TEST(Viewer, StaticWorkflowControls) {
     for (const auto size : {QSize(420, 280), QSize(1000, 700)}) {
       window->resize(size);
       QTest::qWait(100);
-      for (auto key : {Qt::Key_I, Qt::Key_F1}) {
+      for (auto key : {Qt::Key_I, Qt::Key_Question}) {
         QTest::keyClick(window, key);
         QTest::qWait(200);
         EXPECT_TRUE(window->grabWindow().save(capture + QString("-workflow-%1-%2.png").arg(size.width()).arg(key)));
@@ -369,7 +369,7 @@ TEST(Viewer, StaticWorkflowControls) {
   QTest::keyClick(window, Qt::Key_Escape);
   ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("modalActive").toBool(); }));
   document.transform(1);
-  QTest::keyClick(window, Qt::Key_F5);
+  QTest::keyClick(window, Qt::Key_R, Qt::ControlModifier);
   EXPECT_EQ(document.orientation(), 0);
   ASSERT_TRUE(ready(document));
   window->close();

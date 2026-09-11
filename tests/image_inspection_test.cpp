@@ -57,7 +57,7 @@ TEST(Viewer, InspectionControlsAndLifecycle) {
     canvas->fit();
     open_button->forceActiveFocus(Qt::TabFocusReason);
     EXPECT_FALSE(canvas->hasActiveFocus());
-    QTest::keyClick(window, key);
+    QTest::keyClick(window, key, Qt::ControlModifier);
     EXPECT_TRUE(canvas->hasActiveFocus());
     const auto before_keyboard_pan = canvas->imageRect();
     QTest::keyClick(window, Qt::Key_Down);
@@ -115,10 +115,10 @@ TEST(Viewer, InspectionControlsAndLifecycle) {
   const auto before_pan = canvas->imageRect();
   QTest::keyClick(window, Qt::Key_Right);
   EXPECT_NEAR(canvas->imageRect().x(), before_pan.x() - 40, 1e-8);
-  QTest::keyClick(window, Qt::Key_Equal);
+  QTest::keyClick(window, Qt::Key_Equal, Qt::ControlModifier);
   EXPECT_NEAR(canvas->magnification(), 1.25, 1e-12);
   open_button->forceActiveFocus(Qt::TabFocusReason);
-  QTest::keyClick(window, Qt::Key_Minus);
+  QTest::keyClick(window, Qt::Key_Minus, Qt::ControlModifier);
   EXPECT_TRUE(canvas->hasActiveFocus());
   EXPECT_NEAR(canvas->magnification(), 1, 1e-12);
   const auto center_source = [&] {
@@ -154,7 +154,7 @@ TEST(Viewer, InspectionControlsAndLifecycle) {
   auto* dialog = window->findChild<QObject*>(QStringLiteral("openDialog"));
   EXPECT_FALSE(actual_button->isEnabled());
   wheel({0, 120});
-  QTest::keyClick(window, Qt::Key_0);
+  QTest::keyClick(window, Qt::Key_0, Qt::ControlModifier);
   EXPECT_DOUBLE_EQ(canvas->magnification(), 1);
   EXPECT_EQ(canvas->imageRect(), before_dialog);
   ASSERT_TRUE(QMetaObject::invokeMethod(dialog, "reject"));
@@ -162,7 +162,7 @@ TEST(Viewer, InspectionControlsAndLifecycle) {
   EXPECT_EQ(canvas->imageRect(), before_dialog);
   window->requestActivate();
   ASSERT_TRUE(QTest::qWaitForWindowActive(window));
-  QTest::keyClick(window, Qt::Key_0);
+  QTest::keyClick(window, Qt::Key_0, Qt::ControlModifier);
   EXPECT_TRUE(canvas->fitting());
   EXPECT_EQ(canvas->imageRect(), ImageCanvas::fitRect(fixture.size(), canvas->size()));
   const QString capture = qEnvironmentVariable("VIEWER_CAPTURE_PREFIX");
@@ -300,13 +300,13 @@ TEST(Viewer, IndependentOverlayTimers) {
   EXPECT_FALSE(arrows->property("running").toBool());
   EXPECT_TRUE(strip->isVisible());
   QTest::qWait(180);
-  QTest::keyClick(window, Qt::Key_0);
+  QTest::keyClick(window, Qt::Key_0, Qt::ControlModifier);
   ASSERT_TRUE(QTest::qWaitFor([&] { return !strip->isVisible(); }, 250));
   EXPECT_EQ(canvas->imageRect(), geometry);
   canvas->update();
   QTest::qWait(100);
   EXPECT_FALSE(strip->isVisible());
-  QTest::keyClick(window, Qt::Key_F5);
+  QTest::keyClick(window, Qt::Key_R, Qt::ControlModifier);
   ASSERT_TRUE(QTest::qWaitFor([&] { return strip->isVisible(); }));
   EXPECT_FALSE(arrows->property("running").toBool());
   EXPECT_EQ(document.formattedFileSize(),
@@ -316,11 +316,11 @@ TEST(Viewer, IndependentOverlayTimers) {
   QSignalSpy renders(canvas, &ImageCanvas::firstRendered);
   ASSERT_TRUE(document.canNext());
   {
-    QTest::keyClick(window, Qt::Key_PageDown);
+    QTest::keyClick(window, Qt::Key_BracketRight);
     ASSERT_TRUE(QTest::qWaitFor([&] { return renders.count() == 1; }));
     EXPECT_TRUE(strip->isVisible());
     EXPECT_FALSE(arrows->property("running").toBool());
-    QTest::keyClick(window, Qt::Key_PageUp);
+    QTest::keyClick(window, Qt::Key_BracketLeft);
     ASSERT_TRUE(QTest::qWaitFor([&] { return renders.count() == 2; }));
     EXPECT_EQ(document.position(), originalPosition);
     EXPECT_TRUE(strip->isVisible());
