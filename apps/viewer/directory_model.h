@@ -17,21 +17,25 @@ QUrl normalizedLocalUrl(const QUrl& url);
 bool naturalFileNameLess(const QString& left, const QString& right);
 DirectoryResult scanDirectory(const QUrl& selected, const std::atomic_bool& cancelled);
 
+// QObject owns identity and disables copying/moving.
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class DirectoryModel : public QAbstractListModel {
   Q_OBJECT
  public:
+  // Preserve the existing Qt-facing enum type and values.
+  // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,performance-enum-size)
   enum Role { FileNameRole = Qt::UserRole + 1, UrlRole };
   using Scanner = std::function<DirectoryResult(const QUrl&, const std::atomic_bool&)>;
   explicit DirectoryModel(QObject* parent = nullptr);
   explicit DirectoryModel(Scanner scanner, QObject* parent = nullptr);
   ~DirectoryModel() override;
-  int rowCount(const QModelIndex& parent = {}) const override;
-  QVariant data(const QModelIndex& index, int role) const override;
-  QHash<int, QByteArray> roleNames() const override;
-  QUrl urlAt(int index) const;
-  int indexOf(const QUrl& url) const;
-  bool scanning() const { return scanning_; }
-  QString error() const { return error_; }
+  [[nodiscard]] int rowCount(const QModelIndex& parent = {}) const override;
+  [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override;
+  [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
+  [[nodiscard]] QUrl urlAt(int index) const;
+  [[nodiscard]] int indexOf(const QUrl& url) const;
+  [[nodiscard]] bool scanning() const { return scanning_; }
+  [[nodiscard]] QString error() const { return error_; }
   void scan(const QUrl& selected);
   void clear();
   void shutdown();

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-formatted=$(mktemp)
+root=$(cd "$(dirname "$0")/.." && pwd)
+mkdir -p "$root/build"
+formatted=$(mktemp "$root/build/qml-format.XXXXXX")
 trap 'rm -f "$formatted"' EXIT
-/usr/lib/qt6/bin/qmlformat apps/viewer/Main.qml > "$formatted"
-diff -u apps/viewer/Main.qml "$formatted"
+bash "$root/scripts/qml-format.sh" "$root/apps/viewer/Main.qml" > "$formatted"
+diff -u "$root/apps/viewer/Main.qml" "$formatted"

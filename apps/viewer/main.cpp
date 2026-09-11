@@ -40,12 +40,8 @@ int main(int argc, char* argv[]) {
   ImageDocument document;
   QObject::connect(&app, &QGuiApplication::lastWindowClosed, &document, &ImageDocument::shutdown);
   QObject::connect(&document, &ImageDocument::shutdownFinished, &app, &QCoreApplication::quit);
-  QObject::connect(&document, &ImageDocument::changed, &app, [&document] {
-    if (document.state() == ImageDocument::Error) {
-      QTextStream(stderr)
-          << QCoreApplication::translate("main", "Error opening %1: %2").arg(document.fileName(), document.error())
-          << '\n';
-    }
+  QObject::connect(&document, &ImageDocument::openingFailed, &app, [](const QString& fileName, const QString& error) {
+    QTextStream(stderr) << QCoreApplication::translate("main", "Error opening %1: %2").arg(fileName, error) << '\n';
   });
   QQmlApplicationEngine engine;
   QObject::connect(

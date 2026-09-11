@@ -31,8 +31,8 @@ class DecodedImageCache {
   std::optional<CachedImage> take(const QUrl& url);
   void put(CachedImage entry);
   void clear();
-  qsizetype count() const { return static_cast<qsizetype>(entries_.size()); }
-  qint64 bytes() const { return bytes_; }
+  [[nodiscard]] qsizetype count() const { return static_cast<qsizetype>(entries_.size()); }
+  [[nodiscard]] qint64 bytes() const { return bytes_; }
 
  private:
   std::list<CachedImage> entries_;

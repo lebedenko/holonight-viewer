@@ -7,6 +7,8 @@
 
 #include <functional>
 
+// QObject owns identity and disables copying/moving.
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class ClipboardController : public QObject {
   Q_OBJECT
   QML_ELEMENT
@@ -18,8 +20,8 @@ class ClipboardController : public QObject {
   explicit ClipboardController(QObject* parent = nullptr);
   explicit ClipboardController(Prepare prepare, QObject* parent = nullptr);
   ~ClipboardController() override;
-  bool busy() const { return busy_; }
-  QString feedback() const { return feedback_; }
+  [[nodiscard]] bool busy() const { return busy_; }
+  [[nodiscard]] QString feedback() const { return feedback_; }
   void copyImage(const QImage& image, int orientation, const QString& fileName);
   void copyPath(const QString& path);
   void shutdown();

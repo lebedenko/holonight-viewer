@@ -309,3 +309,19 @@ icon that follows the theme and available window size. Screen readers retain the
 “No image open” description. Loading and errors keep their text feedback; the
 decoration disappears for opened images, including transparent ones. See the
 [decoration verification](docs/sdd/empty-window-decoration/VERIFICATION.md).
+
+Review maintenance: the [review-fixes cycle](docs/sdd/review-fixes/SPEC.md)
+restores application-header lint/format coverage and reports each failed opening
+once, including a new report for each retry or refresh. Existing local CLI paths
+are resolved before URL parsing, so `frame:1.png` opens when present. A missing
+`frame:1.png` is rejected as a URL; use `./frame:1.png` for the normal missing-file
+error. File URLs remain subject to local-file validation; remote URLs are rejected.
+
+QML formatting uses `QMLFORMAT` when explicitly set (an executable path or command
+name, without arguments), then `qmlformat`/`qmlformat-qt6` on PATH, `qtpaths6`
+installation directories, and `/usr/lib/qt6/bin/qmlformat` as a compatibility
+fallback. For example: `QMLFORMAT="/opt/Qt 6/bin/qmlformat" task format-check`.
+Invalid explicit overrides fail instead of falling back. Both `task format` and
+the QML check use this discovery; temporary check output stays under `build/`.
+CMake `format` and `format-check` cover application C++ headers and application/test
+translation units; Task additionally formats/checks QML.

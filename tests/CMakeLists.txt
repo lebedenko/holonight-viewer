@@ -26,6 +26,7 @@ target_compile_definitions(viewer-smoke PRIVATE VIEWER_FIXTURE_DIR="${CMAKE_CURR
 set_target_properties(viewer-smoke PROPERTIES QT_QML_MODULE_NO_IMPORT_SCAN TRUE)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME viewer-qml-format-discovery COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-qml-format-discovery.py")
 add_test(NAME viewer-opening COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-opening.py" $<TARGET_FILE:holonight-viewer>)
 set_tests_properties(viewer-opening PROPERTIES TIMEOUT 30 ENVIRONMENT
   "QML_IMPORT_PATH=${HOLONIGHT_QML_IMPORT_PATH};LD_LIBRARY_PATH=${HOLONIGHT_DEPENDENCY_PREFIX}/${CMAKE_INSTALL_LIBDIR}")

@@ -15,8 +15,10 @@ class WindowState : public QObject {
  public:
   explicit WindowState(QObject* parent = nullptr) : QObject(parent) {}
 
+  // QML invokes this method through the singleton instance.
+  // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
   Q_INVOKABLE void setFullscreen(QWindow* window, bool fullscreen) {
-    if (!window) {
+    if (window == nullptr) {
       return;
     }
     // A tiled Wayland window can also report WindowMaximized. Changing that

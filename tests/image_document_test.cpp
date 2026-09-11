@@ -7,6 +7,7 @@
 #include <QDataStream>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QImageReader>
 #include <QScopeGuard>
 #include <QSignalSpy>
@@ -239,10 +240,12 @@ TEST(Document, StaleErrorAndValidationCannotReplaceNewestState) {
     return solidResult();
   });
   const auto cleanup = qScopeGuard([&] { release.store(true); });
+  QSignalSpy failures(&document, &ImageDocument::openingFailed);
   const auto local = QUrl::fromLocalFile(fixturePath("latest.png"));
   document.open({local});
   ASSERT_TRUE(QTest::qWaitFor([&] { return started.load() == 1; }));
   document.open({QUrl("https://example.org/no.png")});
+  EXPECT_EQ(failures.size(), 1);
   const auto validation = document.error();
   release.store(true);
   QTest::qWait(30);
@@ -252,6 +255,7 @@ TEST(Document, StaleErrorAndValidationCannotReplaceNewestState) {
   ASSERT_TRUE(settled(document));
   EXPECT_EQ(document.state(), ImageDocument::Ready);
   EXPECT_TRUE(document.error().isEmpty());
+  EXPECT_EQ(failures.size(), 1);
 }
 
 TEST(Document, ShutdownDrainsWithoutBlockingEventLoop) {
@@ -262,9 +266,10 @@ TEST(Document, ShutdownDrainsWithoutBlockingEventLoop) {
     while (!release.load()) {
       QThread::msleep(1);
     }
-    return solidResult();
+    return DecodeResult{.image = {}, .error = "canceled failure"};
   });
   const auto cleanup = qScopeGuard([&] { release.store(true); });
+  QSignalSpy failures(&document, &ImageDocument::openingFailed);
   QSignalSpy finished(&document, &ImageDocument::shutdownFinished);
   const auto url = QUrl::fromLocalFile(fixturePath("closing.png"));
   document.open({url});
@@ -276,15 +281,95 @@ TEST(Document, ShutdownDrainsWithoutBlockingEventLoop) {
   release.store(true);
   ASSERT_TRUE(QTest::qWaitFor([&] { return !finished.isEmpty(); }));
   EXPECT_TRUE(document.image().isNull());
+  EXPECT_TRUE(failures.isEmpty());
 }
 
 TEST(Document, CommandLinePathsAndRemoteRejection) {
+  const auto url = writeFixture(QString::fromUtf8("frame:1 фото.png"), encodedImage("PNG"));
+  const auto relative = QDir::current().relativeFilePath(url.toLocalFile());
+  const auto original = QDir::currentPath();
+  ASSERT_TRUE(QDir::setCurrent(QFileInfo(url.toLocalFile()).absolutePath()));
+  const auto restore = qScopeGuard([&] { QDir::setCurrent(original); });
+  for (const auto& argument : {url.fileName(), "./" + url.fileName(), url.toLocalFile(), url.toString()}) {
+    EXPECT_EQ(commandLineUrl(argument), url);
+  }
+  EXPECT_FALSE(ImageDocument::isLocalUrl(commandLineUrl("missing:1.png")));
+  EXPECT_EQ(commandLineUrl("./missing:1.png").toLocalFile(), QDir::current().absoluteFilePath("./missing:1.png"));
   EXPECT_EQ(commandLineUrl(QString::fromUtf8("фото space.png")).toLocalFile(),
             QDir::current().absoluteFilePath(QString::fromUtf8("фото space.png")));
   EXPECT_TRUE(ImageDocument::isLocalUrl(commandLineUrl("/tmp/a#b%.png")));
   EXPECT_FALSE(ImageDocument::isLocalUrl(commandLineUrl("https://example.org/a.png")));
   EXPECT_FALSE(ImageDocument::isLocalUrl(commandLineUrl("file://host/a.png")));
   EXPECT_FALSE(ImageDocument::isLocalUrl(commandLineUrl("file:///tmp/a.png?query")));
+  EXPECT_FALSE(ImageDocument::isLocalUrl(commandLineUrl("file:///tmp/a.png#fragment")));
+  ASSERT_TRUE(QDir::setCurrent(original));
+  EXPECT_EQ(commandLineUrl(relative), url);
+}
+
+TEST(Document, FailureEventsIgnoreDirectoryChangesAndRepeatPerRequest) {
+  std::atomic_bool release_scan{false};
+  std::atomic_bool scan_started{false};
+  ImageDocument document(
+      [](const QUrl&, const std::atomic_bool&) { return DecodeResult{.image = {}, .error = "expected failure"}; },
+      [&](const QUrl&, const std::atomic_bool&) {
+        scan_started.store(true);
+        while (!release_scan.load()) {
+          QThread::msleep(1);
+        }
+        return DirectoryResult{};
+      });
+  const auto cleanup = qScopeGuard([&] { release_scan.store(true); });
+  QSignalSpy failures(&document, &ImageDocument::openingFailed);
+  QSignalSpy changes(&document, &ImageDocument::changed);
+  const auto url = QUrl::fromLocalFile(fixturePath("event-failure.png"));
+  document.open({url});
+  ASSERT_TRUE(settled(document));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return scan_started.load(); }));
+  ASSERT_EQ(failures.size(), 1);
+  EXPECT_EQ(failures.first().at(0).toString(), "event-failure.png");
+  EXPECT_EQ(failures.first().at(1).toString(), "expected failure");
+  const auto before_scan = changes.size();
+  release_scan.store(true);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !document.scanning(); }));
+  EXPECT_GT(changes.size(), before_scan);
+  EXPECT_EQ(failures.size(), 1);
+  document.resetTransform();
+  EXPECT_EQ(failures.size(), 1);
+  document.open({url});
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(failures.size(), 2);
+  document.refresh();
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(failures.size(), 3);
+  document.open({});
+  EXPECT_EQ(failures.size(), 4);
+  document.open({});
+  EXPECT_EQ(failures.size(), 5);
+}
+
+TEST(Document, SuccessfulTransformsAndPrefetchFailuresDoNotReportOpeningFailures) {
+  const auto selected = QUrl::fromLocalFile(fixturePath("selected.png"));
+  const auto neighbor = QUrl::fromLocalFile(fixturePath("neighbor.png"));
+  std::atomic_bool prefetched{false};
+  ImageDocument document(
+      [&](const QUrl& url, const std::atomic_bool&) {
+        if (url == selected) {
+          return solidResult();
+        }
+        prefetched.store(true);
+        return DecodeResult{.image = {}, .error = "prefetch failure"};
+      },
+      [&](const QUrl&, const std::atomic_bool&) { return DirectoryResult{.urls = {selected, neighbor}, .error = {}}; });
+  QSignalSpy failures(&document, &ImageDocument::openingFailed);
+  document.open({selected});
+  ASSERT_TRUE(settled(document));
+  document.transform(1);
+  document.resetTransform();
+  ASSERT_TRUE(QTest::qWaitFor([&] { return prefetched.load(); }));
+  QSignalSpy finished(&document, &ImageDocument::shutdownFinished);
+  document.shutdown();
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !finished.isEmpty(); }));
+  EXPECT_TRUE(failures.isEmpty());
 }
 
 TEST(Canvas, FitsWithoutDistortion) {

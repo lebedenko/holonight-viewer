@@ -17,16 +17,16 @@ class ImageCanvas : public QQuickPaintedItem {
   Q_PROPERTY(QRectF imageRect READ imageRect NOTIFY viewChanged)
  public:
   explicit ImageCanvas(QQuickItem* parent = nullptr);
-  int orientation() const { return orientation_; }
+  [[nodiscard]] int orientation() const { return orientation_; }
   void setOrientation(int orientation);
-  QImage image() const { return image_; }
+  [[nodiscard]] QImage image() const { return image_; }
   void setImage(const QImage& image);
-  qreal displayPixelRatio() const { return pixel_ratio_; }
+  [[nodiscard]] qreal displayPixelRatio() const { return pixel_ratio_; }
   void setDisplayPixelRatio(qreal ratio);
-  bool fitting() const { return view_.fitting(); }
-  qreal magnification() const { return view_.magnification(); }
-  bool canPan() const { return view_.canPan(); }
-  QRectF imageRect() const { return view_.rect(); }
+  [[nodiscard]] bool fitting() const { return view_.fitting(); }
+  [[nodiscard]] qreal magnification() const { return view_.magnification(); }
+  [[nodiscard]] bool canPan() const { return view_.canPan(); }
+  [[nodiscard]] QRectF imageRect() const { return view_.rect(); }
   Q_INVOKABLE void fit();
   Q_INVOKABLE void actualSize();
   Q_INVOKABLE void zoom(qreal factor, QPointF anchor);

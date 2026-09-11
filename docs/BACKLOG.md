@@ -184,3 +184,12 @@ Decoration warning follow-up: raster requests now respect the installed icon
 provider’s 1024-physical-pixel bound (accounting for window DPR) while the displayed motif retains its responsive
 size; requests wait for a positive canvas side. The regression includes large
 windows and transient provider warnings. See the decoration verification record.
+
+## Review fixes (2026-09-11)
+
+The approved [review-fixes maintenance cycle](sdd/review-fixes/SPEC.md) covers
+colon-path opening, application-header lint coverage, once-per-opening error
+reporting and portable formatting discovery. Local acceptance passed, including
+the full `task check`, Task/CMake formatting checks and formatter discovery fixtures. See its
+[verification record](sdd/review-fixes/VERIFICATION.md) for acceptance evidence.
+Existing release deferrals remain unchanged.

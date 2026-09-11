@@ -157,6 +157,10 @@ DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
 }
 
 QUrl commandLineUrl(const QString& argument) {
+  const QFileInfo local(argument);
+  if (local.exists()) {
+    return QUrl::fromLocalFile(local.absoluteFilePath());
+  }
   QUrl parsed(argument, QUrl::StrictMode);
   if (!parsed.scheme().isEmpty()) {
     return parsed;
@@ -167,7 +171,10 @@ QUrl commandLineUrl(const QString& argument) {
 ImageDocument::ImageDocument(QObject* parent) : ImageDocument(decodeImage, parent) {}
 
 ImageDocument::ImageDocument(Decoder decoder, QObject* parent)
-    : QObject(parent), worker_(new QObject), decoder_(std::move(decoder)) {
+    : ImageDocument(std::move(decoder), scanDirectory, parent) {}
+
+ImageDocument::ImageDocument(Decoder decoder, DirectoryModel::Scanner scanner, QObject* parent)
+    : QObject(parent), directory_(std::move(scanner)), worker_(new QObject), decoder_(std::move(decoder)) {
   // Set policy before any worker starts, including Qt's environment override.
   qputenv("QT_IMAGEIO_MAXALLOC", "128");
   QImageReader::setAllocationLimit(128);
@@ -229,6 +236,7 @@ void ImageDocument::open(const QList<QUrl>& urls) {
     file_name_.clear();
     state_ = Error;
     error_ = tr("Open exactly one local image file. Remote URLs are not supported.");
+    emit openingFailed(file_name_, error_);
     directory_.clear();
     emit changed();
     return;
@@ -251,7 +259,7 @@ void ImageDocument::select(const QUrl& url) {
   error_.clear();
   file_name_ = url.fileName();
   state_ = Loading;
-  pending_ = Request{.request_id = request_id_, .url = url, .cache_epoch = cache_epoch_};
+  pending_ = Request{.requestId = request_id_, .url = url, .cacheEpoch = cache_epoch_};
   emit changed();
   startPending();
 }
@@ -285,10 +293,10 @@ void ImageDocument::startPending() {
   QMetaObject::invokeMethod(
       worker_,
       [this, request, cancel] {
-        if (worker_cache_epoch_ != request.cache_epoch) {
+        if (worker_cache_epoch_ != request.cacheEpoch) {
           cache_.clear();
           displayed_.reset();
-          worker_cache_epoch_ = request.cache_epoch;
+          worker_cache_epoch_ = request.cacheEpoch;
         }
         auto entry = cache_.take(request.url);
         if (!request.prefetch && displayed_) {
@@ -329,13 +337,16 @@ void ImageDocument::complete(const Request& request, DecodeResult result) {
     thread_.quit();
     return;
   }
-  if (!request.prefetch && request.request_id == request_id_) {
+  if (!request.prefetch && request.requestId == request_id_) {
     information_ = std::move(result.information);
     image_ = std::move(result.image);
     error_ = std::move(result.error);
     state_ = image_.isNull() ? Error : Ready;
     if (state_ == Error && error_.isEmpty()) {
       error_ = tr("The image could not be decoded.");
+    }
+    if (state_ == Error) {
+      emit openingFailed(file_name_, error_);
     }
     emit changed();
   }
@@ -353,7 +364,7 @@ void ImageDocument::maybePrefetch() {
   if (neighbor.isEmpty()) {
     return;
   }
-  pending_ = Request{.request_id = request_id_, .url = neighbor, .cache_epoch = cache_epoch_, .prefetch = true};
+  pending_ = Request{.requestId = request_id_, .url = neighbor, .cacheEpoch = cache_epoch_, .prefetch = true};
   startPending();
 }
 

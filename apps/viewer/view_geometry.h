@@ -11,16 +11,16 @@ class ViewGeometry {
   void actualSize();
   void zoom(qreal factor, QPointF anchor);
   void pan(QPointF delta);
-  bool valid() const;
-  bool fitting() const { return fitting_; }
-  qreal magnification() const { return magnification_; }
-  qreal scale() const { return magnification_ / pixel_ratio_; }
-  QRectF rect() const;
-  QPointF center() const { return center_; }
-  bool canPan() const;
+  [[nodiscard]] bool valid() const;
+  [[nodiscard]] bool fitting() const { return fitting_; }
+  [[nodiscard]] qreal magnification() const { return magnification_; }
+  [[nodiscard]] qreal scale() const { return magnification_ / pixel_ratio_; }
+  [[nodiscard]] QRectF rect() const;
+  [[nodiscard]] QPointF center() const { return center_; }
+  [[nodiscard]] bool canPan() const;
 
  private:
-  qreal fitMagnification() const;
+  [[nodiscard]] qreal fitMagnification() const;
   void constrain();
   QSize image_;
   QSizeF canvas_;

@@ -25,6 +25,8 @@ struct DecodeResult {
 DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled);
 QUrl commandLineUrl(const QString& argument);
 
+// QObject owns identity and disables copying/moving.
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class ImageDocument : public QObject {
   Q_OBJECT
   QML_ELEMENT
@@ -48,33 +50,40 @@ class ImageDocument : public QObject {
   Q_PROPERTY(QStringList nameFilters READ nameFilters CONSTANT)
 
  public:
+  // Preserve the existing Qt-facing enum type and values.
+  // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,performance-enum-size)
   enum State { Empty, Loading, Ready, Error };
   Q_ENUM(State)
   using Decoder = std::function<DecodeResult(const QUrl&, const std::atomic_bool&)>;
   explicit ImageDocument(QObject* parent = nullptr);
   explicit ImageDocument(Decoder decoder, QObject* parent = nullptr);
+  ImageDocument(Decoder decoder, DirectoryModel::Scanner scanner, QObject* parent = nullptr);
   ~ImageDocument() override;
-  int orientation() const { return orientation_; }
-  QSize transformedDimensions() const { return ImageOrientation::dimensions(orientation_, image_.size()); }
-  QString localPath() const { return selected_url_.toLocalFile(); }
-  QString informationText() const;
-  QString formattedFileSize() const;
-  const ImageInformation& information() const { return information_; }
+  [[nodiscard]] int orientation() const { return orientation_; }
+  [[nodiscard]] QSize transformedDimensions() const {
+    return ImageOrientation::dimensions(orientation_, image_.size());
+  }
+  [[nodiscard]] QString localPath() const { return selected_url_.toLocalFile(); }
+  [[nodiscard]] QString informationText() const;
+  [[nodiscard]] QString formattedFileSize() const;
+  [[nodiscard]] const ImageInformation& information() const { return information_; }
   ClipboardController* clipboard() { return &clipboard_; }
   Q_INVOKABLE void transform(int operation);
   Q_INVOKABLE void resetTransform();
   Q_INVOKABLE void copyImage();
   Q_INVOKABLE void copyPath();
-  State state() const { return state_; }
-  QString fileName() const { return file_name_; }
-  QString error() const { return error_; }
-  QImage image() const { return image_; }
-  int position() const { return selected_index_ + 1; }
-  int count() const { return directory_.rowCount(); }
-  bool scanning() const { return directory_.scanning(); }
-  bool canPrevious() const { return !stopping_ && !scanning() && selected_index_ > 0; }
-  bool canNext() const { return !stopping_ && !scanning() && selected_index_ >= 0 && selected_index_ + 1 < count(); }
-  QString folderError() const { return directory_.error(); }
+  [[nodiscard]] State state() const { return state_; }
+  [[nodiscard]] QString fileName() const { return file_name_; }
+  [[nodiscard]] QString error() const { return error_; }
+  [[nodiscard]] QImage image() const { return image_; }
+  [[nodiscard]] int position() const { return selected_index_ + 1; }
+  [[nodiscard]] int count() const { return directory_.rowCount(); }
+  [[nodiscard]] bool scanning() const { return directory_.scanning(); }
+  [[nodiscard]] bool canPrevious() const { return !stopping_ && !scanning() && selected_index_ > 0; }
+  [[nodiscard]] bool canNext() const {
+    return !stopping_ && !scanning() && selected_index_ >= 0 && selected_index_ + 1 < count();
+  }
+  [[nodiscard]] QString folderError() const { return directory_.error(); }
   Q_INVOKABLE void previous();
   Q_INVOKABLE void next();
   Q_INVOKABLE void refresh();
@@ -84,15 +93,16 @@ class ImageDocument : public QObject {
   Q_INVOKABLE void shutdown();
 
  signals:
+  void openingFailed(QString fileName, QString error);
   void changed();
   void orientationChanged();
   void shutdownFinished();
 
  private:
   struct Request {
-    quint64 request_id;
+    quint64 requestId;
     QUrl url;
-    quint64 cache_epoch;
+    quint64 cacheEpoch;
     bool prefetch = false;
   };
   void startPending();
