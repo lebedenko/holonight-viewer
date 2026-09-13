@@ -169,7 +169,7 @@ TEST(Workflow, InformationCacheRefreshAndUnchangedSource) {
   ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Error; }));
   EXPECT_EQ(document.localPath(), path);
   EXPECT_EQ(document.information().encodedSize, -1);
-  EXPECT_TRUE(document.informationText().contains("Unavailable"));
+  EXPECT_TRUE(document.informationText().contains("Size unavailable"));
 }
 
 TEST(Workflow, ClipboardCaptureBusyFailureAndShutdown) {

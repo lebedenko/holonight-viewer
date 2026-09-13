@@ -299,9 +299,17 @@ HnApplicationWindow {
                 id: details
                 objectName: "detailsDialog"
                 parent: Overlay.overlay
+                readonly property bool information: window.detailDialog === 1
                 anchors.centerIn: parent
-                width: Math.min(620, window.width - 24)
-                height: Math.min(500, window.height - 24)
+                width: Math.min(information ? 480 : 620, window.width - 24)
+                height: information ? Math.min(implicitHeight, window.height - 24) : Math.min(500, window.height - 24)
+                padding: information ? 16 : 12
+                background: Rectangle {
+                    color: HoloniightPalette.surfaceRaised
+                    border.width: HnMetrics.borderWidth
+                    border.color: HoloniightPalette.borderPassive
+                    radius: details.information ? HnMetrics.internalSpacing(HnControlSize.Compact) : 0
+                }
                 palette.window: HoloniightPalette.surfaceRaised
                 palette.windowText: HoloniightPalette.textPrimary
                 palette.button: HoloniightPalette.surface
@@ -309,14 +317,16 @@ HnApplicationWindow {
                 palette.mid: HoloniightPalette.borderPassive
                 modal: true
                 focus: true
-                title: window.detailDialog === 1 ? qsTr("Image Information") : qsTr("Shortcut Help")
+                // The information card carries the filename itself, as in the mockup.
+                title: information ? "" : qsTr("Shortcut Help")
                 footer: Item {
-                    implicitHeight: closeDetails.height + 12
+                    implicitHeight: closeDetails.height + (details.information ? 16 : 12)
                     ViewerButton {
                         id: closeDetails
                         objectName: "closeDetailsButton"
                         anchors.right: parent.right
-                        anchors.rightMargin: 12
+                        anchors.rightMargin: details.information ? 16 : 12
+                        anchors.top: parent.top
                         text: qsTr("Close")
                         onClicked: details.close()
                     }
@@ -324,25 +334,69 @@ HnApplicationWindow {
                 closePolicy: Popup.CloseOnEscape
                 onClosed: window.detailDialog = 0
                 Component.onCompleted: open()
-                contentItem: ScrollView {
-                    objectName: "detailsScroll"
-                    clip: true
-                    contentWidth: availableWidth
-                    ScrollBar.vertical.active: true
-                    HnStyle.TextArea {
-                        id: detailsText
-                        objectName: "detailsText"
-                        background: Rectangle {
-                            color: HoloniightPalette.surface
-                            border.width: detailsText.activeFocus ? HnMetrics.focusBorderWidth : HnMetrics.borderWidth
-                            border.color: detailsText.activeFocus ? HoloniightPalette.borderFocus : HoloniightPalette.borderPassive
+                contentItem: RowLayout {
+                    spacing: 16
+                    Rectangle {
+                        objectName: "informationThumbnail"
+                        visible: details.information && window.document.state === ImageDocument.Ready
+                        Layout.alignment: Qt.AlignTop
+                        Layout.preferredWidth: 96
+                        Layout.preferredHeight: 96
+                        color: HoloniightPalette.surface
+                        border.width: HnMetrics.borderWidth
+                        border.color: HoloniightPalette.borderPassive
+                        Accessible.ignored: true
+                        ImageCanvas {
+                            anchors.fill: parent
+                            anchors.margins: HnMetrics.borderWidth
+                            image: window.document.image
+                            orientation: window.document.orientation
+                            displayPixelRatio: window.devicePixelRatio
+                            enabled: false
+                            Accessible.ignored: true
                         }
-                        readOnly: true
-                        selectByMouse: true
-                        wrapMode: TextEdit.Wrap
-                        textFormat: TextEdit.PlainText
-                        Accessible.name: details.title
-                        text: window.detailDialog === 1 ? window.document.informationText : qsTr("Ctrl+O — Open image\n[ / ] — Previous / next image\nCtrl+R — Refresh folder and image\n\nCtrl+0 — Fit\n1 — Actual Size (physical pixels)\nCtrl++ / Ctrl+= / Ctrl+− — Zoom at center\nMouse wheel / touchpad scroll — Zoom at pointer\nLeft-button drag — Pan\nArrow keys — Pan focused canvas\nTab / Shift+Tab — Move keyboard focus\n\nR / Shift+R — Rotate clockwise / counterclockwise\nH / V — Flip horizontally / vertically\nActions → Reset Transform — Clear temporary transforms\nCtrl+C — Copy entire transformed image\nCtrl+Shift+C — Copy file path\nI — Image Information\n? — Shortcut Help\n\nF — Toggle fullscreen\nEscape — Close dialog, or leave fullscreen\nQ — Quit\nDrop one local image — Open image")
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        spacing: 4
+                        HnLabel {
+                            objectName: "informationTitle"
+                            visible: details.information
+                            Layout.fillWidth: true
+                            leftPadding: detailsText.leftPadding
+                            rightPadding: detailsText.rightPadding
+                            role: HnTypographyRole.Subheading
+                            textFormat: Text.PlainText
+                            rawText: window.document.fileName
+                            elide: Text.ElideMiddle
+                        }
+                        ScrollView {
+                            objectName: "detailsScroll"
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            implicitHeight: details.information ? detailsText.implicitHeight : 0
+                            clip: true
+                            contentWidth: availableWidth
+                            ScrollBar.vertical.active: true
+                            HnStyle.TextArea {
+                                id: detailsText
+                                objectName: "detailsText"
+                                background: Rectangle {
+                                    color: details.information ? "transparent" : HoloniightPalette.surface
+                                    border.width: detailsText.activeFocus ? HnMetrics.focusBorderWidth : details.information ? 0 : HnMetrics.borderWidth
+                                    border.color: detailsText.activeFocus ? HoloniightPalette.borderFocus : details.information ? "transparent" : HoloniightPalette.borderPassive
+                                    radius: details.information ? HnMetrics.internalSpacing(HnControlSize.Compact) : 0
+                                }
+                                readOnly: true
+                                selectByMouse: true
+                                wrapMode: TextEdit.Wrap
+                                textFormat: TextEdit.PlainText
+                                color: details.information ? HoloniightPalette.textSecondary : HoloniightPalette.textPrimary
+                                Accessible.name: details.information ? qsTr("Image Information") : details.title
+                                text: details.information ? window.document.informationText : qsTr("Ctrl+O — Open image\n[ / ] — Previous / next image\nCtrl+R — Refresh folder and image\n\nCtrl+0 — Fit\n1 — Actual Size (physical pixels)\nCtrl++ / Ctrl+= / Ctrl+− — Zoom at center\nMouse wheel / touchpad scroll — Zoom at pointer\nLeft-button drag — Pan\nArrow keys — Pan focused canvas\nTab / Shift+Tab — Move keyboard focus\n\nR / Shift+R — Rotate clockwise / counterclockwise\nH / V — Flip horizontally / vertically\nActions → Reset Transform — Clear temporary transforms\nCtrl+C — Copy entire transformed image\nCtrl+Shift+C — Copy file path\nI — Image Information\n? — Shortcut Help\n\nF — Toggle fullscreen\nEscape — Close dialog, or leave fullscreen\nQ — Quit\nDrop one local image — Open image")
+                            }
+                        }
                     }
                 }
             }

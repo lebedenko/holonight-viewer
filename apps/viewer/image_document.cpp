@@ -5,6 +5,7 @@
 #include <QFileInfo>
 #include <QImageReader>
 #include <QLocale>
+#include <QStringList>
 #include <QtEndian>
 
 #include <utility>
@@ -133,7 +134,8 @@ DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
   if (file.size() > file_limit) {
     return {.image = {}, .error = ImageDocument::tr("The file exceeds the 256 MiB input limit."), .information = facts};
   }
-  if (cancelled.load()) {
+  facts.exif = ExifMetadata::read(file, cancelled);
+  if (cancelled.load() || !file.seek(0)) {
     return {};
   }
   auto decoded = readImage(file, cancelled, facts);
@@ -418,17 +420,35 @@ void ImageDocument::copyPath() {
   }
 }
 QString ImageDocument::informationText() const {
-  const auto unavailable = tr("Unavailable");
-  const auto dimensions = [&unavailable](QSize size) {
-    return size.isValid() ? tr("%1 × %2 pixels").arg(size.width()).arg(size.height()) : unavailable;
+  const auto size = information_.decodedSize;
+  const auto transformed = transformedDimensions();
+  const auto megapixels = static_cast<double>(size.width()) * size.height() / 1'000'000.0;
+  QStringList file{
+      information_.format.isEmpty() ? tr("Format unavailable") : tr("%1 image").arg(information_.format),
+      size.isValid()
+          ? tr("%1 × %2 (%3 MP)").arg(size.width()).arg(size.height()).arg(QLocale().toString(megapixels, 'f', 1))
+          : tr("Dimensions unavailable"),
+      transformed.isValid() ? tr("Transformed dimensions: %1 × %2").arg(transformed.width()).arg(transformed.height())
+                            : tr("Transformed dimensions unavailable"),
+      information_.encodedSize < 0 ? tr("Size unavailable") : formattedFileSize(),
+      information_.modified.isValid() ? information_.modified.toLocalTime().toString(QStringLiteral("yyyy-MM-dd HH:mm"))
+                                      : tr("Modified date unavailable")};
+  // Card sections are separated by a blank line; empty EXIF facts are omitted.
+  const auto present = [](const QStringList& lines) {
+    QStringList result;
+    for (const auto& line : lines) {
+      if (!line.isEmpty()) {
+        result << line;
+      }
+    }
+    return result.join(u'\n');
   };
-  return tr("Path: %1\n\nFormat: %2\nFile size: %3\nModified: %4\nDecoded dimensions: %5\nTransformed dimensions: %6")
-      .arg(
-          localPath(), information_.format.isEmpty() ? unavailable : information_.format,
-          information_.encodedSize < 0 ? unavailable : tr("%1 bytes").arg(QLocale().toString(information_.encodedSize)),
-          information_.modified.isValid() ? QLocale().toString(information_.modified.toLocalTime(), QLocale::LongFormat)
-                                          : unavailable,
-          dimensions(information_.decodedSize), dimensions(transformedDimensions()));
+  const auto& exif = information_.exif;
+  QStringList sections{file.join(u'\n'), present({exif.camera, exif.lens, exif.exposure})};
+  sections << present({exif.location, exif.altitude.isEmpty() ? QString{} : tr("Altitude %1").arg(exif.altitude)});
+  sections << (localPath().isEmpty() ? tr("Unavailable") : localPath());
+  sections.removeAll(QString{});
+  return sections.join(QStringLiteral("\n\n"));
 }
 
 QString ImageDocument::formattedFileSize() const {

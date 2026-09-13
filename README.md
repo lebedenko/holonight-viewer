@@ -8,7 +8,7 @@ the release target; additional formats depend on installed Qt image plugins. Ani
 show their first frame only. Inspect with fit, actual size, zoom and pan, then
 browse supported images in the containing folder.
 
-Requires C++23, Qt 6.11+, CMake 3.25+, Ninja, Task, tomlplusplus, pkg-config, libwebp, and installed
+Requires C++23, Qt 6.11+, CMake 3.25+, Ninja, Task, tomlplusplus, pkg-config, libwebp, libexif, and installed
 HolonightQt::Core / HolonightQt::Controls. Tests use Qt Test and GTest. Checks need
 clang-format, clang-tidy (run-clang-tidy), REUSE, desktop-file-utils, GIO and Python 3.
 On Arch, the [CI Dockerfile](packaging/Dockerfile.ci) lists the packages.
@@ -193,8 +193,11 @@ animated formats display the first frame only. Missing codecs fail qualification
 not ordinary startup. Qt remains the primary decoder. A private libwebp fallback
 handles simple static RIFF VP8/VP8L files that Qt cannot inspect or decode,
 including the compact Qt 6.11.2 regression. Extended containers, metadata and
-animation stay on the Qt path. Source builds require pkg-config and libwebp
-(Arch: `pkgconf libwebp`); installed runtimes need libwebp and the Qt plugins.
+animation stay on the Qt path. Image Information reads camera, lens, exposure
+and GPS details from EXIF blocks in JPEG, PNG and WebP files with libexif;
+missing or damaged metadata is omitted. Source builds require pkg-config,
+libwebp and libexif (Arch: `pkgconf libwebp libexif`); installed runtimes need
+libwebp, libexif and the Qt plugins.
 
 For a system installation, build the separately installed HoloNight providers
 against the same Qt build used by Viewer. Use the dependency revisions in

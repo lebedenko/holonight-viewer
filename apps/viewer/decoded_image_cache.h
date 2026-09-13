@@ -1,5 +1,7 @@
 #pragma once
 
+#include "exif_metadata.h"
+
 #include <QDateTime>
 #include <QImage>
 #include <QUrl>
@@ -12,6 +14,7 @@ struct ImageInformation {
   qint64 encodedSize = -1;
   QDateTime modified;
   QSize decodedSize;
+  ExifDetails exif;
 };
 
 struct CachedImage {
