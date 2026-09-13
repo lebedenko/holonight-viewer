@@ -1,5 +1,9 @@
 # Backlog
 
+The developer-only [task screenshot cycle](sdd/task-screenshot/SPEC.md) adds a
+Hyprland window capture command with an optional interaction delay; its
+[verification record](sdd/task-screenshot/VERIFICATION.md) tracks local checks.
+
 The supplied roadmap sets this order. Each numbered stage is a separate SDD
 cycle: approve requirements, approve design/tasks, implement, verify, document.
 Do not mark a stage complete while acceptance checks remain pending.

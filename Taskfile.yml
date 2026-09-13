@@ -27,6 +27,9 @@ tasks:
       - task: build
         vars: {PRESET: '{{.PRESET}}'}
       - build/{{.PRESET}}/apps/viewer/hn-viewer {{.CLI_ARGS}}
+  screenshot:
+    desc: Launch Viewer, capture its window after an optional delay, then close it
+    cmds: ['python3 scripts/screenshot.py {{.CLI_ARGS}}']
 
   install:
     desc: Build Release against system providers, install to /usr and refresh desktop metadata

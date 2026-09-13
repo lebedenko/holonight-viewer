@@ -26,6 +26,7 @@ task install              # Release build against /usr providers; sudo install a
 task clean                # remove Viewer debug/release/test/system-install builds; keep providers
 task --list               # includes individual checks and build commands
 task visual-check         # separate capture workflow under build/visual
+task screenshot -- --delay 5  # capture the live Viewer window after interaction time
 ```
 
 `--help` and `--version` are supported. Pass one local path (quote spaces), or a
@@ -171,6 +172,14 @@ Licensed GPL-3.0-or-later; see LICENSE.
 `task run` builds the configured preset and launches the executable with
 the current checkout's provider overrides and CLI arguments. Use `PRESET=release`
 to select Release. It does not create desktop entries or icons in user directories.
+
+`task screenshot` starts Viewer through `task run`, waits for its window, captures
+its current bounds to `build/screenshot.png`, and closes that instance. Use
+`task screenshot -- --delay N` to allow N seconds after the window appears for
+opening a menu, showing a focus ring, or other interaction. Add `--margin N` to
+include N extra pixels on every side of the window (for example,
+`task screenshot -- --delay 5 --margin 16`). This developer tool
+currently requires a Hyprland Wayland session, `hyprctl`, and `grim`.
 
 Stage 5 **source-release acceptance with CMake install** is recorded as of
 2026-09-10, including the user's explicit acceptance of measured performance.
