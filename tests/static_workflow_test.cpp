@@ -240,7 +240,7 @@ TEST(Viewer, StaticWorkflowControls) {
   QTest::keyClick(window, Qt::Key_R);
   EXPECT_EQ(document.orientation(), 1);
   EXPECT_TRUE(canvas->fitting());
-  EXPECT_TRUE(canvas->hasActiveFocus());
+  EXPECT_FALSE(canvas->hasActiveFocus());
   QTest::keyClick(window, Qt::Key_H);
   EXPECT_EQ(document.orientation(), ImageOrientation::compose(1, 4));
   QTest::keyClick(window, Qt::Key_V);
@@ -263,6 +263,13 @@ TEST(Viewer, StaticWorkflowControls) {
   ASSERT_TRUE(openMenu());
   auto* firstMenu = window->findChild<QObject*>("actionsMenu");
   ASSERT_NE(firstMenu, nullptr);
+  const auto menuStart = firstMenu->property("currentIndex").toInt();
+  QTest::keyClick(window, Qt::Key_J);
+  EXPECT_EQ(firstMenu->property("currentIndex").toInt(), menuStart + 1);
+  QTest::keyClick(window, Qt::Key_K);
+  EXPECT_EQ(firstMenu->property("currentIndex").toInt(), 0);
+  QTest::keyClick(window, Qt::Key_Up);
+  EXPECT_EQ(firstMenu->property("currentIndex").toInt(), 0);
   for (int step = 0; step < 20 && firstMenu->property("currentIndex").toInt() != 10; ++step) {
     QTest::keyClick(window, Qt::Key_Down);
   }
@@ -270,7 +277,7 @@ TEST(Viewer, StaticWorkflowControls) {
   QTest::keyClick(window, Qt::Key_Return);
   QTest::qWait(100);
   EXPECT_EQ(document.orientation(), 1);
-  EXPECT_TRUE(canvas->hasActiveFocus());
+  EXPECT_FALSE(canvas->hasActiveFocus());
   ASSERT_TRUE(openMenu());
   auto* resetItem = window->findChild<QQuickItem*>("resetTransformMenuItem");
   ASSERT_NE(resetItem, nullptr);
@@ -281,7 +288,7 @@ TEST(Viewer, StaticWorkflowControls) {
   QTest::keyClick(window, Qt::Key_Return);
   QTest::qWait(100);
   EXPECT_EQ(document.orientation(), 0);
-  EXPECT_TRUE(canvas->hasActiveFocus());
+  EXPECT_FALSE(canvas->hasActiveFocus());
   ASSERT_TRUE(openMenu());
   auto* infoItem = window->findChild<QQuickItem*>("informationMenuItem");
   ASSERT_NE(infoItem, nullptr);
@@ -331,7 +338,7 @@ TEST(Viewer, StaticWorkflowControls) {
     QTest::keyClick(window, Qt::Key_Escape);
     ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("modalActive").toBool(); }));
     EXPECT_EQ(window->visibility(), QWindow::FullScreen);
-    EXPECT_TRUE(canvas->hasActiveFocus());
+    EXPECT_FALSE(canvas->hasActiveFocus());
   }
   QTest::keyClick(window, Qt::Key_Escape);
   const auto capture = qEnvironmentVariable("VIEWER_CAPTURE_PREFIX");
@@ -360,6 +367,11 @@ TEST(Viewer, StaticWorkflowControls) {
   ASSERT_TRUE(openMenu());
   auto* menu = window->findChild<QObject*>("actionsMenu");
   ASSERT_NE(menu, nullptr);
+  const auto finalMenuStart = menu->property("currentIndex").toInt();
+  QTest::keyClick(window, Qt::Key_J);
+  EXPECT_NE(menu->property("currentIndex").toInt(), finalMenuStart);
+  QTest::keyClick(window, Qt::Key_K);
+  EXPECT_EQ(menu->property("currentIndex").toInt(), finalMenuStart);
   for (int step = 0; step < 20 && menu->property("currentIndex").toInt() != 18; ++step) {
     QTest::keyClick(window, Qt::Key_Down);
   }

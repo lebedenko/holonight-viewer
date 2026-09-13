@@ -202,3 +202,10 @@ folder refresh to `Ctrl+R`, zoom in/out to `Ctrl++`/`Ctrl+=` and `Ctrl+-`, fit t
 and shortcut help to `?`. Help text, bottom caption strip, and documentation
 reflect the remapped sequences. See the [verification record](sdd/shortcut-remapping/VERIFICATION.md).
 
+## Header keyboard navigation (2026-09-13)
+
+The [header keyboard navigation cycle](sdd/header-keyboard-navigation/SPEC.md)
+replaces canvas focus with a neutral focus target. Tab and Shift+Tab wrap through
+enabled header buttons; arrow keys pan from window focus; J/K navigate Actions.
+The canvas has no tab stop or focus outline. See the
+[verification record](sdd/header-keyboard-navigation/VERIFICATION.md).

@@ -55,6 +55,7 @@ HnApplicationWindow {
         }
     }
     property bool rendered: false
+    property bool actionsMenuOpen: false
     Timer {
         id: arrowTimer
         objectName: "arrowTimer"
@@ -78,7 +79,36 @@ HnApplicationWindow {
     onModalActiveChanged: {
         ++window.inputEpoch;
         if (!modalActive)
-            canvas.forceActiveFocus(Qt.OtherFocusReason);
+            window.clearImageFocus();
+    }
+
+    function clearImageFocus(): void {
+        if (!window.modalActive && !window.actionsMenuOpen)
+            neutralFocus.forceActiveFocus(Qt.OtherFocusReason);
+    }
+
+    WindowKeyRouter {
+        id: keyRouter
+        objectName: "windowKeyRouter"
+        target: window
+        imageReady: window.canInspect
+        modalActive: window.modalActive
+        menuOpen: window.actionsMenuOpen
+        onPanRequested: (horizontal, vertical) => {
+            canvas.pan(Qt.point(horizontal, vertical));
+            window.clearImageFocus();
+        }
+    }
+
+    Item {
+        id: neutralFocus
+        objectName: "neutralFocus"
+        parent: window.contentItem
+        focus: true
+        activeFocusOnTab: false
+        width: 1
+        height: 1
+        Accessible.ignored: true
     }
 
     readonly property int documentState: document.state
@@ -154,7 +184,10 @@ HnApplicationWindow {
         text: qsTr("Copy Image")
         shortcut: "Ctrl+C"
         enabled: window.canInspect && !window.document.clipboard.busy
-        onTriggered: window.document.copyImage()
+        onTriggered: {
+            window.document.copyImage();
+            window.clearImageFocus();
+        }
     }
     Action {
         id: copyPath
@@ -162,7 +195,10 @@ HnApplicationWindow {
         text: qsTr("Copy Path")
         shortcut: "Ctrl+Shift+C"
         enabled: window.hasPath && !window.document.clipboard.busy
-        onTriggered: window.document.copyPath()
+        onTriggered: {
+            window.document.copyPath();
+            window.clearImageFocus();
+        }
     }
     Action {
         id: imageInformation
@@ -223,27 +259,27 @@ HnApplicationWindow {
             window.document.previous();
         else
             window.document.next();
-        canvas.forceActiveFocus(Qt.OtherFocusReason);
+        window.clearImageFocus();
     }
 
     function refreshFolder(): void {
         window.document.refresh();
-        canvas.forceActiveFocus(Qt.OtherFocusReason);
+        window.clearImageFocus();
     }
 
     function fitImage(): void {
         canvas.fit();
-        canvas.forceActiveFocus(Qt.OtherFocusReason);
+        window.clearImageFocus();
     }
 
     function actualSizeImage(): void {
         canvas.actualSize();
-        canvas.forceActiveFocus(Qt.OtherFocusReason);
+        window.clearImageFocus();
     }
 
     function zoomImage(steps: real): void {
         canvas.zoomSteps(steps, Qt.point(canvas.width / 2, canvas.height / 2));
-        canvas.forceActiveFocus(Qt.OtherFocusReason);
+        window.clearImageFocus();
     }
 
     function leaveFullscreen(): void {
@@ -394,7 +430,7 @@ HnApplicationWindow {
                                 textFormat: TextEdit.PlainText
                                 color: details.information ? HoloniightPalette.textSecondary : HoloniightPalette.textPrimary
                                 Accessible.name: details.information ? qsTr("Image Information") : details.title
-                                text: details.information ? window.document.informationText : qsTr("Ctrl+O — Open image\n[ / ] — Previous / next image\nCtrl+R — Refresh folder and image\n\nCtrl+0 — Fit\n1 — Actual Size (physical pixels)\nCtrl++ / Ctrl+= / Ctrl+− — Zoom at center\nMouse wheel / touchpad scroll — Zoom at pointer\nLeft-button drag — Pan\nArrow keys — Pan focused canvas\nTab / Shift+Tab — Move keyboard focus\n\nR / Shift+R — Rotate clockwise / counterclockwise\nH / V — Flip horizontally / vertically\nActions → Reset Transform — Clear temporary transforms\nCtrl+C — Copy entire transformed image\nCtrl+Shift+C — Copy file path\nI — Image Information\n? — Shortcut Help\n\nF — Toggle fullscreen\nEscape — Close dialog, or leave fullscreen\nQ — Quit\nDrop one local image — Open image")
+                                text: details.information ? window.document.informationText : qsTr("Ctrl+O — Open image\n[ / ] — Previous / next image\nCtrl+R — Refresh folder and image\n\nCtrl+0 — Fit\n1 — Actual Size (physical pixels)\nCtrl++ / Ctrl+= / Ctrl+− — Zoom at center\nMouse wheel / touchpad scroll — Zoom at pointer\nLeft-button drag — Pan\nArrow keys — Pan image from anywhere in the window\nTab / Shift+Tab — Cycle header buttons\nJ / K or Down / Up — Navigate Actions menu\n\nR / Shift+R — Rotate clockwise / counterclockwise\nH / V — Flip horizontally / vertically\nActions → Reset Transform — Clear temporary transforms\nCtrl+C — Copy entire transformed image\nCtrl+Shift+C — Copy file path\nI — Image Information\n? — Shortcut Help\n\nF — Toggle fullscreen\nEscape — Close dialog, or leave fullscreen\nQ — Quit\nDrop one local image — Open image")
                             }
                         }
                     }
@@ -424,14 +460,20 @@ HnApplicationWindow {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     ViewerHeaderButton {
+                        id: informationButton
                         objectName: "informationButton"
+                        KeyNavigation.tab: fullscreenButton
+                        KeyNavigation.backtab: actionsButton
                         icon.source: "icons/information.svg"
                         Accessible.name: qsTr("Image Information")
                         enabled: window.hasPath
                         onClicked: window.detailDialog = 1
                     }
                     ViewerHeaderButton {
+                        id: fullscreenButton
                         objectName: "fullscreenButton"
+                        KeyNavigation.tab: actionsButton
+                        KeyNavigation.backtab: informationButton
                         icon.source: "icons/fullscreen.svg"
                         Accessible.name: qsTr("Fullscreen")
                         enabled: !window.modalActive
@@ -440,6 +482,8 @@ HnApplicationWindow {
                     ViewerHeaderButton {
                         id: actionsButton
                         objectName: "actionsButton"
+                        KeyNavigation.tab: informationButton
+                        KeyNavigation.backtab: fullscreenButton
                         icon.source: "icons/menu.svg"
                         Accessible.name: qsTr("Actions")
                         enabled: !window.modalActive
@@ -452,8 +496,11 @@ HnApplicationWindow {
                             x: actionsButton.width - width
                             width: Math.min(340, window.width - 24)
                             height: Math.min(implicitHeight, window.height - 24)
-                            onClosed: if (!window.modalActive)
-                                canvas.forceActiveFocus(Qt.OtherFocusReason)
+                            onOpened: window.actionsMenuOpen = true
+                            onClosed: {
+                                window.actionsMenuOpen = false;
+                                window.clearImageFocus();
+                            }
                             y: actionsButton.height + HnMetrics.internalSpacing(HnControlSize.Normal)
                             contentItem: ListView {
                                 implicitHeight: contentHeight
@@ -576,7 +623,7 @@ HnApplicationWindow {
                 orientation: window.document.orientation
                 onOrientationChanged: ++window.inputEpoch
                 displayPixelRatio: window.devicePixelRatio
-                activeFocusOnTab: true
+                activeFocusOnTab: false
                 onImageChanged: {
                     ++window.inputEpoch;
                     window.rendered = false;
@@ -593,20 +640,9 @@ HnApplicationWindow {
                 }
                 onKeyboardInput: arrowTimer.stop()
                 onViewportChanged: ++window.inputEpoch
-                Keys.enabled: window.canInspect
-                Keys.onLeftPressed: canvas.pan(Qt.point(40, 0))
-                Keys.onRightPressed: canvas.pan(Qt.point(-40, 0))
-                Keys.onUpPressed: canvas.pan(Qt.point(0, 40))
-                Keys.onDownPressed: canvas.pan(Qt.point(0, -40))
                 Accessible.role: Accessible.Graphic
                 Accessible.name: window.document.state === ImageDocument.Empty ? qsTr("No image open") : window.document.fileName || qsTr("Image canvas")
 
-                TapHandler {
-                    enabled: window.canInspect
-                    acceptedButtons: Qt.LeftButton
-                    onPressedChanged: if (pressed)
-                        canvas.forceActiveFocus(Qt.MouseFocusReason)
-                }
                 DragHandler {
                     id: drag
                     target: null
@@ -618,7 +654,7 @@ HnApplicationWindow {
                     onActiveChanged: {
                         gestureEpoch = active ? window.inputEpoch : -1;
                         if (active)
-                            canvas.forceActiveFocus(Qt.MouseFocusReason);
+                            window.clearImageFocus();
                     }
                     onTranslationChanged: delta => {
                         if (drag.validGesture)
@@ -633,25 +669,13 @@ HnApplicationWindow {
                         const steps = event.pixelDelta.y !== 0 ? event.pixelDelta.y / 40 : event.angleDelta.y / 120;
                         if (steps !== 0) {
                             canvas.zoomSteps(steps, Qt.point(event.x, event.y));
-                            canvas.forceActiveFocus(Qt.MouseFocusReason);
+                            window.clearImageFocus();
                             event.accepted = true;
                         } else {
                             event.accepted = false;
                         }
                     }
                 }
-            }
-            Rectangle {
-                objectName: "canvasFocusOutline"
-                visible: canvas.activeFocus
-                anchors.fill: canvas
-                anchors.margins: HnMetrics.focusBorderWidth
-                color: "transparent"
-                border.width: canvas.activeFocus ? HnMetrics.focusBorderWidth : 0
-                border.color: HoloniightPalette.borderFocus
-                radius: HnMetrics.internalSpacing(HnControlSize.Compact)
-                enabled: false
-                Accessible.ignored: true
             }
             ViewerButton {
                 objectName: "previousButton"

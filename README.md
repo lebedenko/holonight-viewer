@@ -51,7 +51,7 @@ normal/maximized state, including compositor-managed tiling. Viewer shortcuts pa
 | `Ctrl++` or `Ctrl+=` / `Ctrl+−` | Zoom in/out around the canvas center |
 | Vertical wheel or trackpad scroll over the canvas | Zoom around the pointer |
 | Left-button drag | Pan the image |
-| Arrow keys with the canvas focused | Pan the viewed region in that direction |
+| Arrow keys | Pan the viewed region from anywhere in the window |
 | `R` / `Shift+R` | Rotate clockwise / counterclockwise by 90° |
 | `H` / `V` | Flip horizontally / vertically relative to the displayed image |
 | Actions → Reset Transform | Clear temporary rotation and flips |
@@ -60,8 +60,9 @@ normal/maximized state, including compositor-managed tiling. Viewer shortcuts pa
 | `I` | Open selectable Image Information |
 | `?` | Open scrollable shortcut and gesture help |
 
-Navigation, Refresh, transforms, Zoom, Fit and Actual Size focus the canvas so arrow-key panning works immediately.
-Tab reaches the canvas and buttons; clicking the canvas also focuses it. Manual
+Image actions clear the focus ring. Tab and Shift+Tab cycle through enabled header buttons
+(Information, Fullscreen, Actions); the empty window skips Information. J/K and Down/Up
+navigate the Actions menu. Manual
 zoom preserves magnification during resize/fullscreen and display-scale changes.
 100% means physical pixels even at fractional display scaling. Zoom normally
 ranges from 1% to 3200%, extending to include Fit for unusually small/large images.
@@ -92,7 +93,7 @@ decoded dimensions after embedded orientation, and current transformed dimension
 Facts follow cached image snapshots; Ctrl+R refreshes them. The path and Copy Path
 remain available during loading/errors; unknown facts say “Unavailable.”
 Information and Help support scrolling and text selection/copying. Escape closes
-the dialog before leaving fullscreen; closing restores canvas focus.
+the dialog before leaving fullscreen; closing clears the control focus ring.
 
 Copy Image captures the image and orientation when invoked, ignoring zoom/pan.
 A dedicated worker transforms and PNG-encodes one copy at a time with no queue.

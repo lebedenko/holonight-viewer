@@ -52,13 +52,13 @@ TEST(Viewer, InspectionControlsAndLifecycle) {
   const auto fit_canvas_size = canvas->size();
   auto* open_button = window->findChild<QQuickItem*>(QStringLiteral("actionsButton"));
   ASSERT_NE(open_button, nullptr);
-  // Opening from a control leaves focus there: zoom must make arrows usable without a drag.
+  // Zoom clears button focus, and arrows pan without canvas focus.
   for (const auto key : {Qt::Key_Plus, Qt::Key_Equal}) {
     canvas->fit();
     open_button->forceActiveFocus(Qt::TabFocusReason);
     EXPECT_FALSE(canvas->hasActiveFocus());
     QTest::keyClick(window, key, Qt::ControlModifier);
-    EXPECT_TRUE(canvas->hasActiveFocus());
+    EXPECT_FALSE(canvas->hasActiveFocus());
     const auto before_keyboard_pan = canvas->imageRect();
     QTest::keyClick(window, Qt::Key_Down);
     EXPECT_LT(canvas->imageRect().y(), before_keyboard_pan.y());
@@ -71,7 +71,7 @@ TEST(Viewer, InspectionControlsAndLifecycle) {
       actual_button->mapToScene(QPointF(actual_button->width() / 2, actual_button->height() / 2)).toPoint());
   EXPECT_DOUBLE_EQ(canvas->magnification(), 1);
   EXPECT_FALSE(canvas->fitting());
-  EXPECT_TRUE(canvas->hasActiveFocus());
+  EXPECT_FALSE(canvas->hasActiveFocus());
   QTest::qWait(30);
   EXPECT_EQ(canvas->size(), fit_canvas_size);
   const QPointF anchor(canvas->width() / 3, canvas->height() / 3);
@@ -84,7 +84,7 @@ TEST(Viewer, InspectionControlsAndLifecycle) {
   const auto source_anchor = (anchor - canvas->imageRect().topLeft()) * canvas->displayPixelRatio();
   actual_button->forceActiveFocus(Qt::TabFocusReason);
   wheel({0, 120});
-  EXPECT_TRUE(canvas->hasActiveFocus());
+  EXPECT_FALSE(canvas->hasActiveFocus());
   EXPECT_DOUBLE_EQ(canvas->magnification(), 1.25);
   EXPECT_NEAR(
       ((anchor - canvas->imageRect().topLeft()) * canvas->displayPixelRatio() / 1.25 - source_anchor).manhattanLength(),
@@ -104,14 +104,14 @@ TEST(Viewer, InspectionControlsAndLifecycle) {
   QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier, drag_start + QPoint(60, 50));
   EXPECT_GT(canvas->imageRect().x(), before_drag.x());
   EXPECT_GT(canvas->imageRect().y(), before_drag.y());
-  EXPECT_TRUE(canvas->hasActiveFocus());
+  EXPECT_FALSE(canvas->hasActiveFocus());
   QTest::keyClick(window, Qt::Key_Tab);
   EXPECT_FALSE(canvas->hasActiveFocus());
   const auto while_control_focused = canvas->imageRect();
   QTest::keyClick(window, Qt::Key_Right);
-  EXPECT_EQ(canvas->imageRect(), while_control_focused);
+  EXPECT_NEAR(canvas->imageRect().x(), while_control_focused.x() - 40, 1e-8);
   QTest::keyClick(window, Qt::Key_Backtab);
-  EXPECT_TRUE(canvas->hasActiveFocus());
+  EXPECT_FALSE(canvas->hasActiveFocus());
   const auto before_pan = canvas->imageRect();
   QTest::keyClick(window, Qt::Key_Right);
   EXPECT_NEAR(canvas->imageRect().x(), before_pan.x() - 40, 1e-8);
@@ -119,7 +119,7 @@ TEST(Viewer, InspectionControlsAndLifecycle) {
   EXPECT_NEAR(canvas->magnification(), 1.25, 1e-12);
   open_button->forceActiveFocus(Qt::TabFocusReason);
   QTest::keyClick(window, Qt::Key_Minus, Qt::ControlModifier);
-  EXPECT_TRUE(canvas->hasActiveFocus());
+  EXPECT_FALSE(canvas->hasActiveFocus());
   EXPECT_NEAR(canvas->magnification(), 1, 1e-12);
   const auto center_source = [&] {
     return (QPointF(canvas->width() / 2, canvas->height() / 2) - canvas->imageRect().topLeft()) *

@@ -318,7 +318,7 @@ TEST(Viewer, FolderBrowsingControls) {
   ASSERT_TRUE(settled(document));
   EXPECT_EQ(document.position(), 2);
   EXPECT_EQ(document.state(), ImageDocument::Error);
-  EXPECT_TRUE(canvas->hasActiveFocus());
+  EXPECT_FALSE(canvas->hasActiveFocus());
   const auto click = [&](QQuickItem* button) {
     QTest::mouseMove(window, QPoint(10, 70));
     QTest::qWait(20);
@@ -329,7 +329,7 @@ TEST(Viewer, FolderBrowsingControls) {
   ASSERT_TRUE(settled(document));
   EXPECT_EQ(document.position(), 3);
   EXPECT_TRUE(canvas->fitting());
-  EXPECT_TRUE(canvas->hasActiveFocus());
+  EXPECT_FALSE(canvas->hasActiveFocus());
   QTest::keyClick(window, Qt::Key_1);
   QTest::keyClick(window, Qt::Key_Plus, Qt::ControlModifier);
   const auto before = canvas->imageRect();

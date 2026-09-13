@@ -51,8 +51,8 @@ TEST(Accessibility, NamesRolesEnabledFocusAndDialogs) {
   }
   auto* canvas = window->findChild<ImageCanvas*>(QStringLiteral("imageCanvas"));
   ASSERT_NE(canvas, nullptr);
-  canvas->forceActiveFocus(Qt::TabFocusReason);
-  EXPECT_TRUE(QAccessible::queryAccessibleInterface(canvas)->state().focused);
+  EXPECT_FALSE(canvas->activeFocusOnTab());
+  EXPECT_FALSE(QAccessible::queryAccessibleInterface(canvas)->state().focused);
   QTest::keyClick(window, Qt::Key_Tab);
   EXPECT_NE(window->activeFocusItem(), canvas);
   auto* actions = window->findChild<QQuickItem*>("actionsButton");
@@ -71,6 +71,16 @@ TEST(Accessibility, NamesRolesEnabledFocusAndDialogs) {
   auto* disabledBackground = disabledItem->property("background").value<QQuickItem*>();
   ASSERT_NE(disabledBackground, nullptr);
   EXPECT_EQ(QQmlProperty::read(disabledBackground, "border.width").toDouble(), 0);
+  QTest::keyClick(window, Qt::Key_J);
+  EXPECT_EQ(menu->property("currentIndex").toInt(), 0);
+  QTest::keyClick(window, Qt::Key_J);
+  EXPECT_EQ(menu->property("currentIndex").toInt(), 8);
+  QTest::keyClick(window, Qt::Key_K);
+  EXPECT_EQ(menu->property("currentIndex").toInt(), 0);
+  QTest::keyClick(window, Qt::Key_Down);
+  EXPECT_EQ(menu->property("currentIndex").toInt(), 8);
+  QTest::keyClick(window, Qt::Key_Up);
+  EXPECT_EQ(menu->property("currentIndex").toInt(), 0);
   QTest::keyClick(window, Qt::Key_Escape);
   QTest::keyClick(window, Qt::Key_Question);
   ASSERT_TRUE(QTest::qWaitFor([&] { return window->findChild<QQuickItem*>("detailsText") != nullptr; }));
@@ -90,7 +100,7 @@ TEST(Accessibility, NamesRolesEnabledFocusAndDialogs) {
   QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
                     closeButton->mapToScene(QPointF(closeButton->width() / 2, closeButton->height() / 2)).toPoint());
   ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("modalActive").toBool(); }));
-  EXPECT_TRUE(canvas->hasActiveFocus());
+  EXPECT_FALSE(canvas->hasActiveFocus());
   announcements().clear();
   document.open({QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/sample.png")});
   ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready; }));
@@ -113,11 +123,9 @@ TEST(Accessibility, NamesRolesEnabledFocusAndDialogs) {
   window->close();
 }
 
-// Exercise real key transitions and pixels: focus state alone missed this regression.
+// Focus is restricted to enabled header controls; image actions clear its ring.
 TEST(Accessibility, VisibleKeyboardFocus) {
   ImageDocument document;
-  document.open({QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/sample.png")});
-  ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready; }));
   QQmlApplicationEngine engine;
   engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
   engine.loadFromModule("HolonightViewer", "Main");
@@ -127,115 +135,83 @@ TEST(Accessibility, VisibleKeyboardFocus) {
   window->requestActivate();
   ASSERT_TRUE(QTest::qWaitForWindowActive(window));
   auto* canvas = window->findChild<QQuickItem*>("imageCanvas");
+  auto* neutral = window->findChild<QQuickItem*>("neutralFocus");
+  auto* information = window->findChild<QQuickItem*>("informationButton");
+  auto* fullscreen = window->findChild<QQuickItem*>("fullscreenButton");
   auto* actions = window->findChild<QQuickItem*>("actionsButton");
   ASSERT_NE(canvas, nullptr);
+  ASSERT_NE(neutral, nullptr);
+  ASSERT_NE(information, nullptr);
+  ASSERT_NE(fullscreen, nullptr);
   ASSERT_NE(actions, nullptr);
-  auto background = [](QQuickItem* item) { return item->property("background").value<QQuickItem*>(); };
+  EXPECT_FALSE(canvas->activeFocusOnTab());
+  EXPECT_EQ(window->findChild<QQuickItem*>("canvasFocusOutline"), nullptr);
+  EXPECT_TRUE(neutral->hasActiveFocus());
+  EXPECT_EQ(window->focusObject(), neutral);
+  auto* router = window->findChild<QObject*>("windowKeyRouter");
+  ASSERT_NE(router, nullptr);
+  EXPECT_EQ(router->property("target").value<QQuickWindow*>(), window);
+  EXPECT_FALSE(information->isEnabled());
   auto capture = [&](const QString& label) {
     QTest::qWait(30);
     const auto pixels = window->grabWindow();
     EXPECT_FALSE(pixels.isNull());
     const auto prefix = qEnvironmentVariable("VIEWER_CAPTURE_PREFIX");
     if (!prefix.isEmpty()) {
-      EXPECT_TRUE(pixels.save(prefix + "-keyboard-" + QString::number(window->width()) + "-" + label + ".png"));
+      EXPECT_TRUE(pixels.save(prefix + "-header-" + label + ".png"));
     }
     return pixels;
   };
-  auto borderPixel = [&](QQuickItem* item) {
-    const auto pixels = capture("current");
-    const auto point = item->mapToScene(QPointF(item->width() / 2, 0));
+  auto verifyRing = [&](QQuickItem* button, const QString& label) {
+    auto* background = button->property("background").value<QQuickItem*>();
+    ASSERT_NE(background, nullptr);
+    EXPECT_GT(QQmlProperty::read(background, "border.width").toDouble(), 0);
+    const auto pixels = capture(label);
+    const auto point = background->mapToScene(QPointF(background->width() / 2, 0));
     const auto ratio = static_cast<qreal>(pixels.width()) / window->width();
-    return pixels.pixelColor(qRound(point.x() * ratio), qRound(point.y() * ratio));
+    const auto rendered = pixels.pixelColor(qRound(point.x() * ratio), qRound(point.y() * ratio));
+    const auto expected = QQmlProperty::read(background, "border.color").value<QColor>();
+    EXPECT_NEAR(rendered.red(), expected.red(), 5);
+    EXPECT_NEAR(rendered.green(), expected.green(), 5);
+    EXPECT_NEAR(rendered.blue(), expected.blue(), 5);
   };
-  auto expectBorder = [&](QQuickItem* item) {
-    ASSERT_NE(item, nullptr);
-    const auto color = QQmlProperty::read(item, "border.color").value<QColor>();
-    EXPECT_GT(QQmlProperty::read(item, "border.width").toDouble(), 0);
-    const auto rendered = borderPixel(item);
-    // Native surfaces may quantize channels (e.g. RGB565); retain a tight tolerance.
-    EXPECT_NEAR(rendered.red(), color.red(), 5);
-    EXPECT_NEAR(rendered.green(), color.green(), 5);
-    EXPECT_NEAR(rendered.blue(), color.blue(), 5);
+  capture("empty-neutral");
+  auto tab = [&](QQuickItem* expected, bool reverse = false) {
+    QTest::keyClick(window, Qt::Key_Tab, reverse ? Qt::ShiftModifier : Qt::NoModifier);
+    EXPECT_EQ(window->activeFocusItem(), expected) << window->activeFocusItem()->objectName().toStdString();
+    EXPECT_TRUE(expected->property("visualFocus").toBool());
+    EXPECT_FALSE(canvas->hasActiveFocus());
   };
-  auto tabTo = [&](QQuickItem* item, bool backwards = false) {
-    for (int step = 0; step < 30; ++step) {
-      QTest::keyClick(window, Qt::Key_Tab, backwards ? Qt::ShiftModifier : Qt::NoModifier);
-      if (item->hasActiveFocus()) {
-        return true;
-      }
-    }
-    return false;
-  };
-  for (const QSize size : {QSize(1000, 700), QSize(420, 280)}) {
-    window->resize(size);
-    ASSERT_TRUE(tabTo(canvas));
-    auto* outline = window->findChild<QQuickItem*>("canvasFocusOutline");
-    ASSERT_NE(outline, nullptr);
-    EXPECT_TRUE(outline->isVisible());
-    expectBorder(outline);
-    capture("canvas");
-    ASSERT_TRUE(tabTo(actions));
-    EXPECT_FALSE(outline->isVisible());
-    EXPECT_TRUE(actions->property("visualFocus").toBool());
-    expectBorder(background(actions));
-    capture("button");
-    const auto focusedColor = borderPixel(background(actions));
-    QTest::keyClick(window, Qt::Key_Tab);
-    EXPECT_FALSE(actions->property("visualFocus").toBool());
-    EXPECT_NE(borderPixel(background(actions)), focusedColor);
-    QTest::keyClick(window, Qt::Key_Tab, Qt::ShiftModifier);
-    ASSERT_TRUE(actions->hasActiveFocus());
-    expectBorder(background(actions));
-    ASSERT_TRUE(tabTo(canvas, true));
-    expectBorder(outline);
-    ASSERT_TRUE(tabTo(actions));
-    QTest::keyClick(window, Qt::Key_Space);
-    auto* menu = window->findChild<QObject*>("actionsMenu");
-    ASSERT_NE(menu, nullptr);
-    ASSERT_TRUE(QTest::qWaitFor([&] { return menu->property("visible").toBool(); }));
-    QTest::keyClick(window, Qt::Key_Down);
-    auto* first = window->activeFocusItem();
-    ASSERT_NE(first, nullptr);
-    ASSERT_TRUE(first->property("highlighted").toBool());
-    auto* firstBackground = background(first);
-    ASSERT_NE(firstBackground, nullptr);
-    expectBorder(firstBackground);
-    const auto selected = borderPixel(firstBackground);
-    capture("menu");
-    QTest::keyClick(window, Qt::Key_Down);
-    EXPECT_FALSE(first->property("highlighted").toBool());
-    EXPECT_NE(borderPixel(firstBackground), selected);
-    QTest::keyClick(window, Qt::Key_Up);
-    EXPECT_EQ(window->activeFocusItem(), first);
-    expectBorder(firstBackground);
-    QTest::keyClick(window, Qt::Key_Escape);
-    for (const auto key : {Qt::Key_Question, Qt::Key_I}) {
-      QTest::keyClick(window, key);
-      ASSERT_TRUE(QTest::qWaitFor([&] { return window->findChild<QQuickItem*>("detailsText") != nullptr; }));
-      auto* text = window->findChild<QQuickItem*>("detailsText");
-      auto* close = window->findChild<QQuickItem*>("closeDetailsButton");
-      ASSERT_NE(close, nullptr);
-      ASSERT_TRUE(tabTo(text));
-      expectBorder(background(text));
-      capture(key == Qt::Key_Question ? "help-text" : "information-text");
-      ASSERT_TRUE(tabTo(close));
-      EXPECT_FALSE(text->hasActiveFocus());
-      EXPECT_NE(QQmlProperty::read(background(text), "border.color").value<QColor>(), focusedColor);
-      expectBorder(background(close));
-      capture("close");
-      ASSERT_TRUE(tabTo(text, true));
-      expectBorder(background(text));
-      ASSERT_TRUE(tabTo(close));
-      QTest::keyClick(window, Qt::Key_Space);
-      ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("modalActive").toBool(); }));
-      EXPECT_TRUE(canvas->hasActiveFocus());
-      expectBorder(outline);
-      QTest::keyClick(window, key);
-      ASSERT_TRUE(QTest::qWaitFor([&] { return window->property("modalActive").toBool(); }));
-      QTest::keyClick(window, Qt::Key_Escape);
-      ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("modalActive").toBool(); }));
-      EXPECT_TRUE(canvas->hasActiveFocus());
-    }
-  }
+  tab(fullscreen);
+  verifyRing(fullscreen, "empty-fullscreen");
+  tab(actions);
+  verifyRing(actions, "empty-actions");
+  tab(fullscreen);
+  tab(actions, true);
+  tab(fullscreen, true);
+  tab(actions, true);
+  document.open({QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/sample.png")});
+  ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready; }));
+  EXPECT_TRUE(information->isEnabled());
+  tab(information);
+  verifyRing(information, "ready-information");
+  tab(fullscreen);
+  tab(actions);
+  tab(information);
+  tab(actions, true);
+  tab(fullscreen, true);
+  tab(information, true);
+  QTest::keyClick(window, Qt::Key_1);
+  EXPECT_TRUE(neutral->hasActiveFocus());
+  EXPECT_FALSE(information->property("visualFocus").toBool());
+  capture("ready-neutral");
+  tab(information);
+  verifyRing(information, "ready-return");
+  QTest::keyClick(window, Qt::Key_Question);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return window->property("modalActive").toBool(); }));
+  QTest::keyClick(window, Qt::Key_Escape);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("modalActive").toBool(); }));
+  EXPECT_TRUE(neutral->hasActiveFocus());
+  tab(information);
   window->close();
 }
