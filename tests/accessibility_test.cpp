@@ -1,14 +1,17 @@
+#include "exif_fixture.h"
 #include "image_canvas.h"
 #include "image_document.h"
 
 #include <QAccessible>
 #include <QClipboard>
+#include <QFile>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlProperty>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QScopeGuard>
+#include <QTemporaryDir>
 #include <QTest>
 
 #include <gtest/gtest.h>
@@ -213,5 +216,95 @@ TEST(Accessibility, VisibleKeyboardFocus) {
   ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("modalActive").toBool(); }));
   EXPECT_TRUE(neutral->hasActiveFocus());
   tab(information);
+  window->close();
+}
+
+namespace {
+QQuickItem* findItem(QQuickItem* root, const QString& name) {
+  if (root == nullptr || root->objectName() == name) {
+    return root;
+  }
+  for (auto* child : root->childItems()) {
+    if (auto* found = findItem(child, name)) {
+      return found;
+    }
+  }
+  return nullptr;
+}
+}  // namespace
+
+// REQ-F-021..REQ-F-024: popup and section names, keyboard-reachable close button and copyable path.
+TEST(Accessibility, ImageInformationPopup) {
+  QAccessible::setActive(true);
+  QTemporaryDir dir(QStringLiteral(VIEWER_FIXTURE_DIR) + "/accessible-information-XXXXXX");
+  ASSERT_TRUE(dir.isValid());
+  const auto path = dir.filePath("camera.jpg");
+  QFile file(path);
+  ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+  ASSERT_GT(file.write(ExifFixture::jpegWithApp1(ExifFixture::sonyPayload())), 0);
+  file.close();
+
+  ImageDocument document;
+  QQmlApplicationEngine engine;
+  engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
+  engine.loadFromModule("HolonightViewer", "Main");
+  ASSERT_EQ(engine.rootObjects().size(), 1);
+  auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+  ASSERT_NE(window, nullptr);
+  window->requestActivate();
+  ASSERT_TRUE(QTest::qWaitForWindowActive(window));
+  document.open({QUrl::fromLocalFile(path)});
+  ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready; }));
+
+  QTest::keyClick(window, Qt::Key_I);
+  QQuickItem* content = nullptr;
+  ASSERT_TRUE(QTest::qWaitFor([&] {
+    auto* popup = window->findChild<QObject*>(QStringLiteral("informationPopup"));
+    content = popup == nullptr ? nullptr : popup->property("contentItem").value<QQuickItem*>();
+    return content != nullptr && popup->property("opened").toBool();
+  }));
+  QTest::qWait(50);
+  auto* dialog = QAccessible::queryAccessibleInterface(content);
+  ASSERT_NE(dialog, nullptr);
+  EXPECT_EQ(dialog->role(), QAccessible::Dialog);
+  EXPECT_EQ(dialog->text(QAccessible::Name), QStringLiteral("Image Information"));
+
+  for (const auto* key : {"Camera", "Location", "File"}) {
+    auto* section = findItem(content, QStringLiteral("informationSection") + QString::fromLatin1(key));
+    ASSERT_NE(section, nullptr) << key;
+    auto* accessible = QAccessible::queryAccessibleInterface(section);
+    ASSERT_NE(accessible, nullptr) << key;
+    EXPECT_EQ(accessible->text(QAccessible::Name), QString::fromLatin1(key));
+  }
+
+  auto* closeButton = findItem(content, QStringLiteral("informationCloseButton"));
+  auto* pathText = findItem(content, QStringLiteral("informationPathText"));
+  ASSERT_NE(closeButton, nullptr);
+  ASSERT_NE(pathText, nullptr);
+  auto* closeAccessible = QAccessible::queryAccessibleInterface(closeButton);
+  ASSERT_NE(closeAccessible, nullptr);
+  EXPECT_EQ(closeAccessible->role(), QAccessible::Button);
+  EXPECT_EQ(closeAccessible->text(QAccessible::Name), QStringLiteral("Close Image Information"));
+
+  for (int step = 0; step < 4 && !closeButton->hasActiveFocus(); ++step) {
+    QTest::keyClick(window, Qt::Key_Tab);
+  }
+  ASSERT_TRUE(closeButton->hasActiveFocus());
+  QTest::keyClick(window, Qt::Key_Tab);
+  ASSERT_TRUE(pathText->hasActiveFocus());
+  EXPECT_TRUE(pathText->property("readOnly").toBool());
+  EXPECT_TRUE(pathText->property("selectByMouse").toBool());
+  QGuiApplication::clipboard()->clear();
+  QTest::keyClick(window, Qt::Key_A, Qt::ControlModifier);
+  QTest::keyClick(window, Qt::Key_C, Qt::ControlModifier);
+  EXPECT_EQ(QGuiApplication::clipboard()->text(), document.displayPath());
+  EXPECT_EQ(pathText->property("text").toString(), document.displayPath());
+
+  QTest::keyClick(window, Qt::Key_Tab, Qt::ShiftModifier);
+  ASSERT_TRUE(closeButton->hasActiveFocus());
+  QTest::keyClick(window, Qt::Key_Space);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("informationOpen").toBool(); }));
+  QTest::keyClick(window, Qt::Key_R);
+  EXPECT_EQ(document.orientation(), 1);
   window->close();
 }

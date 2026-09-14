@@ -1,6 +1,5 @@
 #include "exif_metadata.h"
 
-#include <QStringList>
 #include <QtEndian>
 
 #include <cmath>
@@ -190,22 +189,27 @@ QString camera(ExifData* data) {
   return model.isEmpty() ? make : make + u' ' + model;
 }
 
-QString exposure(ExifData* data) {
-  QStringList parts;
-  if (const auto aperture = rational(data, EXIF_IFD_EXIF, EXIF_TAG_FNUMBER); aperture && *aperture > 0) {
-    parts << QStringLiteral("f/%1").arg(*aperture, 0, 'f', 1);
+QString aperture(ExifData* data) {
+  const auto value = rational(data, EXIF_IFD_EXIF, EXIF_TAG_FNUMBER);
+  return value && *value > 0 ? QStringLiteral("f/%1").arg(*value, 0, 'f', 1) : QString{};
+}
+
+QString shutter(ExifData* data) {
+  const auto time = rational(data, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_TIME);
+  if (!time || *time <= 0) {
+    return {};
   }
-  if (const auto time = rational(data, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_TIME); time && *time > 0) {
-    parts << (*time < 1 ? QStringLiteral("1/%1 s").arg(qRound(1 / *time))
-                        : QStringLiteral("%1 s").arg(decimal(*time, 1)));
-  }
-  if (const auto iso = integer(data, EXIF_IFD_EXIF, EXIF_TAG_ISO_SPEED_RATINGS); iso && *iso > 0) {
-    parts << QStringLiteral("ISO %1").arg(*iso);
-  }
-  if (const auto focal = rational(data, EXIF_IFD_EXIF, EXIF_TAG_FOCAL_LENGTH); focal && *focal > 0) {
-    parts << QStringLiteral("%1 mm").arg(decimal(*focal, 1));
-  }
-  return parts.join(QStringLiteral("  "));
+  return *time < 1 ? QStringLiteral("1/%1 s").arg(qRound(1 / *time)) : QStringLiteral("%1 s").arg(decimal(*time, 1));
+}
+
+QString iso(ExifData* data) {
+  const auto value = integer(data, EXIF_IFD_EXIF, EXIF_TAG_ISO_SPEED_RATINGS);
+  return value && *value > 0 ? QStringLiteral("ISO %1").arg(*value) : QString{};
+}
+
+QString focalLength(ExifData* data) {
+  const auto value = rational(data, EXIF_IFD_EXIF, EXIF_TAG_FOCAL_LENGTH);
+  return value && *value > 0 ? QStringLiteral("%1 mm").arg(decimal(*value, 1)) : QString{};
 }
 
 std::optional<double> coordinate(ExifData* data, quint16 value, double limit) {
@@ -282,7 +286,10 @@ ExifDetails parse(const QByteArray& payload) {
                       static_cast<unsigned int>(payload.size()));
   return {.camera = camera(data.get()),
           .lens = ascii(data.get(), EXIF_IFD_EXIF, EXIF_TAG_LENS_MODEL),
-          .exposure = exposure(data.get()),
+          .aperture = aperture(data.get()),
+          .shutter = shutter(data.get()),
+          .iso = iso(data.get()),
+          .focalLength = focalLength(data.get()),
           .location = location(data.get()),
           .altitude = altitude(data.get())};
 }

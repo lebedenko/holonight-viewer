@@ -169,7 +169,9 @@ TEST(Workflow, InformationCacheRefreshAndUnchangedSource) {
   ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Error; }));
   EXPECT_EQ(document.localPath(), path);
   EXPECT_EQ(document.information().encodedSize, -1);
-  EXPECT_TRUE(document.informationText().contains("Size unavailable"));
+  EXPECT_EQ(document.summaryLine(), "Details unavailable");
+  ASSERT_EQ(document.informationSections().size(), 1);
+  EXPECT_EQ(document.informationSections().first().toMap().value("key"), "File");
 }
 
 TEST(Workflow, ClipboardCaptureBusyFailureAndShutdown) {
@@ -317,23 +319,27 @@ TEST(Viewer, StaticWorkflowControls) {
     EXPECT_EQ(document.orientation(), 0);
     EXPECT_TRUE(window->isVisible());
     EXPECT_EQ(window->visibility(), QWindow::FullScreen);
-    auto* text = window->findChild<QQuickItem*>("detailsText");
+    const bool information = key == Qt::Key_I;
+    EXPECT_EQ(window->property("informationOpen").toBool(), information);
+    auto* text = window->findChild<QQuickItem*>(information ? "informationPathText" : "detailsText");
     ASSERT_NE(text, nullptr);
     text->forceActiveFocus();
     ASSERT_TRUE(QMetaObject::invokeMethod(text, "selectAll"));
     QTest::keyClick(window, Qt::Key_C, Qt::ControlModifier);
     EXPECT_EQ(QGuiApplication::clipboard()->text(), text->property("text").toString());
-    QTest::keyClick(window, Qt::Key_End, Qt::ControlModifier);
-    QTest::qWait(30);
-    auto* scroll = window->findChild<QObject*>("detailsScroll");
-    ASSERT_NE(scroll, nullptr);
-    auto* flickable = scroll->property("contentItem").value<QQuickItem*>();
-    ASSERT_NE(flickable, nullptr);
-    // Ctrl+End must expose the final line; trailing text-area padding need not scroll.
-    const auto cursorBottom = text->property("cursorRectangle").toRectF().bottom();
-    EXPECT_LE(cursorBottom - flickable->property("contentY").toReal(), flickable->height());
-    if (cursorBottom > flickable->height()) {
-      EXPECT_GT(flickable->property("contentY").toReal(), 0);
+    if (!information) {
+      QTest::keyClick(window, Qt::Key_End, Qt::ControlModifier);
+      QTest::qWait(30);
+      auto* scroll = window->findChild<QObject*>("detailsScroll");
+      ASSERT_NE(scroll, nullptr);
+      auto* flickable = scroll->property("contentItem").value<QQuickItem*>();
+      ASSERT_NE(flickable, nullptr);
+      // Ctrl+End must expose the final line; trailing text-area padding need not scroll.
+      const auto cursorBottom = text->property("cursorRectangle").toRectF().bottom();
+      EXPECT_LE(cursorBottom - flickable->property("contentY").toReal(), flickable->height());
+      if (cursorBottom > flickable->height()) {
+        EXPECT_GT(flickable->property("contentY").toReal(), 0);
+      }
     }
     QTest::keyClick(window, Qt::Key_Escape);
     ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("modalActive").toBool(); }));
@@ -555,4 +561,73 @@ TEST(Workflow, ClipboardEncodingWriteFailure) {
   ASSERT_TRUE(QTest::qWaitFor([&] { return !failure.busy(); }));
   EXPECT_EQ(QGuiApplication::clipboard()->text(), "previous after failure");
   EXPECT_FALSE(failure.feedback().startsWith("Copied"));
+}
+
+// REQ-F-016, REQ-F-018, REQ-F-019: I toggles the popup, Escape closes only the popup, and
+// navigation keys are ignored while it is open.
+TEST(Viewer, InformationPopupKeyboard) {
+  QTemporaryDir dir(QStringLiteral(VIEWER_FIXTURE_DIR) + "/information-XXXXXX");
+  ASSERT_TRUE(dir.isValid());
+  for (const auto* name : {"1.png", "2.png", "3.png"}) {
+    ASSERT_TRUE(asymmetric().save(dir.filePath(QString::fromLatin1(name))));
+  }
+  ImageDocument document;
+  QQmlApplicationEngine engine;
+  engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
+  engine.loadFromModule("HolonightViewer", "Main");
+  ASSERT_EQ(engine.rootObjects().size(), 1);
+  auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+  ASSERT_NE(window, nullptr);
+  window->requestActivate();
+  ASSERT_TRUE(QTest::qWaitForWindowActive(window));
+  document.open({QUrl::fromLocalFile(dir.filePath("1.png"))});
+  ASSERT_TRUE(ready(document));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !document.scanning() && document.canNext(); }));
+  const auto popup = [&] { return window->findChild<QObject*>("informationPopup"); };
+  const auto popupVisible = [&] {
+    auto* object = popup();
+    return object != nullptr && object->property("visible").toBool();
+  };
+
+  QTest::keyClick(window, Qt::Key_I);
+  ASSERT_TRUE(QTest::qWaitFor(popupVisible));
+  EXPECT_TRUE(window->property("informationOpen").toBool());
+  QTest::keyClick(window, Qt::Key_I);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("informationOpen").toBool(); }));
+  EXPECT_EQ(popup(), nullptr);
+
+  QTest::keyClick(window, Qt::Key_I);
+  ASSERT_TRUE(QTest::qWaitFor(popupVisible));
+  QTest::keyClick(window, Qt::Key_BracketRight);
+  QTest::keyClick(window, Qt::Key_BracketLeft);
+  QTest::qWait(100);
+  EXPECT_EQ(document.position(), 1);
+  EXPECT_TRUE(popupVisible());
+
+  QTest::keyClick(window, Qt::Key_Escape);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("modalActive").toBool(); }));
+  QTest::keyClick(window, Qt::Key_BracketRight);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return document.position() == 2; }));
+  ASSERT_TRUE(ready(document));
+
+  QTest::keyClick(window, Qt::Key_F);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return window->visibility() == QWindow::FullScreen; }));
+  QTest::keyClick(window, Qt::Key_I);
+  ASSERT_TRUE(QTest::qWaitFor(popupVisible));
+  QTest::keyClick(window, Qt::Key_Escape);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("informationOpen").toBool(); }));
+  QTest::qWait(100);
+  EXPECT_EQ(window->visibility(), QWindow::FullScreen);
+  QTest::keyClick(window, Qt::Key_Escape);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return window->visibility() != QWindow::FullScreen; }));
+
+  QTest::keyClick(window, Qt::Key_Question);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return window->property("detailDialog").toInt() == 2; }));
+  QTest::keyClick(window, Qt::Key_I);
+  QTest::qWait(100);
+  EXPECT_FALSE(window->property("informationOpen").toBool());
+  EXPECT_EQ(popup(), nullptr);
+  QTest::keyClick(window, Qt::Key_Escape);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("modalActive").toBool(); }));
+  window->close();
 }

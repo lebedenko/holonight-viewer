@@ -1,5 +1,5 @@
 set_source_files_properties(../apps/viewer/Main.qml PROPERTIES QT_RESOURCE_ALIAS Main.qml)
-qt_add_executable(viewer-smoke smoke.cpp release_formats_test.cpp accessibility_test.cpp release_performance_test.cpp static_workflow_test.cpp folder_browsing_test.cpp image_document_test.cpp view_geometry_test.cpp image_inspection_test.cpp exif_metadata_test.cpp footer_key_hints_test.cpp)
+qt_add_executable(viewer-smoke smoke.cpp release_formats_test.cpp accessibility_test.cpp release_performance_test.cpp static_workflow_test.cpp folder_browsing_test.cpp image_document_test.cpp view_geometry_test.cpp image_inspection_test.cpp exif_metadata_test.cpp footer_key_hints_test.cpp image_information_popup_test.cpp)
 qt_add_resources(viewer-smoke test-config PREFIX "/" BASE ../apps/viewer FILES ../apps/viewer/qtquickcontrols2.conf)
 target_link_libraries(viewer-smoke PRIVATE viewer-ui viewer-uiplugin Qt6::Test GTest::gtest)
 add_test(NAME viewer-smoke COMMAND viewer-smoke)

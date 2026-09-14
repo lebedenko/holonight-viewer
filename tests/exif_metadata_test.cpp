@@ -1,108 +1,21 @@
 #include "exif_metadata.h"
 
+#include "exif_fixture.h"
 #include "image_document.h"
 
 #include <QBuffer>
+#include <QFileInfo>
 #include <QImage>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTimeZone>
 #include <QtEndian>
 
 #include <gtest/gtest.h>
 #include <utility>
 
 namespace {
-// Minimal little-endian TIFF writer; offsets are relative to the TIFF header.
-struct Field {
-  quint16 tag;
-  quint16 type;
-  quint32 count;
-  QByteArray data;
-};
-
-QByteArray le16(quint16 value) {
-  QByteArray bytes(2, '\0');
-  qToLittleEndian(value, bytes.data());
-  return bytes;
-}
-QByteArray le32(quint32 value) {
-  QByteArray bytes(4, '\0');
-  qToLittleEndian(value, bytes.data());
-  return bytes;
-}
-Field text(quint16 tag, const QByteArray& value) {
-  return {.tag = tag, .type = 2, .count = static_cast<quint32>(value.size() + 1), .data = value + '\0'};
-}
-Field byte(quint16 tag, quint8 value) {
-  return {.tag = tag, .type = 1, .count = 1, .data = QByteArray(1, static_cast<char>(value))};
-}
-Field shortValue(quint16 tag, quint16 value) { return {.tag = tag, .type = 3, .count = 1, .data = le16(value)}; }
-Field longValue(quint16 tag, quint32 value) { return {.tag = tag, .type = 4, .count = 1, .data = le32(value)}; }
-Field rationals(quint16 tag, std::initializer_list<std::pair<quint32, quint32>> values) {
-  QByteArray data;
-  for (const auto& [numerator, denominator] : values) {
-    data += le32(numerator) + le32(denominator);
-  }
-  return {.tag = tag, .type = 5, .count = static_cast<quint32>(values.size()), .data = data};
-}
-qsizetype outOfLine(const Field& field) {
-  return field.data.size() > 4 ? field.data.size() + (field.data.size() & 1) : 0;
-}
-quint32 ifdSize(const QList<Field>& fields) {
-  qsizetype size = 2 + (12 * fields.size()) + 4;
-  for (const auto& field : fields) {
-    size += outOfLine(field);
-  }
-  return static_cast<quint32>(size);
-}
-QByteArray ifd(quint32 offset, const QList<Field>& fields) {
-  QByteArray entries = le16(static_cast<quint16>(fields.size()));
-  QByteArray values;
-  auto valueOffset = offset + 2 + (12 * fields.size()) + 4;
-  for (const auto& field : fields) {
-    entries += le16(field.tag) + le16(field.type) + le32(field.count);
-    if (field.data.size() <= 4) {
-      entries += field.data + QByteArray(4 - field.data.size(), '\0');
-    } else {
-      entries += le32(static_cast<quint32>(valueOffset + values.size()));
-      values += field.data + QByteArray(field.data.size() & 1, '\0');
-    }
-  }
-  return entries + le32(0) + values;
-}
-
-QByteArray tiff(const QList<Field>& primary, const QList<Field>& exif, const QList<Field>& gps) {
-  const quint32 exifOffset = 8 + ifdSize(primary) + 24;
-  const quint32 gpsOffset = exifOffset + ifdSize(exif);
-  auto zero = primary;
-  zero << longValue(0x8769, exifOffset) << longValue(0x8825, gpsOffset);
-  return QByteArray("II*\0", 4) + le32(8) + ifd(8, zero) + ifd(exifOffset, exif) + ifd(gpsOffset, gps);
-}
-
-QByteArray sonyPayload() {
-  return QByteArray("Exif\0\0", 6) +
-         tiff({text(0x010f, "SONY"), text(0x0110, "ILCE-7M4")},
-              {rationals(0x829a, {{1, 100}}), rationals(0x829d, {{8, 1}}), shortValue(0x8827, 100),
-               rationals(0x920a, {{32, 1}}), text(0xa434, "FE 24-70mm F2.8 GM II")},
-              {text(0x0001, "N"), rationals(0x0002, {{50, 1}, {27, 1}, {0, 1}}), text(0x0003, "W"),
-               rationals(0x0004, {{30, 1}, {31, 1}, {12, 1}}), byte(0x0005, 0), rationals(0x0006, {{1790, 10}})});
-}
-
-QByteArray jpegWithApp1(const QByteArray& exif) {
-  QImage image(4, 3, QImage::Format_RGB32);
-  image.fill(Qt::blue);
-  QByteArray jpeg;
-  QBuffer buffer(&jpeg);
-  buffer.open(QIODevice::WriteOnly);
-  image.save(&buffer, "JPEG");
-  const auto segment = [](const QByteArray& body) {
-    QByteArray length(2, '\0');
-    qToBigEndian(static_cast<quint16>(body.size() + 2), length.data());
-    return QByteArray("\xff\xe1", 2) + length + body;
-  };
-  // An XMP APP1 segment first proves non-EXIF APP1 segments are skipped.
-  return jpeg.first(2) + segment("http://ns.adobe.com/xap/1.0/\0<x/>") + segment(exif) + jpeg.sliced(2);
-}
+using namespace ExifFixture;
 
 ExifDetails readBytes(QByteArray bytes) {
   QBuffer buffer(&bytes);
@@ -116,7 +29,10 @@ TEST(ExifMetadata, FormatsCameraExposureAndLocation) {
   const auto details = ExifMetadata::parse(sonyPayload());
   EXPECT_EQ(details.camera, "SONY ILCE-7M4");
   EXPECT_EQ(details.lens, "FE 24-70mm F2.8 GM II");
-  EXPECT_EQ(details.exposure, "f/8.0  1/100 s  ISO 100  32 mm");
+  EXPECT_EQ(details.aperture, "f/8.0");
+  EXPECT_EQ(details.shutter, "1/100 s");
+  EXPECT_EQ(details.iso, "ISO 100");
+  EXPECT_EQ(details.focalLength, "32 mm");
   EXPECT_EQ(details.location, QStringLiteral("50.45000° N, 30.52000° W"));
   EXPECT_EQ(details.altitude, "179 m");
 }
@@ -129,7 +45,12 @@ TEST(ExifMetadata, OmitsRepeatedMakeInvalidGpsAndZeroDenominators) {
            {text(0x0001, "N"), rationals(0x0002, {{95, 1}, {0, 1}, {0, 1}}), text(0x0003, "E"),
             rationals(0x0004, {{10, 1}, {0, 1}, {0, 1}}), byte(0x0005, 1), rationals(0x0006, {{12, 1}})}));
   EXPECT_EQ(details.camera, "Canon EOS R5");
-  EXPECT_EQ(details.exposure, "ISO 400");
+  EXPECT_TRUE(details.lens.isEmpty());
+  EXPECT_TRUE(details.aperture.isEmpty());
+  EXPECT_TRUE(details.shutter.isEmpty());
+  EXPECT_EQ(details.iso, "ISO 400");
+  EXPECT_TRUE(details.focalLength.isEmpty());
+  EXPECT_TRUE(details.hasCamera());
   EXPECT_TRUE(details.location.isEmpty());
   EXPECT_EQ(details.altitude, "-12 m");
 }
@@ -172,58 +93,171 @@ TEST(ExifMetadata, IgnoresMissingOversizedAndDamagedBlocks) {
   EXPECT_EQ(ExifMetadata::read(buffer, cancelled), ExifDetails{});
 }
 
-TEST(ExifMetadata, InformationTextShowsExifSections) {
-  QTemporaryDir dir;
-  ASSERT_TRUE(dir.isValid());
-  const auto path = dir.filePath("camera.jpg");
-  QFile file(path);
-  ASSERT_TRUE(file.open(QIODevice::WriteOnly));
-  file.write(jpegWithApp1(sonyPayload()));
-  file.close();
-  ImageDocument document;
-  document.open({QUrl::fromLocalFile(path)});
-  ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready; }));
-  EXPECT_EQ(document.information().exif, ExifMetadata::parse(sonyPayload()));
-  const auto sections = document.informationText().split(QStringLiteral("\n\n"));
-  ASSERT_EQ(sections.size(), 4);
-  EXPECT_TRUE(sections[0].startsWith("JPEG image\n4 × 3"));
-  EXPECT_EQ(sections[1], "SONY ILCE-7M4\nFE 24-70mm F2.8 GM II\nf/8.0  1/100 s  ISO 100  32 mm");
-  EXPECT_EQ(sections[2], QStringLiteral("50.45000° N, 30.52000° W\nAltitude 179 m"));
-  EXPECT_EQ(sections[3], path);
-
-  const auto plain = dir.filePath("plain.png");
-  QImage image(2, 2, QImage::Format_RGB32);
-  image.fill(Qt::green);
-  ASSERT_TRUE(image.save(plain));
-  document.open({QUrl::fromLocalFile(plain)});
-  ASSERT_TRUE(
-      QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready && document.fileName() == "plain.png"; }));
-  EXPECT_EQ(document.informationText().count(QStringLiteral("\n\n")), 1);
+TEST(ImageInformationFormat, JoinsOnlyNonEmptyParts) {
+  EXPECT_EQ(joinNonEmpty({}), QString{});
+  EXPECT_EQ(joinNonEmpty({{}, {}}), QString{});
+  EXPECT_EQ(joinNonEmpty({"6.9 mm", {}, "f/2.2"}), QStringLiteral("6.9 mm · f/2.2"));
+  EXPECT_EQ(joinNonEmpty({"a", "b"}, u", "), "a, b");
 }
 
-TEST(ExifMetadata, InformationTextShowsRotatedTransformedDimensions) {
+TEST(ImageInformationFormat, AbbreviatesOnlyPathsInsideHome) {
+  const QString home = "/home/alice";
+  EXPECT_EQ(abbreviateHomePath("/home/alice/Pictures/image.jpg", home), "~/Pictures/image.jpg");
+  EXPECT_EQ(abbreviateHomePath("/home/alice/Pictures/image.jpg", "/home/alice/"), "~/Pictures/image.jpg");
+  EXPECT_EQ(abbreviateHomePath("/home/alice", home), "~");
+  EXPECT_EQ(abbreviateHomePath("/srv/photos/image.jpg", home), "/srv/photos/image.jpg");
+  EXPECT_EQ(abbreviateHomePath("/home/alice2/x", home), "/home/alice2/x");
+  EXPECT_EQ(abbreviateHomePath("/home/alice/x", {}), "/home/alice/x");
+  EXPECT_EQ(abbreviateHomePath("/etc/x", "/"), "/etc/x");
+}
+
+TEST(ImageInformationFormat, SummaryOmitsMissingParts) {
+  QLocale::setDefault(QLocale::c());
+  EXPECT_EQ(formatSummaryLine("JPEG", {3072, 4080}, 2'500'000),
+            QStringLiteral("JPEG · 3072 × 4080 · 12.5 MP · 2.5 MB"));
+  EXPECT_EQ(formatSummaryLine("JPEG", {}, 2'500'000), QStringLiteral("JPEG · 2.5 MB"));
+  EXPECT_EQ(formatSummaryLine("PNG", {4, 3}, -1), QStringLiteral("PNG · 4 × 3 · 0.0 MP"));
+  EXPECT_EQ(formatSummaryLine({}, {}, 2'500'000), "2.5 MB");
+  EXPECT_EQ(formatSummaryLine({}, {}, -1), "Details unavailable");
+  QLocale::setDefault(QLocale::system());
+}
+
+TEST(ImageInformationFormat, TransformedLineOnlyForSwappedDimensions) {
+  const QSize decoded(4, 3);
+  EXPECT_EQ(formatTransformedLine(decoded, decoded), QString{});
+  EXPECT_EQ(formatTransformedLine(decoded, ImageOrientation::dimensions(ImageOrientation::compose(0, 4), decoded)),
+            QString{});
+  const auto rotated = ImageOrientation::dimensions(ImageOrientation::compose(0, 1), decoded);
+  EXPECT_EQ(formatTransformedLine(decoded, rotated), QStringLiteral("Rotated view 3 × 4"));
+  EXPECT_EQ(formatTransformedLine({5, 5}, {5, 5}), QString{});
+  EXPECT_EQ(formatTransformedLine({}, {}), QString{});
+}
+
+TEST(ImageInformationFormat, ModifiedTextFollowsDefaultLocale) {
+  const auto modified = QDateTime(QDate(2026, 9, 14), QTime(15, 45), QTimeZone::UTC);
+  for (const auto& locale : {QLocale(QLocale::English, QLocale::UnitedStates), QLocale(QLocale::German)}) {
+    QLocale::setDefault(locale);
+    EXPECT_EQ(formatModifiedText(modified), QLocale().toString(modified.toLocalTime(), QLocale::ShortFormat));
+  }
+  EXPECT_NE(QLocale(QLocale::English, QLocale::UnitedStates).toString(modified.toLocalTime(), QLocale::ShortFormat),
+            QLocale(QLocale::German).toString(modified.toLocalTime(), QLocale::ShortFormat));
+  QLocale::setDefault(QLocale::system());
+  EXPECT_EQ(formatModifiedText({}), QString{});
+}
+
+namespace {
+QString writeFile(const QTemporaryDir& dir, const QString& name, const QByteArray& bytes) {
+  auto path = dir.filePath(name);
+  QFile file(path);
+  if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size()) {
+    return {};
+  }
+  return path;
+}
+
+bool openAndSettle(ImageDocument& document, const QUrl& url) {
+  document.open({url});
+  return QTest::qWaitFor(
+      [&] { return document.state() == ImageDocument::Ready || document.state() == ImageDocument::Error; });
+}
+
+QList<std::pair<QString, QStringList>> sections(const ImageDocument& document) {
+  QList<std::pair<QString, QStringList>> result;
+  for (const auto& section : document.informationSections()) {
+    const auto map = section.toMap();
+    EXPECT_EQ(map.value("key").toString(), map.value("label").toString()) << "untranslated tests use matching keys";
+    result.append({map.value("label").toString(), map.value("lines").toStringList()});
+  }
+  return result;
+}
+}  // namespace
+
+TEST(ImageInformationProperties, ExifRichJpegHasCameraLocationAndFileSections) {
   QTemporaryDir dir;
   ASSERT_TRUE(dir.isValid());
-  const auto path = dir.filePath("portrait.png");
-  QImage image(4, 3, QImage::Format_RGB32);
-  image.fill(Qt::blue);
-  ASSERT_TRUE(image.save(path));
-
+  const auto path = writeFile(dir, "camera.jpg", jpegWithApp1(sonyPayload()));
   ImageDocument document;
-  document.open({QUrl::fromLocalFile(path)});
-  ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready; }));
+  ASSERT_TRUE(openAndSettle(document, QUrl::fromLocalFile(path)));
+  ASSERT_EQ(document.state(), ImageDocument::Ready);
+  EXPECT_EQ(document.information().exif, ExifMetadata::parse(sonyPayload()));
 
-  const auto decoded = document.information().decodedSize;
-  const auto initialTransformed = document.transformedDimensions();
-  EXPECT_EQ(initialTransformed, decoded);
-  EXPECT_TRUE(document.informationText().contains(
-      QStringLiteral("Transformed dimensions: %1 × %2").arg(decoded.width()).arg(decoded.height())));
+  EXPECT_EQ(document.summaryLine(), formatSummaryLine("JPEG", {4, 3}, QFileInfo(path).size()));
+  EXPECT_EQ(document.transformedLine(), QString{});
+  EXPECT_EQ(document.modifiedText(), formatModifiedText(QFileInfo(path).lastModified()));
+  EXPECT_FALSE(document.modifiedText().isEmpty());
+  EXPECT_EQ(document.displayPath(), abbreviateHomePath(path));
+
+  const QList<std::pair<QString, QStringList>> expected{
+      {"Camera",
+       {"SONY ILCE-7M4", QStringLiteral("FE 24-70mm F2.8 GM II · 32 mm · f/8.0"), QStringLiteral("1/100 s · ISO 100")}},
+      {"Location", {QStringLiteral("50.45000° N, 30.52000° W · 179 m")}},
+      {"File", {abbreviateHomePath(path)}},
+  };
+  EXPECT_EQ(sections(document), expected);
+}
+
+TEST(ImageInformationProperties, CameraLinesOmitMissingLensAndIso) {
+  QTemporaryDir dir;
+  ASSERT_TRUE(dir.isValid());
+  const auto payload =
+      QByteArray("Exif\0\0", 6) +
+      tiff({text(0x010f, "Google"), text(0x0110, "Pixel 7 Pro")},
+           {rationals(0x829a, {{1, 20}}), rationals(0x829d, {{22, 10}}), rationals(0x920a, {{69, 10}})}, {});
+  const auto path = writeFile(dir, "pixel.jpg", jpegWithApp1(payload));
+  ImageDocument document;
+  ASSERT_TRUE(openAndSettle(document, QUrl::fromLocalFile(path)));
+
+  const auto result = sections(document);
+  ASSERT_EQ(result.size(), 2);
+  EXPECT_EQ(result[0].first, "Camera");
+  EXPECT_EQ(result[0].second,
+            QStringList({"Google Pixel 7 Pro", QStringLiteral("6.9 mm · f/2.2"), QStringLiteral("1/20 s")}));
+  EXPECT_EQ(result[1].first, "File");
+}
+
+TEST(ImageInformationProperties, ImageWithoutExifHasOnlyFileSection) {
+  QTemporaryDir dir;
+  ASSERT_TRUE(dir.isValid());
+  const auto path = dir.filePath("plain.png");
+  QImage image(4, 3, QImage::Format_RGB32);
+  image.fill(Qt::green);
+  ASSERT_TRUE(image.save(path));
+  ImageDocument document;
+  ASSERT_TRUE(openAndSettle(document, QUrl::fromLocalFile(path)));
+
+  EXPECT_EQ(document.summaryLine(), formatSummaryLine("PNG", {4, 3}, QFileInfo(path).size()));
+  EXPECT_EQ(sections(document), (QList<std::pair<QString, QStringList>>{{"File", {abbreviateHomePath(path)}}}));
 
   document.transform(1);
-  ASSERT_TRUE(
-      QTest::qWaitFor([&] { return document.transformedDimensions() == QSize(decoded.height(), decoded.width()); }));
-  const auto rotated = document.transformedDimensions();
-  EXPECT_NE(rotated, decoded);
-  EXPECT_TRUE(document.informationText().contains(
-      QStringLiteral("Transformed dimensions: %1 × %2").arg(rotated.width()).arg(rotated.height())));
+  EXPECT_EQ(document.transformedLine(), QStringLiteral("Rotated view 3 × 4"));
+  document.transform(4);
+  EXPECT_EQ(document.transformedLine(), QStringLiteral("Rotated view 3 × 4"));
+  document.resetTransform();
+  EXPECT_EQ(document.transformedLine(), QString{});
+}
+
+TEST(ImageInformationProperties, FailedLocalLoadKeepsSizeAndFileSection) {
+  QTemporaryDir dir;
+  ASSERT_TRUE(dir.isValid());
+  const auto path = writeFile(dir, "broken.jpg", QByteArray(10, 'x'));
+  ImageDocument document;
+  ASSERT_TRUE(openAndSettle(document, QUrl::fromLocalFile(path)));
+  ASSERT_EQ(document.state(), ImageDocument::Error);
+
+  EXPECT_NE(document.summaryLine(), "Details unavailable");
+  EXPECT_TRUE(document.summaryLine().endsWith(QLocale().formattedDataSize(10, 1, QLocale::DataSizeSIFormat)));
+  EXPECT_EQ(document.transformedLine(), QString{});
+  EXPECT_EQ(sections(document), (QList<std::pair<QString, QStringList>>{{"File", {abbreviateHomePath(path)}}}));
+}
+
+TEST(ImageInformationProperties, NonLocalDocumentHasNoDetailsOrSections) {
+  ImageDocument document;
+  ASSERT_TRUE(openAndSettle(document, QUrl("https://example.com/image.jpg")));
+  ASSERT_EQ(document.state(), ImageDocument::Error);
+
+  EXPECT_EQ(document.summaryLine(), "Details unavailable");
+  EXPECT_EQ(document.transformedLine(), QString{});
+  EXPECT_EQ(document.modifiedText(), QString{});
+  EXPECT_EQ(document.displayPath(), QString{});
+  EXPECT_TRUE(document.informationSections().isEmpty());
 }

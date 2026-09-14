@@ -46,7 +46,7 @@ normal/maximized state, including compositor-managed tiling. Viewer shortcuts pa
 | Image control | Action |
 | --- | --- |
 | `[` / Previous, `]` / Next | Browse siblings, stopping at folder boundaries |
-| `Ctrl+R` | Rescan the folder and reload the selected image, clearing the cache |
+| `Ctrl+R` | Rescan the folder and reload the selected image, clearing the cache *(paused while a modal is open)* |
 | `Ctrl+0` / Fit | Center the whole image and fit it as the window changes |
 | `1` / Actual Size | Center at one source pixel per physical display pixel |
 | `Ctrl++` or `Ctrl+=` / `Ctrl+−` | Zoom in/out around the canvas center |
@@ -58,7 +58,7 @@ normal/maximized state, including compositor-managed tiling. Viewer shortcuts pa
 | Actions → Reset Transform | Clear temporary rotation and flips |
 | `Ctrl+C` | Copy the entire transformed image, including transparency |
 | `Ctrl+Shift+C` | Copy the normalized absolute path, unquoted; retain symlink paths |
-| `I` | Open selectable Image Information |
+| `I` | Open or close the Image Information card |
 | `?` | Open scrollable shortcut and gesture help |
 
 Image actions clear the focus ring. Tab and Shift+Tab cycle through enabled header buttons
@@ -89,12 +89,20 @@ inherits the shared theme’s point-based font sizes.
 Transforms compose in invocation order, reset zoom/pan to Fit, and do
 not allocate another full-size image while viewing. Open, navigation and Ctrl+R clear
 them; returning to a file does not restore them. Original files remain unchanged.
-Information shows worker-collected format, encoded size, local modification time,
-decoded dimensions after embedded orientation, and current transformed dimensions.
-Facts follow cached image snapshots; Ctrl+R refreshes them. The path and Copy Path
-remain available during loading/errors; unknown facts say “Unavailable.”
-Information and Help support scrolling and text selection/copying. Escape closes
-the dialog before leaving fullscreen; closing clears the control focus ring.
+Image Information is a card over a lightly dimmed image. Its fixed header shows a
+preview (hidden below 360 px wide), the filename, a `format · W × H · MP · size`
+summary, a “Rotated view W × H” line while a quarter turn swaps the dimensions, and
+the locale's short modification date and time. Below it scroll CAMERA (camera; lens,
+focal length and aperture; shutter and ISO), LOCATION (coordinates and altitude) and
+FILE (the path with the home directory shown as `~`, selectable and copyable) sections;
+missing facts and empty sections are omitted, and “Details unavailable” replaces an
+empty summary. Facts follow cached image snapshots, and the open card follows any
+changes to the document. Close the card before using refresh or transform shortcuts;
+`Ctrl+R` refreshes the cached facts. Copy Path still copies the absolute path and remains
+available during loading/errors. Close the card with `I`, Escape, its × button or a
+click outside; image navigation keys pause while it is open. Shortcut Help supports
+scrolling and text selection/copying. Escape closes a card or dialog before leaving
+fullscreen; closing clears the control focus ring.
 
 Copy Image captures the image and orientation when invoked, ignoring zoom/pan.
 A dedicated worker transforms and PNG-encodes one copy at a time with no queue.

@@ -10,10 +10,16 @@
 struct ExifDetails {
   QString camera;
   QString lens;
-  QString exposure;
+  QString aperture;
+  QString shutter;
+  QString iso;
+  QString focalLength;
   QString location;
   QString altitude;
-  [[nodiscard]] bool hasCamera() const { return !camera.isEmpty() || !lens.isEmpty() || !exposure.isEmpty(); }
+  [[nodiscard]] bool hasCamera() const {
+    return !camera.isEmpty() || !lens.isEmpty() || !aperture.isEmpty() || !shutter.isEmpty() || !iso.isEmpty() ||
+           !focalLength.isEmpty();
+  }
   [[nodiscard]] bool hasLocation() const { return !location.isEmpty() || !altitude.isEmpty(); }
   bool operator==(const ExifDetails&) const = default;
 };

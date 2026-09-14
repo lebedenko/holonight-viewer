@@ -6,8 +6,10 @@
 #include <QImageReader>
 #include <QLocale>
 #include <QStringList>
+#include <QVariantMap>
 #include <QtEndian>
 
+#include <array>
 #include <utility>
 #include <webp/decode.h>
 
@@ -168,6 +170,57 @@ QUrl commandLineUrl(const QString& argument) {
     return parsed;
   }
   return QUrl::fromLocalFile(QDir::current().absoluteFilePath(argument));
+}
+
+QString abbreviateHomePath(const QString& absolutePath, const QString& home) {
+  if (home.isEmpty()) {
+    return absolutePath;
+  }
+  const auto normalizedHome = QDir::cleanPath(home);
+  const auto normalizedPath = QDir::cleanPath(absolutePath);
+  if (normalizedPath == normalizedHome) {
+    return QStringLiteral("~");
+  }
+  // The separator check keeps "/home/alice2" from matching home "/home/alice".
+  if (normalizedHome != u"/" && normalizedPath.startsWith(normalizedHome + u'/')) {
+    return u'~' + normalizedPath.sliced(normalizedHome.size());
+  }
+  return absolutePath;
+}
+
+QString formatSummaryLine(const QString& format, QSize decodedSize, qint64 encodedSize) {
+  QStringList parts{format};
+  if (decodedSize.isValid() && !decodedSize.isEmpty()) {
+    const auto megapixels = static_cast<double>(decodedSize.width()) * decodedSize.height() / 1'000'000.0;
+    parts << ImageDocument::tr("%1 × %2").arg(decodedSize.width()).arg(decodedSize.height())
+          << ImageDocument::tr("%1 MP").arg(QLocale().toString(megapixels, 'f', 1));
+  }
+  if (encodedSize >= 0) {
+    parts << QLocale().formattedDataSize(encodedSize, 1, QLocale::DataSizeSIFormat);
+  }
+  const auto summary = joinNonEmpty(parts);
+  return summary.isEmpty() ? ImageDocument::tr("Details unavailable") : summary;
+}
+
+QString formatTransformedLine(QSize decodedSize, QSize transformedSize) {
+  if (!decodedSize.isValid() || transformedSize != decodedSize.transposed() || transformedSize == decodedSize) {
+    return {};
+  }
+  return ImageDocument::tr("Rotated view %1 × %2").arg(transformedSize.width()).arg(transformedSize.height());
+}
+
+QString formatModifiedText(const QDateTime& modified) {
+  return modified.isValid() ? QLocale().toString(modified.toLocalTime(), QLocale::ShortFormat) : QString{};
+}
+
+QString joinNonEmpty(const QStringList& parts, QStringView separator) {
+  QStringList present;
+  for (const auto& part : parts) {
+    if (!part.isEmpty()) {
+      present << part;
+    }
+  }
+  return present.join(separator);
 }
 
 ImageDocument::ImageDocument(QObject* parent) : ImageDocument(decodeImage, parent) {}
@@ -419,36 +472,34 @@ void ImageDocument::copyPath() {
     clipboard_.copyPath(localPath());
   }
 }
-QString ImageDocument::informationText() const {
-  const auto size = information_.decodedSize;
-  const auto transformed = transformedDimensions();
-  const auto megapixels = static_cast<double>(size.width()) * size.height() / 1'000'000.0;
-  QStringList file{
-      information_.format.isEmpty() ? tr("Format unavailable") : tr("%1 image").arg(information_.format),
-      size.isValid()
-          ? tr("%1 × %2 (%3 MP)").arg(size.width()).arg(size.height()).arg(QLocale().toString(megapixels, 'f', 1))
-          : tr("Dimensions unavailable"),
-      transformed.isValid() ? tr("Transformed dimensions: %1 × %2").arg(transformed.width()).arg(transformed.height())
-                            : tr("Transformed dimensions unavailable"),
-      information_.encodedSize < 0 ? tr("Size unavailable") : formattedFileSize(),
-      information_.modified.isValid() ? information_.modified.toLocalTime().toString(QStringLiteral("yyyy-MM-dd HH:mm"))
-                                      : tr("Modified date unavailable")};
-  // Card sections are separated by a blank line; empty EXIF facts are omitted.
-  const auto present = [](const QStringList& lines) {
-    QStringList result;
-    for (const auto& line : lines) {
-      if (!line.isEmpty()) {
-        result << line;
-      }
-    }
-    return result.join(u'\n');
+QVariantList ImageDocument::informationSections() const {
+  struct Section {
+    const char* key;
+    QString label;
+    QStringList lines;
   };
   const auto& exif = information_.exif;
-  QStringList sections{file.join(u'\n'), present({exif.camera, exif.lens, exif.exposure})};
-  sections << present({exif.location, exif.altitude.isEmpty() ? QString{} : tr("Altitude %1").arg(exif.altitude)});
-  sections << (localPath().isEmpty() ? tr("Unavailable") : localPath());
-  sections.removeAll(QString{});
-  return sections.join(QStringLiteral("\n\n"));
+  const auto path = localPath();
+  // Keys are stable identifiers for QML; labels are translated for display.
+  const std::array<Section, 3> sections{{
+      {.key = "Camera",
+       .label = tr("Camera"),
+       .lines = {exif.camera, joinNonEmpty({exif.lens, exif.focalLength, exif.aperture}),
+                 joinNonEmpty({exif.shutter, exif.iso})}},
+      {.key = "Location", .label = tr("Location"), .lines = {joinNonEmpty({exif.location, exif.altitude})}},
+      {.key = "File", .label = tr("File"), .lines = {path.isEmpty() ? QString{} : displayPath()}},
+  }};
+  QVariantList result;
+  for (const auto& section : sections) {
+    auto present = section.lines;
+    present.removeAll(QString{});
+    if (!present.isEmpty()) {
+      result.append(QVariantMap{{QStringLiteral("key"), QString::fromLatin1(section.key)},
+                                {QStringLiteral("label"), section.label},
+                                {QStringLiteral("lines"), present}});
+    }
+  }
+  return result;
 }
 
 QString ImageDocument::formattedFileSize() const {

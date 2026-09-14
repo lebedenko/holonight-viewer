@@ -58,6 +58,14 @@ accepted as of 2026-09-09**. Earlier native-desktop gates remain pending indepen
 See the [verification record](sdd/static-image-workflow/VERIFICATION.md) for measured
 memory/latency, visual checks, and the exact remaining acceptance boundary.
 
+Image Information popup follow-up (2026-09-14) implements the Image Information
+portion of the supplied `viewer-review-1.md`. Its [requirements](sdd/image-information-popup/SPEC.md),
+[design](sdd/image-information-popup/DESIGN.md), and [tasks](sdd/image-information-popup/TASKS.md)
+cover the dedicated card and review corrections. The
+[verification record](sdd/image-information-popup/VERIFICATION.md) tracks local
+checks and their limitations. Review corrections and local automated acceptance
+passed; the sandbox-blocked license step was rerun successfully outside the sandbox.
+
 ## After the first release
 
 1. GIF/WebP animation: playback, pause/resume, frame timing, bounded resources.

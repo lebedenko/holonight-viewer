@@ -5,10 +5,12 @@
 #include "directory_model.h"
 #include "image_orientation.h"
 
+#include <QDir>
 #include <QImage>
 #include <QObject>
 #include <QThread>
 #include <QUrl>
+#include <QVariantList>
 #include <QtQml/qqmlregistration.h>
 
 #include <atomic>
@@ -25,6 +27,17 @@ struct DecodeResult {
 DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled);
 QUrl commandLineUrl(const QString& argument);
 
+// Image Information presentation helpers; pure so tests need no decoded image.
+// Replaces a leading home directory with "~"; a sibling such as "/home/alice2" is left unchanged.
+QString abbreviateHomePath(const QString& absolutePath, const QString& home = QDir::homePath());
+// "JPEG · 3072 × 4080 · 12.5 MP · 2.5 MB" without missing parts, or "Details unavailable" when all are missing.
+QString formatSummaryLine(const QString& format, QSize decodedSize, qint64 encodedSize);
+// "Rotated view W × H" only when the transform swaps the decoded width and height.
+QString formatTransformedLine(QSize decodedSize, QSize transformedSize);
+// Locale short date and time, or empty for an unknown time.
+QString formatModifiedText(const QDateTime& modified);
+QString joinNonEmpty(const QStringList& parts, QStringView separator = u" · ");
+
 // QObject owns identity and disables copying/moving.
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class ImageDocument : public QObject {
@@ -35,7 +48,11 @@ class ImageDocument : public QObject {
   Q_PROPERTY(QSize transformedDimensions READ transformedDimensions NOTIFY changed)
   Q_PROPERTY(QString localPath READ localPath NOTIFY changed)
   Q_PROPERTY(QString formattedFileSize READ formattedFileSize NOTIFY changed)
-  Q_PROPERTY(QString informationText READ informationText NOTIFY changed)
+  Q_PROPERTY(QString summaryLine READ summaryLine NOTIFY changed)
+  Q_PROPERTY(QString transformedLine READ transformedLine NOTIFY changed)
+  Q_PROPERTY(QString modifiedText READ modifiedText NOTIFY changed)
+  Q_PROPERTY(QString displayPath READ displayPath NOTIFY changed)
+  Q_PROPERTY(QVariantList informationSections READ informationSections NOTIFY changed)
   Q_PROPERTY(ClipboardController* clipboard READ clipboard CONSTANT)
   Q_PROPERTY(State state READ state NOTIFY changed)
   Q_PROPERTY(QString fileName READ fileName NOTIFY changed)
@@ -64,7 +81,16 @@ class ImageDocument : public QObject {
     return ImageOrientation::dimensions(orientation_, image_.size());
   }
   [[nodiscard]] QString localPath() const { return selected_url_.toLocalFile(); }
-  [[nodiscard]] QString informationText() const;
+  [[nodiscard]] QString summaryLine() const {
+    return formatSummaryLine(information_.format, information_.decodedSize, information_.encodedSize);
+  }
+  [[nodiscard]] QString transformedLine() const {
+    return formatTransformedLine(information_.decodedSize, transformedDimensions());
+  }
+  [[nodiscard]] QString modifiedText() const { return formatModifiedText(information_.modified); }
+  [[nodiscard]] QString displayPath() const { return abbreviateHomePath(localPath()); }
+  // Ordered {key, label, lines} maps for Camera, Location and File; sections without lines are omitted.
+  [[nodiscard]] QVariantList informationSections() const;
   [[nodiscard]] QString formattedFileSize() const;
   [[nodiscard]] const ImageInformation& information() const { return information_; }
   ClipboardController* clipboard() { return &clipboard_; }
