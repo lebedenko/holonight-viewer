@@ -804,21 +804,11 @@ HnApplicationWindow {
             Accessible.name: rawText
         }
 
-        Flow {
+        FooterKeyHints {
             Layout.fillWidth: true
             Layout.leftMargin: 12
             Layout.rightMargin: 12
             Layout.bottomMargin: 6
-            spacing: 12
-            Repeater {
-                model: [qsTr("[ / ]  navigate"), qsTr("Ctrl++/−  zoom"), qsTr("Ctrl+0  fit"), qsTr("1  100%"), qsTr("R  rotate"), qsTr("F  fullscreen"), qsTr("I  information"), qsTr("?  help"), qsTr("Q  quit")]
-                HnLabel {
-                    required property string modelData
-                    role: HnTypographyRole.Caption
-                    color: HoloniightPalette.textMuted
-                    rawText: modelData
-                }
-            }
         }
     }
 
