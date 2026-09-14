@@ -82,3 +82,70 @@ reader acceptance. Native UI walkthrough and Docker installed-runtime
 qualification have not been performed for this cycle; these remain explicit
 follow-up qualification, not passing results. Existing release deferrals in
 the backlog remain unchanged.
+
+## Fractional-scale menu separators (2026-09-14)
+
+The approved follow-up replaces only `ViewerMenuSeparator.contentItem` with the
+installed `HnSeparator`, retaining `Basic.MenuSeparator`, padding,
+`HoloniightPalette.borderPassive`, default thickness and solid rendering.
+Providers and public APIs are unchanged. Installed packages in `build/deps/prefix`
+were reused; `task deps` was intentionally not run because it rebuilds providers.
+
+`MenuLayout.SeparatorsRenderAsPhysicalHairlines` renders the production window
+content and counts physical pixel rows at three horizontal samples per separator.
+It checks all six separators with menu offsets 0/0.25/0.5/0.75 and a short menu
+whose content is scrolled to each separator with fractional scroll offsets.
+Exactly one painted row is required, with no additional blended rows; RGB values
+allow one quantization step when comparing the palette to rendered pixels.
+`grabToImage` captures the complete scene at its window DPR. `grabWindow` produced
+corrupted regions after resizing with the offscreen OpenGL platform and was not
+used as the final oracle.
+
+The ten separate CTest processes run dark/light at 1/1.25/1.5/1.75/2, explicitly
+using Qt Quick RHI/OpenGL, the basic render loop and Mesa software OpenGL.
+The ordinary software-rendered smoke target excludes this test because the
+separate matrix owns it; existing menu navigation/accessibility tests remain
+unchanged. CI adds `xorg-server-xvfb` and `mesa`; CMake wraps matrix processes in
+`xvfb-run -a` when available, otherwise using the existing display connection.
+The modified CI image has not been built in this run.
+
+| Check | Outcome | Evidence |
+| --- | --- | --- |
+| RHI dark/light, five-scale matrix | 10/10 passed, 43.27 s | `build/menu-separator-matrix-rhi.log` |
+| Native Wayland dark/light rendered regression at 150% | Both passed, including fractional offsets and scrolling | `build/menu-separator-native-150-{dark,light}.log` |
+| Regular application, native keyboard opening and compositor captures | Inspected both themes; six isolated single-pixel separator rows also confirmed from raw PNG data | `build/menu-separator-app-150-{dark,light}-compositor.png` |
+| Final `task check` | Passed with exit 0: Debug/Release builds, 18/18 CTest targets (92.14 s), formatting, clang-tidy, QML lint, REUSE, staged installation and uninstall | `build/menu-separator-check-final.log` |
+| First full `task check` | All 18 CTest targets and formatting passed; stopped on new test's clang-tidy complexity/naming findings, subsequently corrected | `build/menu-separator-check.log` |
+
+Native captures use the actual `build/debug/apps/viewer/hn-viewer` and `grim` on
+Hyprland's 3840×2160 HDMI-A-1 display at scale 1.5, recorded in
+`build/menu-separator-native-monitors.json`. Shift+Tab and Space open the menu
+only after confirming Viewer owns focus. The temporary capture scripts close
+only the processes they started. Regular app captures use compositor-managed
+geometry; the rendered test's forced resize is not used for the final native
+screenshot. The original screenshot attachment is unavailable in this context;
+this reproduces its menu scenario on the current native 150% display.
+
+Representative RHI captures are under
+`build/test/tests/viewer-menu-separators-{dark,light}-{1,1.25,1.5,1.75,2}-menu.png`
+and the corresponding `-menu-scrolled.png` paths.
+
+**Renderer limitation:** the Qt Quick software adaptation still paints extra
+rows at 150–200% despite the installed component reporting one physical pixel of
+geometry (`build/menu-separator-matrix.log`, `build/menu-separator-grab.log`).
+The passing matrix uses the production RHI renderer, including software OpenGL,
+and does not establish software-adaptation acceptance. No provider workaround
+was added because provider changes are outside the approved scope. This remains
+an explicit REQ-F-031 qualification limitation. Broader native accessibility,
+mixed-display and Docker qualification gates remain as recorded above.
+
+The independent native PNG check (`build/check-native-menu-pixels.py`) finds six
+isolated rows at physical y=129/245/456/716/831/947 in both 1500×1050 compositor
+captures. Each separator is uniform across the sampled menu interior; all six
+share RGB (49,69,90) in dark and (181,195,214) in light. Result:
+`build/menu-separator-native-pixels.log`. This checks compositor output in
+addition to the Qt scene-capture regression.
+
+The final aggregate check ran outside the sandbox with approval because RHI
+needs the display connection and REUSE needs local sockets. Installation/removal
+checks used disposable staged trees; no host installation or removal occurred.

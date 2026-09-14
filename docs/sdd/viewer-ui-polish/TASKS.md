@@ -70,3 +70,23 @@ Each task includes the test updates its change forces, so the build and the full
 
 These checks are not established by the passing offscreen tests and staged
 installation checks. Existing release deferrals remain unchanged.
+
+## Fractional-scale separator correction
+
+- [x] T-016 (REQ-F-031, REQ-F-007): Use installed HnSeparator content in the
+  Basic.MenuSeparator wrapper; preserve palette, defaults and semantics.
+- [x] T-017 (REQ-F-031): Render all six separators at 1/1.25/1.5/1.75/2 scales,
+  dark/light themes, fractional menu positions and scrolling; assert exactly one
+  physical pixel with RHI/OpenGL, inspect captures and run `task check`.
+  - Passed: 18/18 CTest targets and the full aggregate check; software-adaptation
+    qualification remains explicitly open below.
+- [x] T-018 (REQ-F-031): Reproduce the original native screenshot at its display
+  scale; record evidence or the exact remaining limitation.
+
+Native reproduction uses the current 150% display; the original attachment is
+unavailable in this context. The regular app's compositor captures contain six
+isolated single-pixel rows in both themes. Evidence: [VERIFICATION.md](VERIFICATION.md).
+
+- [ ] Qualify REQ-F-031 with Qt Quick's software adaptation: higher-scale
+  captures still contain extra rows. RHI/software-OpenGL and native results do
+  not close this backend limitation; provider changes remain outside this task.

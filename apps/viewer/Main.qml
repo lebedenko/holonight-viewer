@@ -78,8 +78,7 @@ HnApplicationWindow {
     }
     // Basic's separator paints with the system palette; draw it with the theme instead.
     component ViewerMenuSeparator: Basic.MenuSeparator {
-        contentItem: Rectangle {
-            implicitHeight: HnMetrics.borderWidth
+        contentItem: HnSeparator {
             color: HoloniightPalette.borderPassive
         }
     }

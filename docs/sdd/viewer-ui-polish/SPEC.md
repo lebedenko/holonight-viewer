@@ -499,3 +499,16 @@ If WindowKeyRouter or any other key handler consumes X or Shift+X before the win
 ---
 
 **End of Specification**
+
+## Fractional-scale separator correction (approved 2026-09-14)
+
+**REQ-F-031 (State-driven — Physical separator thickness)**
+
+While the Actions menu is displayed at 100%, 125%, 150%, 175% or 200% display
+scale, all six separators shall render as equal, solid one-physical-pixel
+hairlines in `HoloniightPalette.borderPassive`, including fractional menu
+positions and scrolled content. `Basic.MenuSeparator` padding, keyboard skipping
+and accessibility semantics shall be preserved. Use the installed `HnSeparator`
+with its default thickness; provider changes and public API changes are out of
+scope. Acceptance includes rendered pixel checks, dark/light inspection,
+`task check`, and native reproduction at the original screenshot's display scale.

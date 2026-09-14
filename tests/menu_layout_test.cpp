@@ -6,10 +6,12 @@
 #include <QImage>
 #include <QQmlApplicationEngine>
 #include <QQuickItem>
+#include <QQuickItemGrabResult>
 #include <QQuickWindow>
 #include <QTemporaryDir>
 #include <QTest>
 
+#include <algorithm>
 #include <array>
 #include <gtest/gtest.h>
 #include <string_view>
@@ -108,6 +110,32 @@ bool isMenuItem(const QQuickItem* item) { return item != nullptr && item->inheri
 
 qreal textRight(QQuickItem* label, QQuickItem* target) {
   return label->mapToItem(target, {std::min(label->implicitWidth(), label->width()), 0}).x();
+}
+
+void expectHairline(const QImage& capture, QQuickItem* content, qreal dpr, const QColor& color) {
+  const auto origin = content->mapToScene({0, 0});
+  const int top = qFloor((origin.y() - 3) * dpr);
+  const int bottom = qCeil((origin.y() + content->height() + 3) * dpr);
+  ASSERT_GE(top, 0);
+  ASSERT_LT(bottom, capture.height());
+  for (const qreal fraction : {0.25, 0.5, 0.75}) {
+    const int column = qRound((origin.x() + (content->width() * fraction)) * dpr);
+    ASSERT_GE(column, 0);
+    ASSERT_LT(column, capture.width());
+    const auto background = capture.pixelColor(column, top);
+    ASSERT_NE(background, color);
+    int rows = 0;
+    int paintedRows = 0;
+    for (int row = top; row <= bottom; ++row) {
+      const auto pixel = capture.pixelColor(column, row);
+      const bool matches = std::abs(pixel.red() - color.red()) <= 1 && std::abs(pixel.green() - color.green()) <= 1 &&
+                           std::abs(pixel.blue() - color.blue()) <= 1;
+      rows += matches ? 1 : 0;
+      paintedRows += capture.pixelColor(column, row) != background ? 1 : 0;
+    }
+    EXPECT_EQ(paintedRows, 1) << "Extra solid or blended rows";
+    EXPECT_EQ(rows, 1) << "sample=" << fraction;
+  }
 }
 }  // namespace
 
@@ -252,4 +280,61 @@ TEST(MenuLayout, KeyboardNavigationSkipsSeparators) {
     }
   }
   EXPECT_EQ(visited, expected);
+}
+
+TEST(MenuLayout, SeparatorsRenderAsPhysicalHairlines) {
+  MenuFixture fixture;
+  ASSERT_TRUE(fixture.load());
+  auto* palette = fixture.engine.singletonInstance<QObject*>("Holonight.Core", "HoloniightPalette");
+  ASSERT_NE(palette, nullptr);
+  const auto color = palette->property("borderPassive").value<QColor>();
+  ASSERT_EQ(color.alpha(), 255);
+  auto* list = fixture.window->findChild<QQuickItem*>("actionsMenuList");
+  ASSERT_NE(list, nullptr);
+  const auto capturePrefix = qEnvironmentVariable("VIEWER_CAPTURE_PREFIX");
+  for (const bool scroll : {false, true}) {
+    fixture.window->resize(1000, scroll ? 400 : 1200);
+    ASSERT_TRUE(fixture.openMenu());
+    EXPECT_EQ(list->property("interactive").toBool(), scroll);
+    const auto menuY = fixture.menu->property("y").toReal();
+    for (const qreal offset : {0.0, 0.25, 0.5, 0.75}) {
+      ASSERT_TRUE(fixture.menu->setProperty("y", menuY + offset));
+      int checked = 0;
+      for (int index = 0; index < kEntries; ++index) {
+        if (!kMenu.at(index).separator()) {
+          continue;
+        }
+        auto* item = fixture.entry(index);
+        ASSERT_NE(item, nullptr);
+        auto* content = item->property("contentItem").value<QQuickItem*>();
+        ASSERT_NE(content, nullptr);
+        if (scroll) {
+          // Center each separator, then move through subpixel scroll positions.
+          const auto position = item->mapToItem(list, {0, 0}).y() + list->property("contentY").toReal();
+          const auto maximum = list->property("contentHeight").toReal() - list->height();
+          ASSERT_GT(maximum, 0);
+          ASSERT_TRUE(list->setProperty("contentY", std::clamp(position - list->height() / 2, 0.0, maximum) + offset));
+        }
+        // Allow the scene-position observer and render loop to settle after movement.
+        QTest::qWait(50);
+        const qreal dpr = fixture.window->devicePixelRatio();
+        const auto grab = fixture.window->contentItem()->grabToImage(fixture.window->size());
+        ASSERT_FALSE(grab.isNull());
+        ASSERT_TRUE(QTest::qWaitFor([&] { return !grab->image().isNull(); }));
+        const auto capture = grab->image();
+        ASSERT_FALSE(capture.isNull());
+        ASSERT_EQ(capture.width(), qRound(fixture.window->width() * dpr));
+        SCOPED_TRACE(::testing::Message()
+                     << "separator=" << index << " dpr=" << dpr << " offset=" << offset << " scroll=" << scroll);
+        ASSERT_NO_FATAL_FAILURE(expectHairline(capture, content, dpr, color));
+        if (!capturePrefix.isEmpty() && offset == 0.5 && (!scroll || index == 16)) {
+          ASSERT_TRUE(capture.save(capturePrefix + (scroll ? "-menu-scrolled.png" : "-menu.png")));
+        }
+        ++checked;
+      }
+      EXPECT_EQ(checked, 6);
+    }
+    QTest::keyClick(fixture.window, Qt::Key_Escape);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return !fixture.menu->property("visible").toBool(); }));
+  }
 }

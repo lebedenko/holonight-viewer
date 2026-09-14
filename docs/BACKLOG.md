@@ -72,7 +72,10 @@ Viewer UI polish (2026-09-14) implements the approved
 [requirements](sdd/viewer-ui-polish/SPEC.md): empty-state hints, grouped menu and
 shortcut Help, transient arrows/HUD and X / Shift+X flips. Review corrections
 constrain Help keycaps at larger text sizes and add checks for actual text and
-description bounds. Local automated checks and offscreen dark/light scale
+description bounds. The approved separator follow-up uses shared pixel-aligned
+hairlines and adds rendered fractional-scale coverage. Its full `task check`,
+ten RHI scale/theme runs and native 150% pixel checks pass; the verification
+record retains the software-renderer limitation. Local automated checks and offscreen dark/light scale
 inspection passed, including an authorized license rerun after a sandbox socket
 failure. The [verification record](sdd/viewer-ui-polish/VERIFICATION.md)
 tracks this evidence and pending native/Docker qualification;

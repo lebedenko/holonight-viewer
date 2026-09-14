@@ -110,7 +110,8 @@ click outside; image navigation keys pause while it is open. Shortcut Help is a 
 card with a fixed “Shortcuts” header and scrolling NAVIGATION, VIEW, TRANSFORM, IMAGE,
 APPLICATION and MOUSE sections; close it with `?`, Escape, its × button or a click
 outside. Long key hints wrap within their column to keep descriptions readable
-at larger text sizes. The [UI polish verification](docs/sdd/viewer-ui-polish/VERIFICATION.md)
+at larger text sizes. Menu separators use shared pixel-aligned hairlines.
+The [UI polish verification](docs/sdd/viewer-ui-polish/VERIFICATION.md)
 records checks and remaining acceptance. Escape closes a card or dialog before leaving
 fullscreen; closing clears the control focus ring.
 

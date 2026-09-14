@@ -480,7 +480,7 @@ derived from the two real `"Ctrl++"`/`"Ctrl+-"` sequences either).
 
 ### 4.4 Menu separator skipping: rely on Qt Quick Templates' existing behavior
 
-**Decision:** insert plain `Basic.MenuSeparator {}` items at the six
+**Decision:** insert `ViewerMenuSeparator` items based on `Basic.MenuSeparator` at the six
 positions; **no custom `KeyNavigation` or key-event handling is added**.
 
 **Grounding:** `qquickmenu_p_p.h` (installed Qt 6.11.2 headers) declares
@@ -515,25 +515,23 @@ lines 268-289, 375-386; `accessibility_test.cpp` lines 77-86) must be
 recomputed against the new 25-slot model (19 items + 6 separators) using
 this rule — see §5.
 
-### 4.5 `Basic.MenuSeparator`, not a `holonight-qt` separator component
+### 4.5 Themed, pixel-aligned menu separator content
 
-**Decision:** import `QtQuick.Controls.Basic as Basic` (already imported in
-`Main.qml:9`) and use `Basic.MenuSeparator {}` directly inside the menu.
+The approved fractional-scale correction retains `ViewerMenuSeparator` based on
+`Basic.MenuSeparator` for padding, navigation and accessibility. Its `contentItem`
+is the installed `HnSeparator` using `HoloniightPalette.borderPassive`, default
+thickness and default solid rendering. The shared geometry snaps thickness and
+scene position to implement the selected one-physical-pixel hairline policy.
+No provider or public API changes are needed.
 
-**Alternative considered (rejected):** `HnSeparator` (already used for the
-`detailsStrip` metadata dividers, `Main.qml:719`). Rejected:
-`holonight-qt/qml` has no `Menu`-flavored separator (`find … -iname
-"*Separator*"` under `holonight-qt` turns up only `HnSeparator.qml`, a
-generic `Item`-based divider with `orientation`/geometry properties, not a
-`T.MenuSeparator` subclass). Using it inside a `Menu`'s content model would
-not get Qt's `QQuickMenuItem`-vs-not-a-`QQuickMenuItem` skip behavior from
-§4.4 "for free" — `HnSeparator` is a plain `Item`, and whether Menu's
-internal navigation treats an arbitrary non-`QQuickMenuItem`,
-non-`QQuickMenuSeparator` child the same way is unverified. `Basic.MenuSeparator`
-is the type the Qt Quick Templates navigation code is written against, so
-it is the only choice with a grounded guarantee. (No `holonight-qt` file is
-modified either way — REQ-C-001/out-of-scope constraint is satisfied by
-both options; this is purely a correctness choice.)
+The rendered regression samples all six production separators at five display
+scales in both themes, with fractional menu offsets and fractional ListView
+scroll offsets. It checks physical pixels in a window capture rather than
+inferring rendering from QML heights. The matrix uses RHI/OpenGL and whole-scene
+`grabToImage` captures, with Xvfb in headless CI. The software adaptation's
+remaining extra-row behavior is recorded as a qualification limitation.
+Existing navigation/accessibility tests
+remain in place. Captures and logs live under `build/`.
 
 ### 4.6 Empty-state hint: nested inside a `Column` with the glyph, not a sibling `ColumnLayout`
 
