@@ -32,7 +32,7 @@ Basic.Popup {
     modal: true
     focus: true
     closePolicy: Basic.Popup.CloseOnEscape | Basic.Popup.CloseOnPressOutside
-    // Lighter than the Basic style's 0.5 dimming used by Shortcut Help, so the image stays visible.
+    // Light dimming, shared with Shortcut Help, so the image stays visible.
     Basic.Overlay.modal: Rectangle {
         objectName: "informationDimmer"
         color: Qt.alpha(HoloniightPalette.shadow, 0.22)

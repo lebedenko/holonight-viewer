@@ -65,7 +65,7 @@ tasks:
     desc: Format C++ and QML sources
     cmds:
       - clang-format -i apps/viewer/*.cpp apps/viewer/*.h tests/*.cpp tests/*.h
-      - bash scripts/qml-format.sh -i apps/viewer/Main.qml apps/viewer/FooterKeyHints.qml apps/viewer/ImageInformationPopup.qml
+      - bash scripts/qml-format.sh -i apps/viewer/Main.qml apps/viewer/FooterKeyHints.qml apps/viewer/ImageInformationPopup.qml apps/viewer/ShortcutHelpPopup.qml
   format-check:
     desc: Check C++ and QML formatting
     cmds:

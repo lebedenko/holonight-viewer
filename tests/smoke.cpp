@@ -61,28 +61,42 @@ TEST(Viewer, WindowAndKeyboard) {
   EXPECT_TRUE(ignored.evaluate().toBool());
   EXPECT_FALSE(ignored.hasError());
   EXPECT_FALSE(empty_item->activeFocusOnTab());
+  QTest::qWait(50);
   EXPECT_TRUE(empty_item->isVisible());
   EXPECT_FALSE(empty->property("hasError").toBool());
   const QString capture = qEnvironmentVariable("VIEWER_CAPTURE_PREFIX");
   const auto checkDecoration = [&] {
     QTest::qWait(100);
-    const auto* area = empty_item->parentItem();
+    const auto* group = empty_item->parentItem();
+    const auto* area = group->parentItem();
+    const auto* hint = window->findChild<QQuickItem*>(QStringLiteral("emptyStateHintPrimary"));
+    const auto* secondary = window->findChild<QQuickItem*>(QStringLiteral("emptyStateHintSecondary"));
+    ASSERT_TRUE(hint && secondary);
     const auto shorter = std::min(area->width(), area->height());
     const auto padding = std::clamp(shorter * 0.08, 32.0, 64.0);
-    EXPECT_EQ(empty_item->width(), std::max(0.0, std::floor(shorter - (2 * padding))));
+    EXPECT_LE(empty_item->width(), std::max(0.0, std::floor(shorter - (2 * padding))));
     EXPECT_EQ(empty_item->height(), empty_item->width());
-    EXPECT_NEAR(empty_item->x() + (empty_item->width() / 2), area->width() / 2, 0.5);
-    EXPECT_NEAR(empty_item->y() + (empty_item->height() / 2), area->height() / 2, 0.5);
-    EXPECT_GE(empty_item->x(), padding);
-    EXPECT_GE(empty_item->y(), padding);
-    EXPECT_LE(empty_item->x() + empty_item->width(), area->width() - padding);
-    EXPECT_LE(empty_item->y() + empty_item->height(), area->height() - padding);
+    // The glyph, primary and secondary hints are centred as one group inside the canvas.
+    const auto top = group->mapToItem(area, {0, 0});
+    EXPECT_NEAR(top.x() + (group->width() / 2), area->width() / 2, 0.5);
+    EXPECT_NEAR(top.y() + (group->height() / 2), area->height() / 2, 0.5);
+    EXPECT_GE(top.y(), 0);
+    EXPECT_LE(top.y() + group->height(), area->height());
+    EXPECT_GE(secondary->mapToItem(area, {0, 0}).x(), 0);
+    EXPECT_LE(secondary->mapToItem(area, {secondary->width(), 0}).x(), area->width());
+    if (empty_item->isVisible()) {
+      EXPECT_GE(empty_item->width(), 48);
+      EXPECT_LT(empty_item->mapToItem(area, {0, empty_item->height()}).y(), hint->mapToItem(area, {0, 0}).y());
+      EXPECT_LE(empty_item->mapToItem(area, {0, 0}).y() + 0.5, area->height() - padding);
+    }
     EXPECT_FALSE(empty->property("hasError").toBool());
     ASSERT_FALSE(empty_item->childItems().isEmpty());
     const auto rasterLimit = std::max(1, static_cast<int>(std::floor(1024 / window->devicePixelRatio())));
-    EXPECT_EQ(QQmlProperty::read(empty_item->childItems().first(), "sourceSize").toSize(),
-              QSize(std::min(rasterLimit, static_cast<int>(empty_item->width())),
-                    std::min(rasterLimit, static_cast<int>(empty_item->height()))));
+    if (empty_item->isVisible()) {
+      EXPECT_EQ(QQmlProperty::read(empty_item->childItems().first(), "sourceSize").toSize(),
+                QSize(std::min(rasterLimit, static_cast<int>(empty_item->width())),
+                      std::min(rasterLimit, static_cast<int>(empty_item->height()))));
+    }
   };
   for (const auto& size : {QSize(420, 280), QSize(1000, 700), QSize(480, 900), QSize(1600, 500), QSize(2000, 1600)}) {
     window->resize(size);

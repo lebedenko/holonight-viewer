@@ -60,6 +60,7 @@ TEST(Accessibility, NamesRolesEnabledFocusAndDialogs) {
   EXPECT_NE(window->activeFocusItem(), canvas);
   auto* actions = window->findChild<QQuickItem*>("actionsButton");
   ASSERT_NE(actions, nullptr);
+  EXPECT_EQ(QAccessible::queryAccessibleInterface(actions)->text(QAccessible::Name), QStringLiteral("Menu"));
   actions->forceActiveFocus(Qt::TabFocusReason);
   QTest::keyClick(window, Qt::Key_Space);
   auto* menu = window->findChild<QObject*>("actionsMenu");
@@ -77,28 +78,24 @@ TEST(Accessibility, NamesRolesEnabledFocusAndDialogs) {
   QTest::keyClick(window, Qt::Key_J);
   EXPECT_EQ(menu->property("currentIndex").toInt(), 0);
   QTest::keyClick(window, Qt::Key_J);
-  EXPECT_EQ(menu->property("currentIndex").toInt(), 8);
+  EXPECT_EQ(menu->property("currentIndex").toInt(), 21);
   QTest::keyClick(window, Qt::Key_K);
   EXPECT_EQ(menu->property("currentIndex").toInt(), 0);
   QTest::keyClick(window, Qt::Key_Down);
-  EXPECT_EQ(menu->property("currentIndex").toInt(), 8);
+  EXPECT_EQ(menu->property("currentIndex").toInt(), 21);
   QTest::keyClick(window, Qt::Key_Up);
   EXPECT_EQ(menu->property("currentIndex").toInt(), 0);
   QTest::keyClick(window, Qt::Key_Escape);
   QTest::keyClick(window, Qt::Key_Question);
-  ASSERT_TRUE(QTest::qWaitFor([&] { return window->findChild<QQuickItem*>("detailsText") != nullptr; }));
-  auto* text = window->findChild<QQuickItem*>("detailsText");
-  auto* accessible = QAccessible::queryAccessibleInterface(text);
-  ASSERT_NE(accessible, nullptr);
-  EXPECT_EQ(accessible->text(QAccessible::Name), QStringLiteral("Shortcut Help"));
-  EXPECT_TRUE(text->property("readOnly").toBool());
-  EXPECT_TRUE(text->property("selectByMouse").toBool());
-  text->forceActiveFocus(Qt::TabFocusReason);
-  QTest::keyClick(window, Qt::Key_A, Qt::ControlModifier);
-  QTest::keyClick(window, Qt::Key_C, Qt::ControlModifier);
-  EXPECT_EQ(QGuiApplication::clipboard()->text(), text->property("text").toString());
-  auto* closeButton = window->findChild<QQuickItem*>("closeDetailsButton");
+  ASSERT_TRUE(QTest::qWaitFor([&] { return window->findChild<QQuickItem*>("shortcutHelpContent") != nullptr; }));
+  auto* help = QAccessible::queryAccessibleInterface(window->findChild<QQuickItem*>("shortcutHelpContent"));
+  ASSERT_NE(help, nullptr);
+  EXPECT_EQ(help->role(), QAccessible::Dialog);
+  EXPECT_EQ(help->text(QAccessible::Name), QStringLiteral("Shortcut Help"));
+  auto* closeButton = window->findChild<QQuickItem*>("shortcutHelpCloseButton");
   ASSERT_NE(closeButton, nullptr);
+  EXPECT_EQ(QAccessible::queryAccessibleInterface(closeButton)->text(QAccessible::Name),
+            QStringLiteral("Close Shortcut Help"));
   ASSERT_TRUE(closeButton->isVisible());
   QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier,
                     closeButton->mapToScene(QPointF(closeButton->width() / 2, closeButton->height() / 2)).toPoint());

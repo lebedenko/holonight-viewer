@@ -54,16 +54,17 @@ normal/maximized state, including compositor-managed tiling. Viewer shortcuts pa
 | Left-button drag | Pan the image |
 | Arrow keys | Pan the viewed region from anywhere in the window |
 | `R` / `Shift+R` | Rotate clockwise / counterclockwise by 90° |
-| `H` / `V` | Flip horizontally / vertically relative to the displayed image |
-| Actions → Reset Transform | Clear temporary rotation and flips |
+| `X` / `Shift+X` | Flip horizontally / vertically relative to the displayed image |
+| Menu → Reset Transform | Clear temporary rotation and flips |
 | `Ctrl+C` | Copy the entire transformed image, including transparency |
 | `Ctrl+Shift+C` | Copy the normalized absolute path, unquoted; retain symlink paths |
 | `I` | Open or close the Image Information card |
-| `?` | Open scrollable shortcut and gesture help |
+| `?` | Open or close the Shortcut Help card |
 
 Image actions clear the focus ring. Tab and Shift+Tab cycle through enabled header buttons
-(Information, Fullscreen, Actions); the empty window skips Information. J/K and Down/Up
-navigate the Actions menu. Manual
+(Information, Fullscreen, Menu); the empty window skips Information. J/K and Down/Up
+navigate the menu, skipping its separators. Single-key shortcuts still act while the menu
+is open and close it. Manual
 zoom preserves magnification during resize/fullscreen and display-scale changes.
 100% means physical pixels even at fractional display scaling. Zoom normally
 ranges from 1% to 3200%, extending to include Fit for unusually small/large images.
@@ -72,13 +73,18 @@ resets to Fit; canceling Open preserves the view. Image controls pause while the
 dialog is open. Zoom/pan reuse the decoded image and a canvas-sized rendering
 surface without changing the original file.
 
-The header uses scalable, theme-tinted SVG icons; its Actions popup keeps a
-visible inset from the window edges. The menu provides Open, view controls, navigation, temporary
-transforms, copying, information, help and quit. The centered filename and wrapping
-shortcut footer remain visible. Mouse movement reveals side navigation arrows for
-five seconds; any keyboard input hides them immediately. An independent five-second
-details strip appears after a new or refreshed image first renders. Mouse movement
-restarts its timeout; ordinary repaints and keyboard inspection do not. The strip
+The header uses scalable, theme-tinted SVG icons; its menu keeps a
+visible inset from the window edges. The menu groups Open/Refresh, Previous/Next, view
+controls, transforms, copying, Image Information/Shortcut Help and Fullscreen/Quit behind
+separators, with each item's shortcut shown right-aligned. With no image open, the canvas
+shows “No image open” and “Ctrl+O to open · or drop an image here” under the glyph; the
+glyph shrinks, then hides, on short windows while the text keeps its size. The centered
+filename and wrapping shortcut footer remain visible. Mouse movement reveals side
+navigation arrows for two seconds (held while the pointer rests on an arrow); any keyboard
+input hides them immediately, and they fade in and out. An independent three-second,
+fading details strip appears after a new or refreshed image first renders and after
+zoom, Fit, Actual Size, rotate, flip or mouse movement; resizing and ordinary repaints do
+not reveal it. The strip
 shows transformed dimensions, decimal file size, physical-pixel scale (including
 Fit), and folder position as separate labels with themed separators, wrapping at
 narrow widths without resizing the canvas. Viewer-owned controls retain
@@ -100,8 +106,12 @@ empty summary. Facts follow cached image snapshots, and the open card follows an
 changes to the document. Close the card before using refresh or transform shortcuts;
 `Ctrl+R` refreshes the cached facts. Copy Path still copies the absolute path and remains
 available during loading/errors. Close the card with `I`, Escape, its × button or a
-click outside; image navigation keys pause while it is open. Shortcut Help supports
-scrolling and text selection/copying. Escape closes a card or dialog before leaving
+click outside; image navigation keys pause while it is open. Shortcut Help is a matching
+card with a fixed “Shortcuts” header and scrolling NAVIGATION, VIEW, TRANSFORM, IMAGE,
+APPLICATION and MOUSE sections; close it with `?`, Escape, its × button or a click
+outside. Long key hints wrap within their column to keep descriptions readable
+at larger text sizes. The [UI polish verification](docs/sdd/viewer-ui-polish/VERIFICATION.md)
+records checks and remaining acceptance. Escape closes a card or dialog before leaving
 fullscreen; closing clears the control focus ring.
 
 Copy Image captures the image and orientation when invoked, ignoring zoom/pan.
@@ -292,7 +302,7 @@ docker run --rm --network none viewer-runtime-check
 For real native clipboard checks, start `build/test/tests/clipboard-probe
 --interactive image build/received.png` (or `text build/received.txt`) with the
 same native platform as the receiver under test. Copy through Viewer's keyboard
-or Actions menu, focus the receiver, then click or press Enter/Ctrl+V. It reports
+or menu, focus the receiver, then click or press Enter/Ctrl+V. It reports
 image dimensions, first pixel and a canonical RGBA digest, or exact path text,
 and saves the received data. It remains open for repeated activation. Automatic
 mode remains available for regression tests; it does not establish native input

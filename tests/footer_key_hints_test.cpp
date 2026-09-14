@@ -212,8 +212,10 @@ TEST(FooterKeyHints, PersistentVisibility) {
   EXPECT_TRUE(viewer.footer->isVisible());
   QTest::mouseMove(viewer.window, QPoint(40, 40));
   QTest::mouseMove(viewer.window, QPoint(60, 60));
-  ASSERT_TRUE(
-      QTest::qWaitFor([&] { return !arrows->property("running").toBool() && !details->property("running").toBool(); }));
+  auto* next = viewer.window->findChild<QQuickItem*>(QStringLiteral("nextButton"));
+  auto* strip = viewer.window->findChild<QQuickItem*>(QStringLiteral("detailsStrip"));
+  ASSERT_TRUE(next && strip);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !next->isVisible() && !strip->isVisible(); }));
   QTest::qWait(100);
   EXPECT_TRUE(viewer.footer->isVisible());
   EXPECT_DOUBLE_EQ(viewer.footer->opacity(), 1.0);

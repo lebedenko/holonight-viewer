@@ -232,6 +232,9 @@ TEST(Viewer, StaticWorkflowControls) {
   ASSERT_TRUE(QTest::qWaitForWindowActive(window));
   auto* canvas = window->findChild<ImageCanvas*>("imageCanvas");
   ASSERT_NE(canvas, nullptr);
+  QTest::keyClick(window, Qt::Key_X);
+  QTest::keyClick(window, Qt::Key_X, Qt::ShiftModifier);
+  EXPECT_EQ(document.orientation(), 0);
   QDir().mkpath(QStringLiteral(VIEWER_FIXTURE_DIR));
   const auto path = QStringLiteral(VIEWER_FIXTURE_DIR) + "/workflow.png";
   ASSERT_TRUE(asymmetric().save(path));
@@ -243,15 +246,28 @@ TEST(Viewer, StaticWorkflowControls) {
   EXPECT_EQ(document.orientation(), 1);
   EXPECT_TRUE(canvas->fitting());
   EXPECT_FALSE(canvas->hasActiveFocus());
-  QTest::keyClick(window, Qt::Key_H);
+  QTest::keyClick(window, Qt::Key_X);
   EXPECT_EQ(document.orientation(), ImageOrientation::compose(1, 4));
-  QTest::keyClick(window, Qt::Key_V);
+  // The old H/V bindings are gone rather than aliased.
+  for (const auto modifiers : {Qt::NoModifier, Qt::ShiftModifier}) {
+    QTest::keyClick(window, Qt::Key_H, modifiers);
+    QTest::keyClick(window, Qt::Key_V, modifiers);
+  }
+  EXPECT_EQ(document.orientation(), ImageOrientation::compose(1, 4));
+  QTest::keyClick(window, Qt::Key_X, Qt::ShiftModifier);
+  EXPECT_EQ(document.orientation(), ImageOrientation::compose(ImageOrientation::compose(1, 4), 6));
   QTest::keyClick(window, Qt::Key_R, Qt::ShiftModifier);
   EXPECT_EQ(document.orientation(), 2);
   auto* reset = window->findChild<QObject*>("resetTransformAction");
   ASSERT_NE(reset, nullptr);
   ASSERT_TRUE(QMetaObject::invokeMethod(reset, "trigger"));
   EXPECT_EQ(document.orientation(), 0);
+  auto* informationButton = window->findChild<QQuickItem*>("informationButton");
+  ASSERT_NE(informationButton, nullptr);
+  informationButton->forceActiveFocus();
+  QTest::keyClick(window, Qt::Key_X);
+  EXPECT_EQ(document.orientation(), 4);
+  ASSERT_TRUE(QMetaObject::invokeMethod(reset, "trigger"));
   const auto openMenu = [&] {
     auto* button = window->findChild<QQuickItem*>("actionsButton");
     if (!button) {
@@ -265,6 +281,24 @@ TEST(Viewer, StaticWorkflowControls) {
   ASSERT_TRUE(openMenu());
   auto* firstMenu = window->findChild<QObject*>("actionsMenu");
   ASSERT_NE(firstMenu, nullptr);
+  // Like R, X is a window shortcut while the menu is open: it flips and dismisses the menu.
+  QTest::keyClick(window, Qt::Key_X);
+  EXPECT_EQ(document.orientation(), 4);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !firstMenu->property("opened").toBool(); }));
+  ASSERT_TRUE(QMetaObject::invokeMethod(reset, "trigger"));
+  ASSERT_TRUE(openMenu());
+  {
+    auto* openItem = window->findChild<QQuickItem*>("openButton");
+    ASSERT_NE(openItem, nullptr);
+    auto* label = openItem->findChild<QQuickItem*>("menuItemLabel");
+    auto* shortcut = openItem->findChild<QQuickItem*>("menuItemShortcut");
+    ASSERT_NE(label, nullptr);
+    ASSERT_NE(shortcut, nullptr);
+    EXPECT_EQ(shortcut->property("text").toString(), "Ctrl+O");
+    EXPECT_TRUE(shortcut->isVisible());
+    const auto labelRight = label->mapToItem(openItem, {label->implicitWidth(), 0}).x();
+    EXPECT_GT(shortcut->mapToItem(openItem, {0, 0}).x(), labelRight);
+  }
   const auto menuStart = firstMenu->property("currentIndex").toInt();
   QTest::keyClick(window, Qt::Key_J);
   EXPECT_EQ(firstMenu->property("currentIndex").toInt(), menuStart + 1);
@@ -272,10 +306,10 @@ TEST(Viewer, StaticWorkflowControls) {
   EXPECT_EQ(firstMenu->property("currentIndex").toInt(), 0);
   QTest::keyClick(window, Qt::Key_Up);
   EXPECT_EQ(firstMenu->property("currentIndex").toInt(), 0);
-  for (int step = 0; step < 20 && firstMenu->property("currentIndex").toInt() != 10; ++step) {
+  for (int step = 0; step < 30 && firstMenu->property("currentIndex").toInt() != 11; ++step) {
     QTest::keyClick(window, Qt::Key_Down);
   }
-  ASSERT_EQ(firstMenu->property("currentIndex").toInt(), 10);
+  ASSERT_EQ(firstMenu->property("currentIndex").toInt(), 11);
   QTest::keyClick(window, Qt::Key_Return);
   QTest::qWait(100);
   EXPECT_EQ(document.orientation(), 1);
@@ -283,10 +317,10 @@ TEST(Viewer, StaticWorkflowControls) {
   ASSERT_TRUE(openMenu());
   auto* resetItem = window->findChild<QQuickItem*>("resetTransformMenuItem");
   ASSERT_NE(resetItem, nullptr);
-  for (int step = 0; step < 20 && firstMenu->property("currentIndex").toInt() != 14; ++step) {
+  for (int step = 0; step < 30 && firstMenu->property("currentIndex").toInt() != 15; ++step) {
     QTest::keyClick(window, Qt::Key_Down);
   }
-  ASSERT_EQ(firstMenu->property("currentIndex").toInt(), 14);
+  ASSERT_EQ(firstMenu->property("currentIndex").toInt(), 15);
   QTest::keyClick(window, Qt::Key_Return);
   QTest::qWait(100);
   EXPECT_EQ(document.orientation(), 0);
@@ -294,10 +328,10 @@ TEST(Viewer, StaticWorkflowControls) {
   ASSERT_TRUE(openMenu());
   auto* infoItem = window->findChild<QQuickItem*>("informationMenuItem");
   ASSERT_NE(infoItem, nullptr);
-  for (int step = 0; step < 20 && firstMenu->property("currentIndex").toInt() != 17; ++step) {
+  for (int step = 0; step < 30 && firstMenu->property("currentIndex").toInt() != 20; ++step) {
     QTest::keyClick(window, Qt::Key_Down);
   }
-  ASSERT_EQ(firstMenu->property("currentIndex").toInt(), 17);
+  ASSERT_EQ(firstMenu->property("currentIndex").toInt(), 20);
   QTest::keyClick(window, Qt::Key_Return);
   ASSERT_TRUE(QTest::qWaitFor([&] { return window->property("modalActive").toBool(); }));
   QTest::keyClick(window, Qt::Key_Escape);
@@ -314,6 +348,8 @@ TEST(Viewer, StaticWorkflowControls) {
     ASSERT_TRUE(QTest::qWaitFor([&] { return window->property("modalActive").toBool(); }));
     QTest::qWait(100);
     QTest::keyClick(window, Qt::Key_R);
+    QTest::keyClick(window, Qt::Key_X);
+    QTest::keyClick(window, Qt::Key_X, Qt::ShiftModifier);
     QTest::keyClick(window, Qt::Key_F);
     QTest::keyClick(window, Qt::Key_Q);
     EXPECT_EQ(document.orientation(), 0);
@@ -321,25 +357,16 @@ TEST(Viewer, StaticWorkflowControls) {
     EXPECT_EQ(window->visibility(), QWindow::FullScreen);
     const bool information = key == Qt::Key_I;
     EXPECT_EQ(window->property("informationOpen").toBool(), information);
-    auto* text = window->findChild<QQuickItem*>(information ? "informationPathText" : "detailsText");
-    ASSERT_NE(text, nullptr);
-    text->forceActiveFocus();
-    ASSERT_TRUE(QMetaObject::invokeMethod(text, "selectAll"));
-    QTest::keyClick(window, Qt::Key_C, Qt::ControlModifier);
-    EXPECT_EQ(QGuiApplication::clipboard()->text(), text->property("text").toString());
-    if (!information) {
-      QTest::keyClick(window, Qt::Key_End, Qt::ControlModifier);
-      QTest::qWait(30);
-      auto* scroll = window->findChild<QObject*>("detailsScroll");
-      ASSERT_NE(scroll, nullptr);
-      auto* flickable = scroll->property("contentItem").value<QQuickItem*>();
-      ASSERT_NE(flickable, nullptr);
-      // Ctrl+End must expose the final line; trailing text-area padding need not scroll.
-      const auto cursorBottom = text->property("cursorRectangle").toRectF().bottom();
-      EXPECT_LE(cursorBottom - flickable->property("contentY").toReal(), flickable->height());
-      if (cursorBottom > flickable->height()) {
-        EXPECT_GT(flickable->property("contentY").toReal(), 0);
-      }
+    EXPECT_EQ(window->property("helpOpen").toBool(), !information);
+    if (information) {
+      auto* text = window->findChild<QQuickItem*>("informationPathText");
+      ASSERT_NE(text, nullptr);
+      text->forceActiveFocus();
+      ASSERT_TRUE(QMetaObject::invokeMethod(text, "selectAll"));
+      QTest::keyClick(window, Qt::Key_C, Qt::ControlModifier);
+      EXPECT_EQ(QGuiApplication::clipboard()->text(), text->property("text").toString());
+    } else {
+      EXPECT_NE(window->findChild<QQuickItem*>("shortcutHelpContent"), nullptr);
     }
     QTest::keyClick(window, Qt::Key_Escape);
     ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("modalActive").toBool(); }));
@@ -378,12 +405,12 @@ TEST(Viewer, StaticWorkflowControls) {
   EXPECT_NE(menu->property("currentIndex").toInt(), finalMenuStart);
   QTest::keyClick(window, Qt::Key_K);
   EXPECT_EQ(menu->property("currentIndex").toInt(), finalMenuStart);
-  for (int step = 0; step < 20 && menu->property("currentIndex").toInt() != 18; ++step) {
+  for (int step = 0; step < 30 && menu->property("currentIndex").toInt() != 21; ++step) {
     QTest::keyClick(window, Qt::Key_Down);
   }
-  EXPECT_EQ(menu->property("currentIndex").toInt(), 18);
+  EXPECT_EQ(menu->property("currentIndex").toInt(), 21);
   QTest::keyClick(window, Qt::Key_Return);
-  ASSERT_TRUE(QTest::qWaitFor([&] { return window->property("detailDialog").toInt() == 2; }));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return window->property("helpOpen").toBool(); }));
   QTest::keyClick(window, Qt::Key_Escape);
   ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("modalActive").toBool(); }));
   document.transform(1);
@@ -622,7 +649,7 @@ TEST(Viewer, InformationPopupKeyboard) {
   ASSERT_TRUE(QTest::qWaitFor([&] { return window->visibility() != QWindow::FullScreen; }));
 
   QTest::keyClick(window, Qt::Key_Question);
-  ASSERT_TRUE(QTest::qWaitFor([&] { return window->property("detailDialog").toInt() == 2; }));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return window->property("helpOpen").toBool(); }));
   QTest::keyClick(window, Qt::Key_I);
   QTest::qWait(100);
   EXPECT_FALSE(window->property("informationOpen").toBool());

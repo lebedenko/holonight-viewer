@@ -68,6 +68,16 @@ passed; the sandbox-blocked license step was rerun successfully outside the sand
 
 ## After the first release
 
+Viewer UI polish (2026-09-14) implements the approved
+[requirements](sdd/viewer-ui-polish/SPEC.md): empty-state hints, grouped menu and
+shortcut Help, transient arrows/HUD and X / Shift+X flips. Review corrections
+constrain Help keycaps at larger text sizes and add checks for actual text and
+description bounds. Local automated checks and offscreen dark/light scale
+inspection passed, including an authorized license rerun after a sandbox socket
+failure. The [verification record](sdd/viewer-ui-polish/VERIFICATION.md)
+tracks this evidence and pending native/Docker qualification;
+the [tasks](sdd/viewer-ui-polish/TASKS.md) retain pending acceptance explicitly.
+
 1. GIF/WebP animation: playback, pause/resume, frame timing, bounded resources.
 2. Command mode using established shared action definitions.
 3. Mockup-based Viewer presentation: implemented in the approved

@@ -6,7 +6,7 @@ qt_add_qml_module(viewer-ui
   URI HolonightViewer VERSION 1.0
   OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/HolonightViewer"
   IMPORT_PATH "${HOLONIGHT_QML_IMPORT_PATH}"
-  QML_FILES Main.qml FooterKeyHints.qml ImageInformationPopup.qml
+  QML_FILES Main.qml FooterKeyHints.qml ImageInformationPopup.qml ShortcutHelpPopup.qml
   RESOURCES icons/close.svg icons/empty-viewer.svg icons/information.svg icons/fullscreen.svg icons/menu.svg
   SOURCES window_state.h window_key_router.h image_orientation.h image_orientation.cpp clipboard_controller.h clipboard_controller.cpp directory_model.h directory_model.cpp decoded_image_cache.h decoded_image_cache.cpp exif_metadata.h exif_metadata.cpp image_document.h image_document.cpp image_canvas.h image_canvas.cpp view_geometry.h view_geometry.cpp
   NO_IMPORT_SCAN)

@@ -399,8 +399,8 @@ TEST(ImageInformationPopup, LiveUpdatesWhileOpen) {
   EXPECT_TRUE(collector.warnings.isEmpty()) << collector.warnings.join('\n').toStdString();
 }
 
-// REQ-NF-005: in the viewer, Image Information dims less than Shortcut Help.
-TEST(ImageInformationPopup, DimsLessThanShortcutHelp) {
+// Both viewer popups use the same light dimmer so the image stays visible.
+TEST(ImageInformationPopup, DimsLikeShortcutHelp) {
   StandalonePopup files;
   ASSERT_TRUE(files.openImage());
   QQmlApplicationEngine engine;
@@ -439,9 +439,8 @@ TEST(ImageInformationPopup, DimsLessThanShortcutHelp) {
   QTest::keyClick(window, Qt::Key_Question);
   ASSERT_TRUE(QTest::qWaitFor([&] { return dimmerAlpha() > 0; }));
   const auto help = dimmerAlpha();
-  EXPECT_LT(information, help);
   EXPECT_NEAR(information, 0.22, 0.01);
-  EXPECT_NEAR(help, 0.5, 0.01);
+  EXPECT_NEAR(help, information, 0.001);
   QTest::keyClick(window, Qt::Key_Escape);
   window->close();
 }

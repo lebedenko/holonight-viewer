@@ -43,10 +43,29 @@ HnApplicationWindow {
     }
     component ViewerMenuItem: HnStyle.MenuItem {
         id: control
-        contentItem: HnLabel {
-            rawText: control.text
-            textFormat: Text.PlainText
-            color: control.enabled ? HoloniightPalette.textPrimary : HoloniightPalette.textDisabled
+        // Keeps the trailing shortcut clear of the menu's overlay scroll bar.
+        rightPadding: 12 + ((control.ListView.view as ViewerMenuList)?.scrollBarReserve ?? 0)
+        // Display-only spelling; the real sequence stays on the bound Action or Shortcut.
+        property string shortcutText: ""
+        contentItem: RowLayout {
+            spacing: HnMetrics.internalSpacing(HnControlSize.Normal)
+            HnLabel {
+                objectName: "menuItemLabel"
+                Layout.fillWidth: true
+                rawText: control.text
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                color: control.enabled ? HoloniightPalette.textPrimary : HoloniightPalette.textDisabled
+            }
+            HnLabel {
+                objectName: "menuItemShortcut"
+                visible: control.shortcutText.length > 0
+                role: HnTypographyRole.Caption
+                rawText: control.shortcutText
+                textFormat: Text.PlainText
+                horizontalAlignment: Text.AlignRight
+                color: control.enabled ? HoloniightPalette.textMuted : HoloniightPalette.textDisabled
+            }
         }
         background: Rectangle {
             color: control.down ? HoloniightPalette.surface : control.hovered ? HoloniightPalette.surfaceHover : "transparent"
@@ -54,17 +73,59 @@ HnApplicationWindow {
             border.color: control.enabled && (control.visualFocus || control.highlighted) ? HoloniightPalette.borderFocus : "transparent"
         }
     }
+    component ViewerMenuList: ListView {
+        property real scrollBarReserve: 0
+    }
+    // Basic's separator paints with the system palette; draw it with the theme instead.
+    component ViewerMenuSeparator: Basic.MenuSeparator {
+        contentItem: Rectangle {
+            implicitHeight: HnMetrics.borderWidth
+            color: HoloniightPalette.borderPassive
+        }
+    }
     property bool rendered: false
     property bool actionsMenuOpen: false
+    // Transient overlays: the flags are the display target, the timers only end a reveal.
+    property bool arrowsShown: false
+    property bool detailsShown: false
     Timer {
         id: arrowTimer
         objectName: "arrowTimer"
-        interval: 5000
+        interval: 2000
+        onTriggered: window.arrowsShown = false
     }
     Timer {
         id: detailsTimer
         objectName: "detailsTimer"
-        interval: 5000
+        interval: 3000
+        onTriggered: window.detailsShown = false
+    }
+    function showArrows(): void {
+        window.arrowsShown = true;
+        // A hovered arrow holds the countdown until the pointer leaves it.
+        if (!previousButton.hovered && !nextButton.hovered)
+            arrowTimer.restart();
+    }
+    function hideArrows(): void {
+        window.arrowsShown = false;
+        arrowTimer.stop();
+    }
+    function pauseArrows(): void {
+        arrowTimer.stop();
+    }
+    function resumeArrows(): void {
+        if (window.arrowsShown)
+            arrowTimer.restart();
+    }
+    function revealDetails(): void {
+        if (window.documentState !== ImageDocument.Ready)
+            return;
+        window.detailsShown = true;
+        detailsTimer.restart();
+    }
+    function concealDetails(): void {
+        window.detailsShown = false;
+        detailsTimer.stop();
     }
     function toggleFullscreen(): void {
         WindowState.setFullscreen(window, window.visibility !== Window.FullScreen);
@@ -72,9 +133,8 @@ HnApplicationWindow {
 
     property bool dialogRequested: false
     property bool informationOpen: false
-    // Shortcut Help only: 0 = closed, 2 = open.
-    property int detailDialog: 0
-    readonly property bool modalActive: dialogRequested || informationOpen || detailDialog !== 0
+    property bool helpOpen: false
+    readonly property bool modalActive: dialogRequested || informationOpen || helpOpen
     readonly property bool canInspect: document.state === ImageDocument.Ready && !modalActive
     readonly property bool hasPath: document.localPath.length > 0 && !modalActive
     property int inputEpoch: 0
@@ -116,7 +176,7 @@ HnApplicationWindow {
     readonly property int documentState: document.state
     onDocumentStateChanged: {
         if (documentState !== ImageDocument.Ready)
-            detailsTimer.stop();
+            window.concealDetails();
         if (documentState === ImageDocument.Ready)
             canvas.Accessible.announce(qsTr("Loaded %1.").arg(window.document.fileName));
         else if (documentState === ImageDocument.Error)
@@ -157,7 +217,7 @@ HnApplicationWindow {
         id: flipHorizontal
         objectName: "flipHorizontalAction"
         text: qsTr("Flip Horizontally")
-        shortcut: "H"
+        shortcut: "X"
         enabled: window.canInspect
         onTriggered: window.transformImage(4)
     }
@@ -165,7 +225,7 @@ HnApplicationWindow {
         id: flipVertical
         objectName: "flipVerticalAction"
         text: qsTr("Flip Vertically")
-        shortcut: "V"
+        shortcut: "Shift+X"
         enabled: window.canInspect
         onTriggered: window.transformImage(6)
     }
@@ -216,8 +276,9 @@ HnApplicationWindow {
         objectName: "shortcutHelpAction"
         text: qsTr("Shortcut Help")
         shortcut: "?"
+        // While open, the modal popup blocks window shortcuts and handles ? itself.
         enabled: !window.modalActive
-        onTriggered: window.detailDialog = 2
+        onTriggered: window.helpOpen = true
     }
 
     Shortcut {
@@ -272,16 +333,19 @@ HnApplicationWindow {
 
     function fitImage(): void {
         canvas.fit();
+        window.revealDetails();
         window.clearImageFocus();
     }
 
     function actualSizeImage(): void {
         canvas.actualSize();
+        window.revealDetails();
         window.clearImageFocus();
     }
 
     function zoomImage(steps: real): void {
         canvas.zoomSteps(steps, Qt.point(canvas.width / 2, canvas.height / 2));
+        window.revealDetails();
         window.clearImageFocus();
     }
 
@@ -342,68 +406,12 @@ HnApplicationWindow {
     }
 
     Loader {
-        id: detailLoader
-        active: window.detailDialog !== 0
-        sourceComponent: Item {
-            Basic.Dialog {
-                id: details
-                objectName: "detailsDialog"
-                parent: Overlay.overlay
-                anchors.centerIn: parent
-                width: Math.min(620, window.width - 24)
-                height: Math.min(500, window.height - 24)
-                padding: 12
-                background: Rectangle {
-                    color: HoloniightPalette.surfaceRaised
-                    border.width: HnMetrics.borderWidth
-                    border.color: HoloniightPalette.borderPassive
-                }
-                palette.window: HoloniightPalette.surfaceRaised
-                palette.windowText: HoloniightPalette.textPrimary
-                palette.button: HoloniightPalette.surface
-                palette.buttonText: HoloniightPalette.textPrimary
-                palette.mid: HoloniightPalette.borderPassive
-                modal: true
-                focus: true
-                title: qsTr("Shortcut Help")
-                footer: Item {
-                    implicitHeight: closeDetails.height + 12
-                    ViewerButton {
-                        id: closeDetails
-                        objectName: "closeDetailsButton"
-                        anchors.right: parent.right
-                        anchors.rightMargin: 12
-                        anchors.top: parent.top
-                        text: qsTr("Close")
-                        onClicked: details.close()
-                    }
-                }
-                closePolicy: Popup.CloseOnEscape
-                onClosed: window.detailDialog = 0
-                Component.onCompleted: open()
-                contentItem: ScrollView {
-                    objectName: "detailsScroll"
-                    clip: true
-                    contentWidth: availableWidth
-                    ScrollBar.vertical.active: true
-                    HnStyle.TextArea {
-                        id: detailsText
-                        objectName: "detailsText"
-                        background: Rectangle {
-                            color: HoloniightPalette.surface
-                            border.width: detailsText.activeFocus ? HnMetrics.focusBorderWidth : HnMetrics.borderWidth
-                            border.color: detailsText.activeFocus ? HoloniightPalette.borderFocus : HoloniightPalette.borderPassive
-                        }
-                        readOnly: true
-                        selectByMouse: true
-                        wrapMode: TextEdit.Wrap
-                        textFormat: TextEdit.PlainText
-                        color: HoloniightPalette.textPrimary
-                        Accessible.name: details.title
-                        text: qsTr("Ctrl+O — Open image\n[ / ] — Previous / next image\nCtrl+R — Refresh folder and image\n\nCtrl+0 — Fit\n1 — Actual Size (physical pixels)\nCtrl++ / Ctrl+= / Ctrl+− — Zoom at center\nMouse wheel / touchpad scroll — Zoom at pointer\nLeft-button drag — Pan\nArrow keys — Pan image from anywhere in the window\nTab / Shift+Tab — Cycle header buttons\nJ / K or Down / Up — Navigate Actions menu\n\nR / Shift+R — Rotate clockwise / counterclockwise\nH / V — Flip horizontally / vertically\nActions → Reset Transform — Clear temporary transforms\nCtrl+C — Copy entire transformed image\nCtrl+Shift+C — Copy file path\nI — Image Information\n? — Shortcut Help\n\nF — Toggle fullscreen\nEscape — Close dialog, or leave fullscreen\nQ — Quit\nDrop one local image — Open image")
-                    }
-                }
-            }
+        id: shortcutHelpLoader
+        active: window.helpOpen
+        sourceComponent: ShortcutHelpPopup {
+            parent: Overlay.overlay
+            Component.onCompleted: open()
+            onClosed: window.helpOpen = false
         }
     }
 
@@ -453,7 +461,7 @@ HnApplicationWindow {
                         KeyNavigation.tab: informationButton
                         KeyNavigation.backtab: fullscreenButton
                         icon.source: "icons/menu.svg"
-                        Accessible.name: qsTr("Actions")
+                        Accessible.name: qsTr("Menu")
                         enabled: !window.modalActive
                         onClicked: actionsMenu.open()
                         HnStyle.Menu {
@@ -462,7 +470,7 @@ HnApplicationWindow {
                             popupType: Popup.Item
                             margins: 12
                             x: actionsButton.width - width
-                            width: Math.min(340, window.width - 24)
+                            width: Math.min(380, window.width - 24)
                             height: Math.min(implicitHeight, window.height - 24)
                             onOpened: window.actionsMenuOpen = true
                             onClosed: {
@@ -470,13 +478,16 @@ HnApplicationWindow {
                                 window.clearImageFocus();
                             }
                             y: actionsButton.height + HnMetrics.internalSpacing(HnControlSize.Normal)
-                            contentItem: ListView {
+                            contentItem: ViewerMenuList {
+                                objectName: "actionsMenuList"
                                 implicitHeight: contentHeight
                                 model: actionsMenu.contentModel
                                 currentIndex: actionsMenu.currentIndex
                                 interactive: contentHeight > height
                                 clip: true
+                                scrollBarReserve: interactive ? menuScrollBar.width : 0
                                 ScrollBar.vertical: ScrollBar {
+                                    id: menuScrollBar
                                     active: true
                                 }
                             }
@@ -484,84 +495,108 @@ HnApplicationWindow {
                             ViewerMenuItem {
                                 objectName: "openButton"
                                 text: qsTr("Open…")
+                                shortcutText: qsTr("Ctrl+O")
                                 enabled: !window.modalActive
                                 onTriggered: window.dialogRequested = true
                             }
                             ViewerMenuItem {
+                                text: qsTr("Refresh")
+                                shortcutText: qsTr("Ctrl+R")
+                                enabled: window.hasPath
+                                onTriggered: window.refreshFolder()
+                            }
+                            ViewerMenuSeparator {}
+                            ViewerMenuItem {
+                                text: qsTr("Previous")
+                                shortcutText: qsTr("[")
+                                enabled: !window.modalActive && window.document.canPrevious
+                                onTriggered: window.browse(-1)
+                            }
+                            ViewerMenuItem {
+                                text: qsTr("Next")
+                                shortcutText: qsTr("]")
+                                enabled: !window.modalActive && window.document.canNext
+                                onTriggered: window.browse(1)
+                            }
+                            ViewerMenuSeparator {}
+                            ViewerMenuItem {
                                 objectName: "fitButton"
                                 text: qsTr("Fit")
+                                shortcutText: qsTr("Ctrl+0")
                                 enabled: window.canInspect
                                 onTriggered: window.fitImage()
                             }
                             ViewerMenuItem {
                                 objectName: "actualSizeButton"
                                 text: qsTr("Actual Size")
+                                shortcutText: qsTr("1")
                                 enabled: window.canInspect
                                 onTriggered: window.actualSizeImage()
                             }
                             ViewerMenuItem {
-                                objectName: "zoomOutButton"
-                                text: qsTr("Zoom out")
-                                enabled: window.canInspect
-                                onTriggered: window.zoomImage(-1)
-                            }
-                            ViewerMenuItem {
                                 objectName: "zoomInButton"
-                                text: qsTr("Zoom in")
+                                text: qsTr("Zoom In")
+                                shortcutText: qsTr("Ctrl++")
                                 enabled: window.canInspect
                                 onTriggered: window.zoomImage(1)
                             }
                             ViewerMenuItem {
-                                text: qsTr("Previous")
-                                enabled: !window.modalActive && window.document.canPrevious
-                                onTriggered: window.browse(-1)
+                                objectName: "zoomOutButton"
+                                text: qsTr("Zoom Out")
+                                shortcutText: qsTr("Ctrl+−")
+                                enabled: window.canInspect
+                                onTriggered: window.zoomImage(-1)
                             }
-                            ViewerMenuItem {
-                                text: qsTr("Next")
-                                enabled: !window.modalActive && window.document.canNext
-                                onTriggered: window.browse(1)
-                            }
-                            ViewerMenuItem {
-                                text: qsTr("Refresh")
-                                enabled: window.hasPath
-                                onTriggered: window.refreshFolder()
-                            }
-                            ViewerMenuItem {
-                                text: qsTr("Fullscreen")
-                                onTriggered: window.toggleFullscreen()
-                            }
-                            ViewerMenuItem {
-                                text: qsTr("Quit")
-                                onTriggered: window.close()
-                            }
+                            ViewerMenuSeparator {}
                             ViewerMenuItem {
                                 action: rotateClockwise
+                                shortcutText: qsTr("R")
                             }
                             ViewerMenuItem {
                                 action: rotateCounterclockwise
+                                shortcutText: qsTr("Shift+R")
                             }
                             ViewerMenuItem {
                                 action: flipHorizontal
+                                shortcutText: qsTr("X")
                             }
                             ViewerMenuItem {
                                 action: flipVertical
+                                shortcutText: qsTr("Shift+X")
                             }
                             ViewerMenuItem {
                                 action: resetTransform
                                 objectName: "resetTransformMenuItem"
                             }
+                            ViewerMenuSeparator {}
                             ViewerMenuItem {
                                 action: copyImage
+                                shortcutText: qsTr("Ctrl+C")
                             }
                             ViewerMenuItem {
                                 action: copyPath
+                                shortcutText: qsTr("Ctrl+Shift+C")
                             }
+                            ViewerMenuSeparator {}
                             ViewerMenuItem {
                                 action: imageInformation
                                 objectName: "informationMenuItem"
+                                shortcutText: qsTr("I")
                             }
                             ViewerMenuItem {
                                 action: shortcutHelp
+                                shortcutText: qsTr("?")
+                            }
+                            ViewerMenuSeparator {}
+                            ViewerMenuItem {
+                                text: qsTr("Fullscreen")
+                                shortcutText: qsTr("F")
+                                onTriggered: window.toggleFullscreen()
+                            }
+                            ViewerMenuItem {
+                                text: qsTr("Quit")
+                                shortcutText: qsTr("Q")
+                                onTriggered: window.close()
                             }
                         }
                     }
@@ -595,18 +630,18 @@ HnApplicationWindow {
                 onImageChanged: {
                     ++window.inputEpoch;
                     window.rendered = false;
-                    detailsTimer.stop();
+                    window.concealDetails();
                 }
                 onFirstRendered: {
                     window.rendered = true;
-                    detailsTimer.restart();
+                    window.revealDetails();
                 }
                 onMouseMoved: {
-                    arrowTimer.restart();
-                    if (window.rendered && window.documentState === ImageDocument.Ready)
-                        detailsTimer.restart();
+                    window.showArrows();
+                    if (window.rendered)
+                        window.revealDetails();
                 }
-                onKeyboardInput: arrowTimer.stop()
+                onKeyboardInput: window.hideArrows()
                 onViewportChanged: ++window.inputEpoch
                 Accessible.role: Accessible.Graphic
                 Accessible.name: window.document.state === ImageDocument.Empty ? qsTr("No image open") : window.document.fileName || qsTr("Image canvas")
@@ -637,6 +672,7 @@ HnApplicationWindow {
                         const steps = event.pixelDelta.y !== 0 ? event.pixelDelta.y / 40 : event.angleDelta.y / 120;
                         if (steps !== 0) {
                             canvas.zoomSteps(steps, Qt.point(event.x, event.y));
+                            window.revealDetails();
                             window.clearImageFocus();
                             event.accepted = true;
                         } else {
@@ -646,7 +682,9 @@ HnApplicationWindow {
                 }
             }
             ViewerButton {
+                id: previousButton
                 objectName: "previousButton"
+                readonly property bool shown: window.arrowsShown
                 floating: true
                 implicitHeight: 48
                 anchors.left: parent.left
@@ -654,12 +692,22 @@ HnApplicationWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 text: qsTr("‹")
                 Accessible.name: qsTr("Previous image")
-                visible: arrowTimer.running
+                // Stays visible only while fading, so a faded arrow is neither clickable nor announced.
+                opacity: shown ? 1 : 0
+                visible: shown || opacity > 0
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 150
+                    }
+                }
+                onHoveredChanged: hovered ? window.pauseArrows() : window.resumeArrows()
                 enabled: !window.modalActive && window.document.canPrevious
                 onClicked: window.browse(-1)
             }
             ViewerButton {
+                id: nextButton
                 objectName: "nextButton"
+                readonly property bool shown: window.arrowsShown
                 floating: true
                 implicitHeight: 48
                 anchors.right: parent.right
@@ -667,7 +715,15 @@ HnApplicationWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 text: qsTr("›")
                 Accessible.name: qsTr("Next image")
-                visible: arrowTimer.running
+                // Stays visible only while fading, so a faded arrow is neither clickable nor announced.
+                opacity: shown ? 1 : 0
+                visible: shown || opacity > 0
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 150
+                    }
+                }
+                onHoveredChanged: hovered ? window.pauseArrows() : window.resumeArrows()
                 enabled: !window.modalActive && window.document.canNext
                 onClicked: window.browse(1)
             }
@@ -681,7 +737,14 @@ HnApplicationWindow {
                 radius: HnMetrics.internalSpacing(HnControlSize.Compact)
                 color: Qt.alpha(HoloniightPalette.surface, 0.85)
                 border.color: HoloniightPalette.borderPassive
-                visible: window.documentState === ImageDocument.Ready && detailsTimer.running
+                readonly property bool shown: window.detailsShown
+                opacity: shown ? 1 : 0
+                visible: shown || opacity > 0
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 150
+                    }
+                }
                 Flow {
                     id: detailsFlow
                     x: 12
@@ -731,23 +794,61 @@ HnApplicationWindow {
                     }
                 }
             }
-            HnIcon {
-                id: emptyDecoration
-                objectName: "emptyState"
-                readonly property real shorterDimension: Math.min(canvasArea.width, canvasArea.height)
-                readonly property real padding: Math.max(32, Math.min(64, shorterDimension * 0.08))
-                readonly property int side: Math.max(0, Math.floor(shorterDimension - 2 * padding))
-                readonly property int rasterLimit: Math.max(1, Math.floor(1024 / window.devicePixelRatio))
-                x: (canvasArea.width - width) / 2
-                y: (canvasArea.height - height) / 2
+            // Glyph and hint centred as one unit; the text keeps its size and the glyph gives way first.
+            Column {
+                id: emptyStateGroup
+                objectName: "emptyStateGroup"
+                anchors.centerIn: parent
                 visible: window.document.state === ImageDocument.Empty
-                source: side > 0 ? Qt.resolvedUrl("icons/empty-viewer.svg") : ""
-                // Qt scales sourceSize by DPR; hnicons accepts at most 1024 physical pixels.
-                size: Math.min(side, rasterLimit)
-                width: side
-                height: side
-                normalColor: HoloniightPalette.surface
-                Accessible.ignored: true
+                spacing: HnMetrics.internalSpacing(HnControlSize.Normal)
+                // Below this the glyph reads as noise, so it hides and only the hint remains.
+                readonly property real minimumGlyphSide: 48
+                readonly property real hintHeight: emptyHintPrimary.implicitHeight + spacing + emptyHintSecondary.height
+                readonly property real availableForGlyph: canvasArea.height - hintHeight - spacing - 2 * emptyDecoration.padding
+
+                HnIcon {
+                    id: emptyDecoration
+                    objectName: "emptyState"
+                    readonly property real shorterDimension: Math.min(canvasArea.width, canvasArea.height)
+                    readonly property real padding: Math.max(32, Math.min(64, shorterDimension * 0.08))
+                    readonly property int side: Math.max(0, Math.floor(Math.min(shorterDimension - 2 * padding, emptyStateGroup.availableForGlyph)))
+                    readonly property int rasterLimit: Math.max(1, Math.floor(1024 / window.devicePixelRatio))
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    visible: side >= emptyStateGroup.minimumGlyphSide
+                    source: side > 0 ? Qt.resolvedUrl("icons/empty-viewer.svg") : ""
+                    // Qt scales sourceSize by DPR; hnicons accepts at most 1024 physical pixels.
+                    size: Math.min(side, rasterLimit)
+                    width: side
+                    height: side
+                    normalColor: HoloniightPalette.surface
+                    Accessible.ignored: true
+                }
+                HnLabel {
+                    id: emptyHintPrimary
+                    objectName: "emptyStateHintPrimary"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    role: HnTypographyRole.Body
+                    color: HoloniightPalette.textMuted
+                    textFormat: Text.PlainText
+                    horizontalAlignment: Text.AlignHCenter
+                    rawText: qsTr("No image open")
+                    Accessible.role: Accessible.StaticText
+                    Accessible.name: rawText
+                }
+                HnLabel {
+                    id: emptyHintSecondary
+                    objectName: "emptyStateHintSecondary"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: Math.min(implicitWidth, canvasArea.width - 32)
+                    role: HnTypographyRole.Caption
+                    color: HoloniightPalette.textMuted
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    horizontalAlignment: Text.AlignHCenter
+                    rawText: qsTr("Ctrl+O to open · or drop an image here")
+                    Accessible.role: Accessible.StaticText
+                    Accessible.name: rawText
+                }
             }
             HnLabel {
                 objectName: "documentFeedback"

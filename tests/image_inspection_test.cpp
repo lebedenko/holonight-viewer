@@ -277,38 +277,44 @@ TEST(Viewer, IndependentOverlayTimers) {
   auto* arrows = window->findChild<QObject*>("arrowTimer");
   auto* details = window->findChild<QObject*>("detailsTimer");
   auto* strip = window->findChild<QQuickItem*>("detailsStrip");
+  auto* next = window->findChild<QQuickItem*>("nextButton");
   ASSERT_NE(arrows, nullptr);
   ASSERT_NE(details, nullptr);
   ASSERT_NE(strip, nullptr);
-  EXPECT_EQ(arrows->property("interval").toInt(), 5000);
-  EXPECT_EQ(details->property("interval").toInt(), 5000);
+  ASSERT_NE(next, nullptr);
+  const auto arrowsShown = [&] { return next->property("shown").toBool(); };
+  const auto stripShown = [&] { return strip->property("shown").toBool(); };
+  EXPECT_EQ(arrows->property("interval").toInt(), 2000);
+  EXPECT_EQ(details->property("interval").toInt(), 3000);
   EXPECT_FALSE(strip->isVisible());
   // Shorter intervals exercise the production timer wiring without a long suite delay.
   arrows->setProperty("interval", 300);
   details->setProperty("interval", 500);
   document.open({QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/sample.png")});
-  ASSERT_TRUE(QTest::qWaitFor([&] { return strip->isVisible(); }));
-  EXPECT_FALSE(arrows->property("running").toBool());
+  ASSERT_TRUE(QTest::qWaitFor([&] { return stripShown(); }));
+  EXPECT_FALSE(arrowsShown());
   const auto geometry = canvas->imageRect();
   QTest::mouseMove(window, QPoint(10, 10));
-  EXPECT_TRUE(arrows->property("running").toBool());
+  EXPECT_TRUE(arrowsShown());
   QTest::qWait(200);
   QTest::mouseMove(window, QPoint(20, 10));
   QTest::qWait(200);
-  EXPECT_TRUE(arrows->property("running").toBool());
+  EXPECT_TRUE(arrowsShown());
   QTest::keyClick(window, Qt::Key_Tab);
-  EXPECT_FALSE(arrows->property("running").toBool());
-  EXPECT_TRUE(strip->isVisible());
+  EXPECT_FALSE(arrowsShown());
+  EXPECT_TRUE(stripShown());
+  // Fit counts as a view command, so it restarts the HUD countdown; repainting alone does not.
   QTest::qWait(180);
   QTest::keyClick(window, Qt::Key_0, Qt::ControlModifier);
-  ASSERT_TRUE(QTest::qWaitFor([&] { return !strip->isVisible(); }, 250));
+  EXPECT_TRUE(stripShown());
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !strip->isVisible(); }, 1500));
   EXPECT_EQ(canvas->imageRect(), geometry);
   canvas->update();
   QTest::qWait(100);
-  EXPECT_FALSE(strip->isVisible());
+  EXPECT_FALSE(stripShown());
   QTest::keyClick(window, Qt::Key_R, Qt::ControlModifier);
-  ASSERT_TRUE(QTest::qWaitFor([&] { return strip->isVisible(); }));
-  EXPECT_FALSE(arrows->property("running").toBool());
+  ASSERT_TRUE(QTest::qWaitFor([&] { return stripShown(); }));
+  EXPECT_FALSE(arrowsShown());
   EXPECT_EQ(document.formattedFileSize(),
             QLocale().formattedDataSize(document.information().encodedSize, 1, QLocale::DataSizeSIFormat));
   ASSERT_TRUE(QTest::qWaitFor([&] { return !document.scanning(); }));
@@ -318,17 +324,18 @@ TEST(Viewer, IndependentOverlayTimers) {
   {
     QTest::keyClick(window, Qt::Key_BracketRight);
     ASSERT_TRUE(QTest::qWaitFor([&] { return renders.count() == 1; }));
-    EXPECT_TRUE(strip->isVisible());
-    EXPECT_FALSE(arrows->property("running").toBool());
+    EXPECT_TRUE(stripShown());
+    EXPECT_FALSE(arrowsShown());
     QTest::keyClick(window, Qt::Key_BracketLeft);
     ASSERT_TRUE(QTest::qWaitFor([&] { return renders.count() == 2; }));
     EXPECT_EQ(document.position(), originalPosition);
-    EXPECT_TRUE(strip->isVisible());
+    EXPECT_TRUE(stripShown());
   }
-  QTest::qWait(550);
+  QTest::qWait(700);
+  EXPECT_FALSE(stripShown());
   QTest::mouseMove(window, QPoint(30, window->height() - 5));
-  EXPECT_TRUE(strip->isVisible());
-  EXPECT_TRUE(arrows->property("running").toBool());
+  EXPECT_TRUE(stripShown());
+  EXPECT_TRUE(arrowsShown());
   const auto capture = qEnvironmentVariable("VIEWER_CAPTURE_PREFIX");
   if (!capture.isEmpty()) {
     for (const auto size : {QSize(1000, 700), QSize(420, 280)}) {
