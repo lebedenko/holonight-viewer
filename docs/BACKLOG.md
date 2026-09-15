@@ -154,6 +154,8 @@ This scope supersedes historical pending/blocker wording above. Grouped tasks an
 retained reproduction/acceptance criteria: [release tasks N1–N3](sdd/release-readiness/TASKS.md).
 
 - Native Open and provider/dialog acceptance: unresolved; provider handoff retained.
+  Portal cancellation focus and window-destruction fixes are tracked in
+  [portal task T-014](sdd/portal-file-chooser/TASKS.md); Orca acceptance remains open.
 - Physical mixed-monitor/mixed-scale movement: unavailable with one monitor;
   simulated fractional-scale checks do not establish physical movement acceptance.
 - Clipboard persistence-service behavior and memory/transport costs: untested;

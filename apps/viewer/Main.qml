@@ -131,6 +131,7 @@ HnApplicationWindow {
     }
 
     property bool dialogRequested: false
+    property Item dialogFocusItem: null
     property bool informationOpen: false
     property bool helpOpen: false
     readonly property bool modalActive: dialogRequested || informationOpen || helpOpen
@@ -374,8 +375,38 @@ HnApplicationWindow {
         onActivated: window.close()
     }
 
+    // Every Open trigger sets dialogRequested; the portal picker runs first and the
+    // FileDialog below appears only when the portal cannot serve the request.
+    onDialogRequestedChanged: {
+        if (window.dialogRequested) {
+            window.dialogFocusItem = window.activeFocusItem;
+            portalFileChooser.requestOpen();
+        } else {
+            window.dialogFocusItem = null;
+            portalFileChooser.cancel();
+        }
+    }
+
+    PortalFileChooser {
+        id: portalFileChooser
+        objectName: "portalFileChooser"
+        window: window
+        nameFilters: window.document.nameFilters
+        currentLocalPath: window.document.localPath
+        onFinished: urls => {
+            window.document.open(urls);
+            window.dialogRequested = false;
+        }
+        onCancelled: {
+            const previousFocus = window.dialogFocusItem;
+            window.dialogRequested = false;
+            if (!window.modalActive && previousFocus && previousFocus.visible && previousFocus.enabled)
+                previousFocus.forceActiveFocus(Qt.OtherFocusReason);
+        }
+    }
+
     Loader {
-        active: window.dialogRequested
+        active: portalFileChooser.fallbackShown
         sourceComponent: Item {
             FileDialog {
                 id: fileDialog
@@ -383,11 +414,8 @@ HnApplicationWindow {
                 title: qsTr("Open image")
                 fileMode: FileDialog.OpenFile
                 nameFilters: window.document.nameFilters
-                onAccepted: {
-                    window.document.open([fileDialog.selectedFile]);
-                    window.dialogRequested = false;
-                }
-                onRejected: window.dialogRequested = false
+                onAccepted: portalFileChooser.fallbackAccepted(fileDialog.selectedFile)
+                onRejected: portalFileChooser.fallbackRejected()
                 Component.onCompleted: fileDialog.open()
             }
         }

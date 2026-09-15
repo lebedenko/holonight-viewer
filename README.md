@@ -2,14 +2,18 @@
 
 A standalone, keyboard-first HoloNight static-image viewer for native Wayland.
 X11 and XWayland are outside the supported scope. Open one local image
-with **Open…**, **Ctrl+O**, a file drop, or a command-line path. Images decode in
+with **Open…**, **Ctrl+O**, a file drop, or a command-line path. Open… and Ctrl+O use the
+desktop's xdg-desktop-portal file picker, attached to the Viewer window; Qt's built-in
+dialog appears only when no portal can serve the request. Cancelling restores the
+previously focused control if it is still available. Images decode in
 the background, honor embedded orientation, and fit the window. PNG, JPEG, BMP and WebP are
 the release target; additional formats depend on installed Qt image plugins. Animated files
 show their first frame only. Inspect with fit, actual size, zoom and pan, then
 browse supported images in the containing folder.
 
-Requires C++23, Qt 6.11+, CMake 3.25+, Ninja, Task, tomlplusplus, pkg-config, libwebp, libexif, and installed
-HolonightQt::Core / HolonightQt::Controls. Tests use Qt Test and GTest. Checks need
+Requires C++23, Qt 6.11+ (including Qt DBus and the Qt GUI private module), CMake 3.25+, Ninja, Task,
+tomlplusplus, pkg-config, libwebp, libexif, wayland-client, wayland-protocols, wayland-scanner, and installed
+HolonightQt::Core / HolonightQt::Controls. Tests use Qt Test, GTest and `dbus-run-session`. Checks need
 clang-format, clang-tidy (run-clang-tidy), REUSE, desktop-file-utils, GIO and Python 3.
 On Arch, the [CI Dockerfile](packaging/Dockerfile.ci) lists the packages.
 
@@ -209,7 +213,9 @@ acceptance-record head's CI outcomes. Native Open/provider-dialog acceptance, ph
 and mixed-scale movement, and clipboard persistence-service behavior/costs are
 explicitly deferred to the next release, not passed. Version **0.1.0** is delivered
 as a source release with CMake installation; no distribution packages, portable
-binaries or bundled providers are supplied. See the [release notes](docs/releases/v0.1.0.md)
+binaries or bundled providers are supplied. Since 0.1.0, unreleased source opens files
+through the portal picker; its Hyprland acceptance is recorded in release qualification
+(the Orca walkthrough is still open). See the [release notes](docs/releases/v0.1.0.md)
 for tested provider revisions and build/install instructions, the
 [publication record](docs/sdd/source-publication/VERIFICATION.md) for validation,
 and the [GitHub release page](https://github.com/lebedenko/holonight-viewer/releases/tag/v0.1.0)
@@ -285,7 +291,9 @@ isolated uninstall checks in sequence. Individual `test`, `format-check`, `tidy`
 `install-check`, and `uninstall-check` tasks remain available. Visual inspection
 and Docker runtime qualification are separate. `task clean` removes only `build/debug`,
 `build/release`, `build/test`, and `build/system-install`; local provider installs
-and verification artifacts remain under `build/`.
+and verification artifacts remain under `build/`. Run `viewer-smoke` through ctest: it
+starts the tests on a private D-Bus session with a mock portal, and a direct run on a
+desktop session exits with an explanation instead of reaching the real portal.
 
 CI runs `task deps` and `task check` with required codecs and contributor tools, stages
 Viewer and providers under `/usr`, then launches a second container with installed
@@ -312,9 +320,10 @@ acceptance. Follow the native matrix in the verification record, including Orca.
 Native Wayland clipboard qualification retains the generic QClipboard::image()
 receiver as mandatory; explicit PNG reception is a separate diagnostic. See the
 release verification for current results and remaining human input checks.
-Native portal selection/cancellation passed with the per-process
-`QT_QPA_PLATFORMTHEME=xdgdesktopportal` comparison. The default HoloNight theme's
-missing delegation remains a [next-release provider issue](docs/holonight-qt-dlg-delegation-missed.md).
+Viewer calls the portal FileChooser itself, so its Open no longer depends on the
+platform theme. Escape or closing the picker cancels, like its Cancel button. The
+default HoloNight theme's missing dialog delegation remains a
+[next-release provider issue](docs/holonight-qt-dlg-delegation-missed.md) for other applications.
 
 Opt-in native performance tooling uses the production QML window and a separate
 interactive generic Qt receiver on labwc. With the existing red/green 8000×4000

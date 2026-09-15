@@ -781,3 +781,131 @@ Acceptance-record documentation checks: local Markdown file links, `git diff
 --check` and `task license-check` passed (103/103 files covered). License log:
 `build/qualification/acceptance/license.log`. Final hosted checks are tracked in
 PR #1; native runs are not repeated for this documentation-only update.
+
+
+## N1 portal file chooser (2026-09-15)
+
+Implements the [portal-file-chooser SPEC](../portal-file-chooser/SPEC.md) on top of
+`d56be99`. Viewer now opens files through the xdg-desktop-portal FileChooser with
+an xdg-foreign parent and a Qt `FileDialog` fallback only on portal failure; see the
+[dialog delegation handoff](../../holonight-qt-dlg-delegation-missed.md). N1 is
+**not closed**: the native Wayland checklist below passed except the Orca walkthrough,
+which was not performed.
+
+### Automated evidence
+
+Local environment: Arch Linux, Qt 6.11.2, wayland 1.26.0, wayland-protocols 1.49,
+dbus 1.16.2, xdg-desktop-portal 1.22.1.
+
+- `ctest --preset test`: 18/18 passed. `viewer-smoke` and the separator tests run
+  under `dbus-run-session` with `tests/fixtures/dbus-session.conf`, a private bus
+  with no service directories, so only the mock portal can answer.
+- The mock-portal suites (`MockPortal`, `PortalFileChooser`, `PortalViewer`) cover
+  request options and signatures, the pre-reply Response race, a differing returned
+  handle, a Unicode/space/percent path reaching `Ready`, empty and non-file URIs,
+  cancellation with unchanged view state, code 2 as cancellation, error, timeout
+  and missing-service fallback exactly once, per-request probing, repeated Opens while
+  outstanding, `Request.Close` on cancel/window close/destruction, late responses
+  and an empty `parent_window` offscreen without warnings.
+  `Viewer.OpeningCanvasAndAdapters` still opens a file through the fallback dialog.
+- `task format-check`, `task tidy` and qmllint passed. No X11/XCB references were added.
+- A freshly built `packaging/Dockerfile.ci` image passed `task deps` and `task check`
+  (exit 0) in a scratch copy with providers at the CI-pinned revisions. The first
+  container run exposed a test-bus defect: the CI UID has no passwd entry, so D-Bus
+  `EXTERNAL` authentication hung every connection. The test bus now uses `ANONYMOUS`.
+- A throwaway Hyprland probe of `WaylandForeignExporter` under `WAYLAND_DEBUG=1`
+  showed two distinct handles, each `zxdg_exported_v2.destroy` directly after use,
+  and all traffic on a private queue. This does not replace REQ-NF-011 below.
+
+### Manual acceptance checklist (REQ-NF-010, REQ-NF-011)
+
+Record versions before testing:
+
+- Qt: qt6-base 6.11.2-3
+- Hyprland: 0.56.2 (`efb50993780079460b0cbed1363e2166a2de1d9f`)
+- xdg-desktop-portal: 1.22.1-2 (FileChooser interface version 4)
+- FileChooser backend (package and version): xdg-desktop-portal-gtk 1.15.3-1
+- `portals.conf` FileChooser selection: `~/.config/xdg-desktop-portal/hyprland-portals.conf`
+  `default=hyprland;gtk`; only `gtk.portal` implements FileChooser
+- Viewer revision: `d56be99` plus the uncommitted portal-file-chooser changes, release preset
+
+Checks on native Wayland, `QT_QPA_PLATFORMTHEME=holonight`, DISPLAY unset:
+
+- [x] Ctrl+O and Actions → Open… show the native picker parented to Viewer.
+- [x] Unicode (`café.jpg`) and space-containing filenames open correctly.
+- [x] Escape cancels; image, orientation, zoom and keyboard focus are unchanged
+      (fixed build, run 2; run 1 found the code-2 fallback defect).
+- [x] Repeated Opens each show a new picker; Ctrl+O is ignored while one is open.
+- [x] Quitting Viewer while the picker is open closes the picker.
+- [x] With the portal or FileChooser backend stopped, the Qt fallback dialog appears
+      and opens a file; cancelling it shows no second dialog.
+- [x] `WAYLAND_DEBUG=1` shows `zxdg_exporter_v2.export_toplevel` and
+      `zxdg_exported_v2.destroy` once per request, and the handle matches
+      `parent_window` (`dbus-monitor` on the session bus).
+- [ ] Orca announces the picker as a separate window and Viewer's existing
+      load/error announcements after selection or cancellation. **Not performed**
+      (skipped by the user on 2026-09-15).
+
+Results, logs and screenshots:
+
+**Run 1, 2026-09-15 (pre-fix build), log `build/n1-acceptance/logs/20260915-225716/`.**
+The user reported the picker parented to Viewer, Unicode/space files opening,
+repeated Opens and Ctrl+O being ignored while a picker was open, all as expected.
+The logs show 7 `OpenFile` calls; each `parent_window` equals the handle of a fresh
+`zxdg_exported_v2` created for that request and destroyed after it. Five responses
+were code 0 selections.
+
+**Defect found:** Escape in the GTK picker closed it and then opened the Qt fallback
+dialog. xdg-desktop-portal-gtk 1.15.3 answered both Escapes with `Response` code 2
+and empty `uris`, which the original REQ-F-015 mapped to the fallback. REQ-F-015 was
+revised to treat code 2 (and any non-zero code) as cancellation; the fallback remains
+only for OpenFile call failures. Automated tests were updated
+(`PortalFileChooser.EndedResponseIsCancellation`,
+`PortalViewer.FallbackOnlyWhenPortalCannotServe`), `ctest --preset test` passed
+18/18 and the release build was rebuilt.
+
+**Run 2, 2026-09-15 (fixed build), log `build/n1-acceptance/logs/20260915-231448/`.**
+The user confirmed that Escape closed the picker with no Qt dialog and left the image,
+zoom and focus unchanged, and that quitting Viewer with a picker open closed the
+picker. The logs show two `OpenFile` calls with fresh exports matching `parent_window`.
+Escape produced `Response` code 2 with no fallback warning, and that request's export
+was destroyed at the Response. On quit, Viewer sent `Request.Close` to the exact handle
+returned for the second call (`…/request/1_118/hn_df5acc80_…`); its export was
+destroyed at the same instant and the exporter at shutdown.
+
+**Run 3, 2026-09-15 (fixed build, portal masked), log
+`build/n1-acceptance/logs/20260915-231710/`.** `portal-off.sh` masked and stopped
+`xdg-desktop-portal.service` for the session. The user confirmed that Ctrl+O showed the
+Qt fallback dialog and the chosen file opened, and that a second Ctrl+O followed by
+cancel closed the dialog with no second dialog. Both `OpenFile` calls failed within
+about 2 ms with `org.freedesktop.DBus.Error.NameHasNoOwner` ("activation request
+failed: unit is masked"), each logged once as a fallback warning, with no Response or
+`Request.Close`. Exports were still created and destroyed per request.
+`portal-on.sh` restored the service (`active`).
+
+**Outcome.** REQ-NF-010 and REQ-NF-011 checks passed on the fixed build, except the
+Orca walkthrough, which was not performed and remains open. The run-1 Escape defect
+is fixed and covered by automated tests. N1 is therefore not closed: this record
+qualifies Viewer's portal Open path on Hyprland with xdg-desktop-portal-gtk only;
+Orca acceptance and the provider delegation work in the handoff remain outstanding.
+
+
+### Portal review fixes — 2026-09-16
+
+REQ-F-014/015: cancellation now restores the previously focused item when it
+still exists, is visible and enabled, and no other modal UI is active. The new
+`PortalViewer.CancellationRestoresFocusedControl` regression starts with the
+visible menu button focused and covers response codes 1 and 2.
+
+REQ-F-021/022: the chooser now cancels on assigned-window destruction even if
+it survives the window. `WindowDestructionClosesRequestWhileChooserSurvives`
+covers Calling and AwaitingResponse, exactly one Close, and ignored late
+responses. `ReplacedWindowDestructionDoesNotCancelRequest` checks that the old
+window's destruction connection is removed on reassignment.
+
+Verification: the test build and all 19 PortalFileChooser/PortalViewer tests
+passed; full `task check` passed (exit 0), including debug/release builds,
+18/18 CTest entries, formatting, clang-tidy, qmllint, REUSE, staged installation
+and uninstall checks.
+Its log is `build/portal-review/task-check-fixes.log`. These fixes were verified
+offscreen; native Hyprland acceptance was not repeated, and Orca remains open.

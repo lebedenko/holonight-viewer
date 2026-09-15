@@ -9,6 +9,31 @@ not a current-release blocker or a pass. Reproduction and acceptance remain inta
 not resolve native Open acceptance with the default HoloNight platform theme.
 See [Viewer verification](sdd/release-readiness/VERIFICATION.md).
 
+## Viewer portal Open (2026-09-15)
+
+Viewer no longer depends on this delegation for its own Open flow. The
+[portal-file-chooser cycle](sdd/portal-file-chooser/SPEC.md) makes the
+xdg-desktop-portal `org.freedesktop.portal.FileChooser.OpenFile` request the
+primary path for Ctrl+O and the Actions menu, whatever `QT_QPA_PLATFORMTHEME` is:
+
+- Viewer calls the portal directly over the session bus, subscribing to the
+  predicted `Request.Response` path before the call and treating code 0 as a
+  selection (opened through the existing document path) and any other code as
+  cancellation. xdg-desktop-portal-gtk reports Escape and window close as code 2.
+- The Wayland parent association uses a fresh xdg-foreign (`zxdg_exporter_v2`)
+  export of the Viewer surface for every request, passed as `wayland:<handle>` and
+  destroyed when the request ends. Without Wayland or the protocol the request is
+  sent unparented rather than dropped.
+- Qt's `FileDialog` is shown only when the portal call fails (no service, error
+  reply or 25-second timeout). User cancellation never opens it, and portal
+  availability is probed per request.
+- Window close or object destruction sends `Request.Close`; late responses are ignored.
+
+Automated evidence and the 2026-09-15 Hyprland acceptance with xdg-desktop-portal-gtk
+are recorded in Viewer verification. Every manual check passed on the fixed build except
+the Orca walkthrough, which was not performed, so N1 stays open. The provider work below remains deferred and is still needed for other
+HoloNight applications; it could reuse the same portal and xdg-foreign approach.
+
 ## Tested environment and evidence
 
 The 2026-09-08 desktop comparison used Arch Linux, Qt / Qt Image Formats 6.11.2,

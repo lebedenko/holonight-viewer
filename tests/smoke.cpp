@@ -1,7 +1,9 @@
 #include "image_canvas.h"
 #include "image_document.h"
+#include "mock_portal.h"
 
 #include <QAccessible>
+#include <QDBusConnection>
 #include <QDir>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -26,6 +28,7 @@
 #include <algorithm>
 #include <cmath>
 #include <gtest/gtest.h>
+#include <iostream>
 #include <memory>
 
 Q_IMPORT_QML_PLUGIN(HolonightViewerPlugin)
@@ -354,6 +357,10 @@ int main(int argc, char* argv[]) {
   qunsetenv("QT_QUICK_CONTROLS_CONF");
   QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
   const QGuiApplication app(argc, argv);
+  if (const auto guard = MockPortal::sessionBusIsPrivate(QDBusConnection::sessionBus()); !guard) {
+    std::cerr << guard.message() << '\n';
+    return 1;
+  }
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
