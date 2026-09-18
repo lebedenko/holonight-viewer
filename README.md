@@ -21,12 +21,14 @@ On Arch, the [CI Dockerfile](packaging/Dockerfile.ci) lists the packages.
 task deps                 # builds sibling providers locally, without source changes
 task build
 task run
-# Ctrl+O opens an image; f toggles fullscreen, Escape leaves fullscreen, q quits
+task test
+# Ctrl+O opens an image; F toggles fullscreen, Escape leaves fullscreen, Q quits
 task check                # sequential builds, tests, formatting, lint, licenses, staged install
 task verify               # alias for check
 task lint                 # C++ tidy and QML lint
 task format               # apply C++ and QML formatting
 task install              # Release build against /usr providers; sudo install and desktop refresh
+task uninstall            # sudo remove the Viewer payload from /usr; keep providers
 task clean                # remove Viewer debug/release/test/system-install builds; keep providers
 task --list               # includes individual checks and build commands
 task visual-check         # separate capture workflow under build/visual
@@ -40,8 +42,9 @@ recoverable error in the window; Open remains available.
 
 ```sh
 task run -- '/path/to/photo.jpg'
-# Direct launch with the documented provider environment:
-build/debug/apps/viewer/hn-viewer -- './photo with spaces.png'
+# Direct launch against the local providers from task deps:
+QML_IMPORT_PATH=build/deps/prefix/lib/qt6/qml LD_LIBRARY_PATH=build/deps/prefix/lib \
+  build/debug/apps/viewer/hn-viewer -- './photo with spaces.png'
 ```
 
 Native decorations belong to Qt/the compositor. Fullscreen restores the previous
@@ -50,10 +53,11 @@ normal/maximized state, including compositor-managed tiling. Viewer shortcuts pa
 | Image control | Action |
 | --- | --- |
 | `[` / Previous, `]` / Next | Browse siblings, stopping at folder boundaries |
-| `Ctrl+R` | Rescan the folder and reload the selected image, clearing the cache *(paused while a modal is open)* |
+| `Ctrl+O` / Open… | Choose an image with the desktop file picker |
+| `Ctrl+R` / Refresh | Rescan the folder and reload the selected image, clearing the cache |
 | `Ctrl+0` / Fit | Center the whole image and fit it as the window changes |
 | `1` / Actual Size | Center at one source pixel per physical display pixel |
-| `Ctrl++` or `Ctrl+=` / `Ctrl+−` | Zoom in/out around the canvas center |
+| `Ctrl++` or `Ctrl+=` / `Ctrl+-` | Zoom in/out around the canvas center |
 | Vertical wheel or trackpad scroll over the canvas | Zoom around the pointer |
 | Left-button drag | Pan the image |
 | Arrow keys | Pan the viewed region from anywhere in the window |
@@ -64,6 +68,8 @@ normal/maximized state, including compositor-managed tiling. Viewer shortcuts pa
 | `Ctrl+Shift+C` | Copy the normalized absolute path, unquoted; retain symlink paths |
 | `I` | Open or close the Image Information card |
 | `?` | Open or close the Shortcut Help card |
+| `F` / Fullscreen | Toggle fullscreen; `Escape` leaves it |
+| `Q` / Quit | Quit Viewer |
 
 Image actions clear the focus ring. Tab and Shift+Tab cycle through enabled header buttons
 (Information, Fullscreen, Menu); the empty window skips Information. J/K and Down/Up
@@ -107,8 +113,8 @@ focal length and aperture; shutter and ISO), LOCATION (coordinates and altitude)
 FILE (the path with the home directory shown as `~`, selectable and copyable) sections;
 missing facts and empty sections are omitted, and “Details unavailable” replaces an
 empty summary. Facts follow cached image snapshots, and the open card follows any
-changes to the document. Close the card before using refresh or transform shortcuts;
-`Ctrl+R` refreshes the cached facts. Copy Path still copies the absolute path and remains
+changes to the document. Refresh and transform shortcuts pause while the card is open;
+after closing it, `Ctrl+R` also refreshes the cached facts. Copy Path still copies the absolute path and remains
 available during loading/errors. Close the card with `I`, Escape, its × button or a
 click outside; image navigation keys pause while it is open. Shortcut Help is a matching
 card with a fixed “Shortcuts” header and scrolling NAVIGATION, VIEW, TRANSFORM, IMAGE,
@@ -145,9 +151,9 @@ or missing. Filenames use natural order (`image2` before `image10`), case-insens
 text and original-name tie breaking. Symlink paths retain the folder you opened.
 The position indicator shows scanning feedback until the snapshot is ready.
 Navigation remains available while decoding or showing an image error. Broken
-files keep their positions; F5 retains a deleted selection so you can navigate
+files keep their positions; Ctrl+R retains a deleted selection so you can navigate
 away. Folder-read failures appear separately and preserve single-image viewing.
-There is no live watcher: use F5 after additions, renames or external edits.
+There is no live watcher: use Ctrl+R after additions, renames or external edits.
 A local 20,000-entry exercise measured a 625 ms scan and 363 ms for two 6000×4000
 image navigations, with GUI timer progress and 241,660 KiB peak RSS. These are
 machine-specific decoder/cache measurements, excluding window rendering; see the
@@ -160,7 +166,7 @@ canvas textures add temporary memory beyond that per-image bound; codec-private
 allocations are not a whole-process memory guarantee. The decoded LRU holds at most two entries and 128 MiB, excluding the displayed
 image; retained display plus cache is at most 256 MiB. Cache hits are checked on
 the worker by absolute path, file size and modification time; edits preserving
-both metadata fields require F5. Only the next neighbor in the latest direction
+both metadata fields require Ctrl+R. Only the next neighbor in the latest direction
 is prefetched, initially forward. There is one active decoder and only the newest
 pending foreground request, which takes priority over queued prefetch. A separate
 scan worker likewise retains one active and one newest pending scan. Closing keeps the event loop responsive and
@@ -209,7 +215,7 @@ Stage 5 **source-release acceptance with CMake install** is recorded as of
 Native rendering/clipboard measurements, clean-checkout/installed-runtime validation
 and evidence-head hosted CI passed. See [release qualification](docs/sdd/release-readiness/VERIFICATION.md)
 and [PR #1](https://github.com/lebedenko/holonight-viewer/pull/1) for the latest
-acceptance-record head's CI outcomes. Native Open/provider-dialog acceptance, physical mixed-monitor
+acceptance-record head's CI outcomes. For 0.1.0, native Open/provider-dialog acceptance, physical mixed-monitor
 and mixed-scale movement, and clipboard persistence-service behavior/costs are
 explicitly deferred to the next release, not passed. Version **0.1.0** is delivered
 as a source release with CMake installation; no distribution packages, portable
@@ -302,8 +308,9 @@ To reproduce on a machine with Docker and the provider checkouts used by CI:
 
 ```sh
 docker build -t viewer-ci -f packaging/Dockerfile.ci .
-# Run the Build and verify command from CI in the parent checkout layout first.
-# It writes build/runtime-check-context and the disposable context under build/.
+# First run CI's Build and verify step in the parent checkout layout:
+# task deps, task check, then task runtime-context, which writes
+# build/runtime-check-context and the disposable context under build/.
 docker build -t viewer-runtime-check "$(cat build/runtime-check-context)"
 docker run --rm --network none viewer-runtime-check
 ```
