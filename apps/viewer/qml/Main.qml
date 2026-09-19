@@ -43,8 +43,8 @@ HnApplicationWindow {
         id: control
         // Keeps the trailing shortcut clear of the menu's overlay scroll bar.
         rightPadding: 12 + ((control.ListView.view as ViewerMenuList)?.scrollBarReserve ?? 0)
-        // Display-only spelling; the real sequence stays on the bound Action or Shortcut.
-        property string shortcutText: ""
+        // Presentation only; the real sequence stays on the bound Action or Shortcut.
+        property var shortcutKeys: []
         contentItem: RowLayout {
             spacing: HnMetrics.internalSpacing(HnControlSize.Normal)
             HnLabel {
@@ -55,14 +55,11 @@ HnApplicationWindow {
                 elide: Text.ElideRight
                 color: control.enabled ? HoloniightPalette.textPrimary : HoloniightPalette.textDisabled
             }
-            HnLabel {
+            HnKeyHint {
                 objectName: "menuItemShortcut"
-                visible: control.shortcutText.length > 0
-                role: HnTypographyRole.Caption
-                rawText: control.shortcutText
-                textFormat: Text.PlainText
-                horizontalAlignment: Text.AlignRight
-                color: control.enabled ? HoloniightPalette.textMuted : HoloniightPalette.textDisabled
+                visible: control.shortcutKeys.length > 0
+                keyGroups: control.shortcutKeys
+                Accessible.ignored: true
             }
         }
         background: Rectangle {
@@ -73,6 +70,8 @@ HnApplicationWindow {
     }
     component ViewerMenuList: ListView {
         property real scrollBarReserve: 0
+        // Menu owns navigation and skips separators and disabled actions.
+        keyNavigationEnabled: false
     }
     // Preserve Viewer's physical hairline at fractional menu/scroll positions.
     component ViewerMenuSeparator: Controls.MenuSeparator {
@@ -520,26 +519,26 @@ HnApplicationWindow {
                             ViewerMenuItem {
                                 objectName: "openButton"
                                 text: qsTr("Open…")
-                                shortcutText: qsTr("Ctrl+O")
+                                shortcutKeys: [[Qt.Key_Control, Qt.Key_O]]
                                 enabled: !window.modalActive
                                 onTriggered: window.dialogRequested = true
                             }
                             ViewerMenuItem {
                                 text: qsTr("Refresh")
-                                shortcutText: qsTr("Ctrl+R")
+                                shortcutKeys: [[Qt.Key_Control, Qt.Key_R]]
                                 enabled: window.hasPath
                                 onTriggered: window.refreshFolder()
                             }
                             ViewerMenuSeparator {}
                             ViewerMenuItem {
                                 text: qsTr("Previous")
-                                shortcutText: qsTr("[")
+                                shortcutKeys: [[Qt.Key_BracketLeft]]
                                 enabled: !window.modalActive && window.document.canPrevious
                                 onTriggered: window.browse(-1)
                             }
                             ViewerMenuItem {
                                 text: qsTr("Next")
-                                shortcutText: qsTr("]")
+                                shortcutKeys: [[Qt.Key_BracketRight]]
                                 enabled: !window.modalActive && window.document.canNext
                                 onTriggered: window.browse(1)
                             }
@@ -547,47 +546,47 @@ HnApplicationWindow {
                             ViewerMenuItem {
                                 objectName: "fitButton"
                                 text: qsTr("Fit")
-                                shortcutText: qsTr("Ctrl+0")
+                                shortcutKeys: [[Qt.Key_Control, Qt.Key_0]]
                                 enabled: window.canInspect
                                 onTriggered: window.fitImage()
                             }
                             ViewerMenuItem {
                                 objectName: "actualSizeButton"
                                 text: qsTr("Actual Size")
-                                shortcutText: qsTr("1")
+                                shortcutKeys: [[Qt.Key_1]]
                                 enabled: window.canInspect
                                 onTriggered: window.actualSizeImage()
                             }
                             ViewerMenuItem {
                                 objectName: "zoomInButton"
                                 text: qsTr("Zoom In")
-                                shortcutText: qsTr("Ctrl++")
+                                shortcutKeys: [[Qt.Key_Control, Qt.Key_Plus]]
                                 enabled: window.canInspect
                                 onTriggered: window.zoomImage(1)
                             }
                             ViewerMenuItem {
                                 objectName: "zoomOutButton"
                                 text: qsTr("Zoom Out")
-                                shortcutText: qsTr("Ctrl+−")
+                                shortcutKeys: [[Qt.Key_Control, Qt.Key_Minus]]
                                 enabled: window.canInspect
                                 onTriggered: window.zoomImage(-1)
                             }
                             ViewerMenuSeparator {}
                             ViewerMenuItem {
                                 action: rotateClockwise
-                                shortcutText: qsTr("R")
+                                shortcutKeys: [[Qt.Key_R]]
                             }
                             ViewerMenuItem {
                                 action: rotateCounterclockwise
-                                shortcutText: qsTr("Shift+R")
+                                shortcutKeys: [[Qt.Key_Shift, Qt.Key_R]]
                             }
                             ViewerMenuItem {
                                 action: flipHorizontal
-                                shortcutText: qsTr("X")
+                                shortcutKeys: [[Qt.Key_X]]
                             }
                             ViewerMenuItem {
                                 action: flipVertical
-                                shortcutText: qsTr("Shift+X")
+                                shortcutKeys: [[Qt.Key_Shift, Qt.Key_X]]
                             }
                             ViewerMenuItem {
                                 action: resetTransform
@@ -596,31 +595,31 @@ HnApplicationWindow {
                             ViewerMenuSeparator {}
                             ViewerMenuItem {
                                 action: copyImage
-                                shortcutText: qsTr("Ctrl+C")
+                                shortcutKeys: [[Qt.Key_Control, Qt.Key_C]]
                             }
                             ViewerMenuItem {
                                 action: copyPath
-                                shortcutText: qsTr("Ctrl+Shift+C")
+                                shortcutKeys: [[Qt.Key_Control, Qt.Key_Shift, Qt.Key_C]]
                             }
                             ViewerMenuSeparator {}
                             ViewerMenuItem {
                                 action: imageInformation
                                 objectName: "informationMenuItem"
-                                shortcutText: qsTr("I")
+                                shortcutKeys: [[Qt.Key_I]]
                             }
                             ViewerMenuItem {
                                 action: shortcutHelp
-                                shortcutText: qsTr("?")
+                                shortcutKeys: [[Qt.Key_Question]]
                             }
                             ViewerMenuSeparator {}
                             ViewerMenuItem {
                                 text: qsTr("Fullscreen")
-                                shortcutText: qsTr("F")
+                                shortcutKeys: [[Qt.Key_F]]
                                 onTriggered: window.toggleFullscreen()
                             }
                             ViewerMenuItem {
                                 text: qsTr("Quit")
-                                shortcutText: qsTr("Q")
+                                shortcutKeys: [[Qt.Key_Q]]
                                 onTriggered: window.close()
                             }
                         }

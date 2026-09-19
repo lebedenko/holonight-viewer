@@ -294,7 +294,7 @@ TEST(Viewer, StaticWorkflowControls) {
     auto* shortcut = openItem->findChild<QQuickItem*>("menuItemShortcut");
     ASSERT_NE(label, nullptr);
     ASSERT_NE(shortcut, nullptr);
-    EXPECT_EQ(shortcut->property("text").toString(), "Ctrl+O");
+    EXPECT_EQ(shortcut->property("accessibleText").toString(), "Ctrl plus O");
     EXPECT_TRUE(shortcut->isVisible());
     const auto labelRight = label->mapToItem(openItem, {label->implicitWidth(), 0}).x();
     EXPECT_GT(shortcut->mapToItem(openItem, {0, 0}).x(), labelRight);

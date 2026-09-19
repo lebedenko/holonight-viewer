@@ -35,25 +35,26 @@ const std::vector<Section>& expectedSections() {
   static const std::vector<Section> sections = {
       Section{.key = "Navigation",
               .label = "Navigation",
-              .rows = {Row{.key = "Ctrl+O", .description = "Open image", .keycap = true},
-                       Row{.key = "[ / ]", .description = "Previous / next image", .keycap = true},
-                       Row{.key = "Ctrl+R", .description = "Refresh folder and image", .keycap = true}}},
+              .rows = {Row{.key = "Ctrl plus O", .description = "Open image", .keycap = true},
+                       Row{.key = "[ or ]", .description = "Previous / next image", .keycap = true},
+                       Row{.key = "Ctrl plus R", .description = "Refresh folder and image", .keycap = true}}},
       Section{.key = "View",
               .label = "View",
-              .rows = {Row{.key = "Ctrl+0", .description = "Fit", .keycap = true},
+              .rows = {Row{.key = "Ctrl plus 0", .description = "Fit", .keycap = true},
                        Row{.key = "1", .description = "Actual size", .keycap = true},
-                       Row{.key = "Ctrl++ / Ctrl+−", .description = "Zoom", .keycap = true},
+                       Row{.key = "Ctrl plus + or Ctrl plus -", .description = "Zoom", .keycap = true},
                        Row{.key = "F", .description = "Fullscreen", .keycap = true},
                        Row{.key = "Esc", .description = "Close dialog or leave fullscreen", .keycap = true}}},
-      Section{.key = "Transform",
-              .label = "Transform",
-              .rows = {Row{.key = "R / Shift+R", .description = "Rotate clockwise/counterclockwise", .keycap = true},
-                       Row{.key = "X / Shift+X", .description = "Flip horizontally/vertically", .keycap = true}}},
+      Section{
+          .key = "Transform",
+          .label = "Transform",
+          .rows = {Row{.key = "R or Shift plus R", .description = "Rotate clockwise/counterclockwise", .keycap = true},
+                   Row{.key = "X or Shift plus X", .description = "Flip horizontally/vertically", .keycap = true}}},
       Section{.key = "Image",
               .label = "Image",
               .rows = {Row{.key = "I", .description = "Image information", .keycap = true},
-                       Row{.key = "Ctrl+C", .description = "Copy image", .keycap = true},
-                       Row{.key = "Ctrl+Shift+C", .description = "Copy path", .keycap = true}}},
+                       Row{.key = "Ctrl plus C", .description = "Copy image", .keycap = true},
+                       Row{.key = "Ctrl plus Shift plus C", .description = "Copy path", .keycap = true}}},
       Section{.key = "Application",
               .label = "Application",
               .rows = {Row{.key = "?", .description = "Toggle this help", .keycap = true},
@@ -62,7 +63,7 @@ const std::vector<Section>& expectedSections() {
               .label = "Mouse",
               .rows = {Row{.key = "Wheel/touchpad scroll", .description = "Zoom at pointer", .keycap = false},
                        Row{.key = "Left-drag", .description = "Pan", .keycap = false},
-                       Row{.key = "Arrow keys", .description = "Pan", .keycap = true},
+                       Row{.key = "Left or Right or Up or Down", .description = "Pan", .keycap = true},
                        Row{.key = "Drop an image", .description = "Open image", .keycap = false}}},
   };
   return sections;
@@ -185,6 +186,25 @@ struct ViewerFixture {
     return findItem(window->contentItem(), QString::fromLatin1(name));
   }
 };
+
+void expectKeycapBounds(const StandaloneHelp& fixture, const QString& name) {
+  auto* row = fixture.item(name);
+  auto* key = fixture.item(name + "Keycap");
+  auto* description = fixture.item(name + "Description");
+  ASSERT_TRUE(row && key && description);
+  auto* text = key->property("contentItem").value<QQuickItem*>();
+  ASSERT_NE(text, nullptr);
+  EXPECT_LE(key->width(), key->parentItem()->width() + 0.5);
+  EXPECT_LE(key->mapToItem(row, {key->width(), 0}).x(), description->x());
+  for (auto* token : text->childItems()) {
+    if (token->isVisible()) {
+      EXPECT_LE(token->x() + token->width(), text->width() + 0.5);
+      EXPECT_LE(token->y() + token->height(), text->height() + 0.5);
+    }
+  }
+  EXPECT_GE(key->mapToItem(row, {0, 0}).y(), -0.5);
+  EXPECT_LE(key->mapToItem(row, {0, key->height()}).y(), row->height() + 0.5);
+}
 }  // namespace
 
 TEST(ShortcutHelpPopup, SectionsRowsAndRendering) {
@@ -211,7 +231,9 @@ TEST(ShortcutHelpPopup, SectionsRowsAndRendering) {
     for (size_t rowIndex = 0; rowIndex < expected[sectionIndex].rows.size(); ++rowIndex) {
       const auto row = rows[static_cast<qsizetype>(rowIndex)].toMap();
       const auto& want = expected[sectionIndex].rows[rowIndex];
-      const auto key = row.value("key").toString();
+      const auto rowName = QStringLiteral("shortcutHelpRow%1%2").arg(expected[sectionIndex].key).arg(rowIndex);
+      const auto key = want.keycap ? fixture.item(rowName + "Keycap")->property("accessibleText").toString()
+                                   : row.value("key").toString();
       const auto description = row.value("description").toString();
       EXPECT_EQ(key, QString::fromUtf8(want.key));
       EXPECT_EQ(description, QString::fromUtf8(want.description));
@@ -223,7 +245,6 @@ TEST(ShortcutHelpPopup, SectionsRowsAndRendering) {
       EXPECT_FALSE(description.contains("header", Qt::CaseInsensitive) ||
                    description.contains("menu", Qt::CaseInsensitive))
           << want.description;
-      const auto rowName = QStringLiteral("shortcutHelpRow%1%2").arg(expected[sectionIndex].key).arg(rowIndex);
       auto* keycap = fixture.item(rowName + "Keycap");
       auto* gesture = fixture.item(rowName + "Gesture");
       ASSERT_TRUE(keycap && gesture) << rowName.toStdString();
@@ -312,18 +333,7 @@ TEST(ShortcutHelpPopup, KeycapsStayWithinColumns) {
           const auto name = QStringLiteral("shortcutHelpRow%1%2").arg(section.key).arg(index);
           SCOPED_TRACE(name.toStdString() + " at " + std::to_string(size.width()) + "px / " +
                        std::to_string(pointSize) + "pt");
-          auto* row = fixture.item(name);
-          auto* key = fixture.item(name + "Keycap");
-          auto* description = fixture.item(name + "Description");
-          ASSERT_TRUE(row && key && description);
-          auto* text = key->property("contentItem").value<QQuickItem*>();
-          ASSERT_NE(text, nullptr);
-          EXPECT_LE(key->width(), key->parentItem()->width() + 0.5);
-          EXPECT_LE(key->mapToItem(row, {key->width(), 0}).x(), description->x());
-          EXPECT_LE(text->property("contentWidth").toReal(), text->width() + 0.5);
-          EXPECT_LE(text->property("contentHeight").toReal(), text->height() + 0.5);
-          EXPECT_GE(key->mapToItem(row, {0, 0}).y(), -0.5);
-          EXPECT_LE(key->mapToItem(row, {0, key->height()}).y(), row->height() + 0.5);
+          ASSERT_NO_FATAL_FAILURE(expectKeycapBounds(fixture, name));
         }
       }
       const auto capture = qEnvironmentVariable("VIEWER_CAPTURE_PREFIX");
@@ -366,7 +376,7 @@ TEST(ShortcutHelpPopup, RowsAreExposedOnceToAccessibility) {
 }
 
 TEST(ShortcutHelpPopup, ToggleCloseDimmerAndModality) {
-  QTemporaryDir dir(QStringLiteral(VIEWER_FIXTURE_DIR) + "/help-XXXXXX");
+  QTemporaryDir dir;
   ASSERT_TRUE(dir.isValid());
   QImage image(3000, 2000, QImage::Format_RGB32);
   image.fill(Qt::darkCyan);

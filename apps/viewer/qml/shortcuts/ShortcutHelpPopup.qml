@@ -22,17 +22,17 @@ Controls.Popup {
             label: qsTr("Navigation"),
             rows: [
                 {
-                    key: qsTr("Ctrl+O"),
+                    keyGroups: [[Qt.Key_Control, Qt.Key_O]],
                     description: qsTr("Open image"),
                     keycap: true
                 },
                 {
-                    key: qsTr("[ / ]"),
+                    keyGroups: [[Qt.Key_BracketLeft], [Qt.Key_BracketRight]],
                     description: qsTr("Previous / next image"),
                     keycap: true
                 },
                 {
-                    key: qsTr("Ctrl+R"),
+                    keyGroups: [[Qt.Key_Control, Qt.Key_R]],
                     description: qsTr("Refresh folder and image"),
                     keycap: true
                 }
@@ -43,27 +43,27 @@ Controls.Popup {
             label: qsTr("View"),
             rows: [
                 {
-                    key: qsTr("Ctrl+0"),
+                    keyGroups: [[Qt.Key_Control, Qt.Key_0]],
                     description: qsTr("Fit"),
                     keycap: true
                 },
                 {
-                    key: qsTr("1"),
+                    keyGroups: [[Qt.Key_1]],
                     description: qsTr("Actual size"),
                     keycap: true
                 },
                 {
-                    key: qsTr("Ctrl++ / Ctrl+−"),
+                    keyGroups: [[Qt.Key_Control, Qt.Key_Plus], [Qt.Key_Control, Qt.Key_Minus]],
                     description: qsTr("Zoom"),
                     keycap: true
                 },
                 {
-                    key: qsTr("F"),
+                    keyGroups: [[Qt.Key_F]],
                     description: qsTr("Fullscreen"),
                     keycap: true
                 },
                 {
-                    key: qsTr("Esc"),
+                    keyGroups: [[Qt.Key_Escape]],
                     description: qsTr("Close dialog or leave fullscreen"),
                     keycap: true
                 }
@@ -74,12 +74,12 @@ Controls.Popup {
             label: qsTr("Transform"),
             rows: [
                 {
-                    key: qsTr("R / Shift+R"),
+                    keyGroups: [[Qt.Key_R], [Qt.Key_Shift, Qt.Key_R]],
                     description: qsTr("Rotate clockwise/counterclockwise"),
                     keycap: true
                 },
                 {
-                    key: qsTr("X / Shift+X"),
+                    keyGroups: [[Qt.Key_X], [Qt.Key_Shift, Qt.Key_X]],
                     description: qsTr("Flip horizontally/vertically"),
                     keycap: true
                 }
@@ -90,17 +90,17 @@ Controls.Popup {
             label: qsTr("Image"),
             rows: [
                 {
-                    key: qsTr("I"),
+                    keyGroups: [[Qt.Key_I]],
                     description: qsTr("Image information"),
                     keycap: true
                 },
                 {
-                    key: qsTr("Ctrl+C"),
+                    keyGroups: [[Qt.Key_Control, Qt.Key_C]],
                     description: qsTr("Copy image"),
                     keycap: true
                 },
                 {
-                    key: qsTr("Ctrl+Shift+C"),
+                    keyGroups: [[Qt.Key_Control, Qt.Key_Shift, Qt.Key_C]],
                     description: qsTr("Copy path"),
                     keycap: true
                 }
@@ -111,12 +111,12 @@ Controls.Popup {
             label: qsTr("Application"),
             rows: [
                 {
-                    key: qsTr("?"),
+                    keyGroups: [[Qt.Key_Question]],
                     description: qsTr("Toggle this help"),
                     keycap: true
                 },
                 {
-                    key: qsTr("Q"),
+                    keyGroups: [[Qt.Key_Q]],
                     description: qsTr("Quit"),
                     keycap: true
                 }
@@ -137,7 +137,7 @@ Controls.Popup {
                     keycap: false
                 },
                 {
-                    key: qsTr("Arrow keys"),
+                    keyGroups: [[Qt.Key_Left], [Qt.Key_Right], [Qt.Key_Up], [Qt.Key_Down]],
                     description: qsTr("Pan"),
                     keycap: true
                 },
@@ -258,7 +258,7 @@ Controls.Popup {
                                 Layout.fillWidth: true
                                 spacing: HnMetrics.internalSpacing(HnControlSize.Normal)
                                 Accessible.role: Accessible.StaticText
-                                Accessible.name: modelData.key + " " + modelData.description
+                                Accessible.name: (modelData.keycap ? keycap.accessibleText : modelData.key) + " " + modelData.description
                                 // Fixed key column so descriptions align across rows.
                                 Item {
                                     objectName: rowItem.objectName + "Key"
@@ -272,17 +272,9 @@ Controls.Popup {
                                         visible: rowItem.modelData.keycap
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: Math.min(implicitWidth, parent.width)
-                                        text: rowItem.modelData.key
+                                        keyGroups: rowItem.modelData.keyGroups ?? []
+                                        wrap: true
                                         Accessible.ignored: true
-                                        contentItem: HnLabel {
-                                            role: HnTypographyRole.Code
-                                            rawText: keycap.text
-                                            font: keycap.font
-                                            color: HoloniightPalette.textSecondary
-                                            textFormat: Text.PlainText
-                                            wrapMode: Text.Wrap
-                                            Accessible.ignored: true
-                                        }
                                     }
                                     HnLabel {
                                         id: plainKey
@@ -292,7 +284,7 @@ Controls.Popup {
                                         color: HoloniightPalette.textSecondary
                                         textFormat: Text.PlainText
                                         wrapMode: Text.Wrap
-                                        rawText: rowItem.modelData.key
+                                        rawText: rowItem.modelData.key ?? ""
                                         Accessible.ignored: true
                                     }
                                 }

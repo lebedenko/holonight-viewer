@@ -22,9 +22,9 @@ struct Hint {
   const char* label;
 };
 
-constexpr std::array<Hint, 7> kHints{{{.name = "Navigate", .key = "[ / ]", .label = "Navigate"},
-                                      {.name = "Zoom", .key = "Ctrl++/−", .label = "Zoom"},
-                                      {.name = "Fit", .key = "Ctrl+0", .label = "Fit"},
+constexpr std::array<Hint, 7> kHints{{{.name = "Navigate", .key = "[ or ]", .label = "Navigate"},
+                                      {.name = "Zoom", .key = "Ctrl plus + or Ctrl plus -", .label = "Zoom"},
+                                      {.name = "Fit", .key = "Ctrl plus 0", .label = "Fit"},
                                       {.name = "ActualSize", .key = "1", .label = "100%"},
                                       {.name = "Rotate", .key = "R", .label = "Rotate"},
                                       {.name = "Fullscreen", .key = "F", .label = "Fullscreen"},
@@ -143,7 +143,7 @@ TEST(FooterKeyHints, ContentOrderAndCount) {
     auto* label = part(row, "Label");
     ASSERT_NE(keycap, nullptr) << hint.name;
     ASSERT_NE(label, nullptr) << hint.name;
-    EXPECT_EQ(keycap->property("text").toString(), QString::fromUtf8(hint.key));
+    EXPECT_EQ(keycap->property("accessibleText").toString(), QString::fromUtf8(hint.key));
     EXPECT_EQ(label->property("rawText").toString(), QString::fromUtf8(hint.label));
   }
   QStringList texts;

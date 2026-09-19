@@ -64,11 +64,14 @@ TEST(Viewer, InspectionControlsAndLifecycle) {
     EXPECT_LT(canvas->imageRect().y(), before_keyboard_pan.y());
   }
   canvas->fit();
-  ASSERT_TRUE(QMetaObject::invokeMethod(window->findChild<QObject*>("actionsMenu"), "open"));
-  QTest::qWait(100);
-  QTest::mouseClick(
-      window, Qt::LeftButton, Qt::NoModifier,
-      actual_button->mapToScene(QPointF(actual_button->width() / 2, actual_button->height() / 2)).toPoint());
+  auto* menu = window->findChild<QObject*>("actionsMenu");
+  ASSERT_NE(menu, nullptr);
+  ASSERT_TRUE(QMetaObject::invokeMethod(menu, "open"));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return menu->property("opened").toBool(); }));
+  // Actual Size can be outside the viewport in this small window.
+  // Exercise the menu's keyboard activation independently of scroll position.
+  ASSERT_TRUE(menu->setProperty("currentIndex", 7));
+  QTest::keyClick(window, Qt::Key_Return);
   EXPECT_DOUBLE_EQ(canvas->magnification(), 1);
   EXPECT_FALSE(canvas->fitting());
   EXPECT_FALSE(canvas->hasActiveFocus());

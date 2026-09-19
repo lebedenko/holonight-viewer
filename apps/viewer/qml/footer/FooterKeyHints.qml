@@ -12,37 +12,37 @@ Flow {
     readonly property var hints: [
         {
             name: "Navigate",
-            key: qsTr("[ / ]"),
+            keyGroups: [[Qt.Key_BracketLeft], [Qt.Key_BracketRight]],
             label: qsTr("Navigate")
         },
         {
             name: "Zoom",
-            key: qsTr("Ctrl++/−"),
+            keyGroups: [[Qt.Key_Control, Qt.Key_Plus], [Qt.Key_Control, Qt.Key_Minus]],
             label: qsTr("Zoom")
         },
         {
             name: "Fit",
-            key: qsTr("Ctrl+0"),
+            keyGroups: [[Qt.Key_Control, Qt.Key_0]],
             label: qsTr("Fit")
         },
         {
             name: "ActualSize",
-            key: qsTr("1"),
+            keyGroups: [[Qt.Key_1]],
             label: qsTr("100%")
         },
         {
             name: "Rotate",
-            key: qsTr("R"),
+            keyGroups: [[Qt.Key_R]],
             label: qsTr("Rotate")
         },
         {
             name: "Fullscreen",
-            key: qsTr("F"),
+            keyGroups: [[Qt.Key_F]],
             label: qsTr("Fullscreen")
         },
         {
             name: "Help",
-            key: qsTr("?"),
+            keyGroups: [[Qt.Key_Question]],
             label: qsTr("Help")
         }
     ]
@@ -55,21 +55,14 @@ Flow {
             objectName: "footerHint" + modelData.name
             spacing: HnMetrics.internalSpacing(HnControlSize.Compact)
             Accessible.role: Accessible.StaticText
-            Accessible.name: modelData.key + " " + modelData.label
+            Accessible.name: keycap.accessibleText + " " + modelData.label
 
             HnKeyHint {
                 id: keycap
                 objectName: hintRow.objectName + "Keycap"
                 anchors.verticalCenter: parent.verticalCenter
-                text: hintRow.modelData.key
+                keyGroups: hintRow.modelData.keyGroups
                 Accessible.ignored: true
-
-                // Ignoring a control promotes its children, so hide the keycap text too.
-                Binding {
-                    target: keycap.contentItem
-                    property: "Accessible.ignored"
-                    value: true
-                }
             }
             HnLabel {
                 objectName: hintRow.objectName + "Label"
