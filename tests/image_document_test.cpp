@@ -52,7 +52,7 @@ bool settled(ImageDocument& document) {
 DecodeResult solidResult() {
   QImage image(4, 2, QImage::Format_ARGB32_Premultiplied);
   image.fill(Qt::red);
-  return {.image = image, .error = {}};
+  return {.image = image, .error = {}, .information = {}};
 }
 }  // namespace
 
@@ -235,7 +235,7 @@ TEST(Document, StaleErrorAndValidationCannotReplaceNewestState) {
       while (!release.load()) {
         QThread::msleep(1);
       }
-      return DecodeResult{.image = {}, .error = "stale failure"};
+      return DecodeResult{.image = {}, .error = "stale failure", .information = {}};
     }
     return solidResult();
   });
@@ -266,7 +266,7 @@ TEST(Document, ShutdownDrainsWithoutBlockingEventLoop) {
     while (!release.load()) {
       QThread::msleep(1);
     }
-    return DecodeResult{.image = {}, .error = "canceled failure"};
+    return DecodeResult{.image = {}, .error = "canceled failure", .information = {}};
   });
   const auto cleanup = qScopeGuard([&] { release.store(true); });
   QSignalSpy failures(&document, &ImageDocument::openingFailed);
@@ -310,7 +310,9 @@ TEST(Document, FailureEventsIgnoreDirectoryChangesAndRepeatPerRequest) {
   std::atomic_bool release_scan{false};
   std::atomic_bool scan_started{false};
   ImageDocument document(
-      [](const QUrl&, const std::atomic_bool&) { return DecodeResult{.image = {}, .error = "expected failure"}; },
+      [](const QUrl&, const std::atomic_bool&) {
+        return DecodeResult{.image = {}, .error = "expected failure", .information = {}};
+      },
       [&](const QUrl&, const std::atomic_bool&) {
         scan_started.store(true);
         while (!release_scan.load()) {
@@ -357,7 +359,7 @@ TEST(Document, SuccessfulTransformsAndPrefetchFailuresDoNotReportOpeningFailures
           return solidResult();
         }
         prefetched.store(true);
-        return DecodeResult{.image = {}, .error = "prefetch failure"};
+        return DecodeResult{.image = {}, .error = "prefetch failure", .information = {}};
       },
       [&](const QUrl&, const std::atomic_bool&) { return DirectoryResult{.urls = {selected, neighbor}, .error = {}}; });
   QSignalSpy failures(&document, &ImageDocument::openingFailed);

@@ -6,11 +6,8 @@
 #include <QQmlApplicationEngine>
 #include <QTextStream>
 #include <QTimer>
-#include <QtQml/QQmlExtensionPlugin>
 
 #include <cstdlib>
-
-Q_IMPORT_QML_PLUGIN(HolonightViewerPlugin)
 
 int main(int argc, char* argv[]) {
   QGuiApplication app(argc, argv);

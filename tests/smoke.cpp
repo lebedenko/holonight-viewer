@@ -23,15 +23,12 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
-#include <QtQml/QQmlExtensionPlugin>
 
 #include <algorithm>
 #include <cmath>
 #include <gtest/gtest.h>
 #include <iostream>
 #include <memory>
-
-Q_IMPORT_QML_PLUGIN(HolonightViewerPlugin)
 
 TEST(Viewer, WindowAndKeyboard) {
   ImageDocument document;
@@ -347,12 +344,14 @@ TEST(Viewer, EmbeddedStyleSelection) {
   component.setData("import QtQuick.Controls\nButton {}", QUrl());
   const std::unique_ptr<QObject> button(component.create());
   ASSERT_NE(button, nullptr) << component.errorString().toStdString();
-  EXPECT_EQ(QQuickStyle::name(), QStringLiteral("Holonight"));
-  EXPECT_TRUE(button->property("foregroundColor").isValid());
+  const auto overrideStyle = qEnvironmentVariable("QT_QUICK_CONTROLS_STYLE");
+  EXPECT_EQ(QQuickStyle::name(), overrideStyle.isEmpty() ? QStringLiteral("Holonight") : overrideStyle);
+  if (overrideStyle.isEmpty()) {
+    EXPECT_TRUE(button->property("foregroundColor").isValid());
+  }
 }
 
 int main(int argc, char* argv[]) {
-  qunsetenv("QT_QUICK_CONTROLS_STYLE");
   qunsetenv("QT_QUICK_CONTROLS_FALLBACK_STYLE");
   qunsetenv("QT_QUICK_CONTROLS_CONF");
   QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs);

@@ -3,14 +3,12 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Dialogs
-// Initialize the configured style before shared controls import Basic.
-// qmllint disable unused-imports
-import QtQuick.Controls
-import QtQuick.Controls.Basic as Basic
-// qmllint enable unused-imports
-import Holonight as HnStyle
+import QtQuick.Controls as Controls
 import Holonight.Core
 import Holonight.Controls
+import "footer"
+import "information"
+import "shortcuts"
 
 HnApplicationWindow {
     id: window
@@ -23,7 +21,7 @@ HnApplicationWindow {
     visible: true
     title: document.fileName ? qsTr("%1 — HoloNight Viewer").arg(document.fileName) : qsTr("HoloNight Viewer")
 
-    component ViewerButton: HnStyle.Button {
+    component ViewerButton: Controls.Button {
         id: control
         property bool floating: false
         implicitWidth: Math.max(implicitContentWidth + leftPadding + rightPadding, HnMetrics.controlHeight(HnControlSize.Normal))
@@ -35,13 +33,13 @@ HnApplicationWindow {
         }
     }
     component ViewerHeaderButton: ViewerButton {
-        display: AbstractButton.IconOnly
+        display: Controls.AbstractButton.IconOnly
         icon.width: HnMetrics.iconSize(HnControlSize.Hero)
         icon.height: HnMetrics.iconSize(HnControlSize.Hero)
         implicitWidth: HnMetrics.controlHeight(HnControlSize.Large)
         implicitHeight: HnMetrics.controlHeight(HnControlSize.Large)
     }
-    component ViewerMenuItem: HnStyle.MenuItem {
+    component ViewerMenuItem: Controls.MenuItem {
         id: control
         // Keeps the trailing shortcut clear of the menu's overlay scroll bar.
         rightPadding: 12 + ((control.ListView.view as ViewerMenuList)?.scrollBarReserve ?? 0)
@@ -76,8 +74,8 @@ HnApplicationWindow {
     component ViewerMenuList: ListView {
         property real scrollBarReserve: 0
     }
-    // Basic's separator paints with the system palette; draw it with the theme instead.
-    component ViewerMenuSeparator: Basic.MenuSeparator {
+    // Preserve Viewer's physical hairline at fractional menu/scroll positions.
+    component ViewerMenuSeparator: Controls.MenuSeparator {
         contentItem: HnSeparator {
             color: HoloniightPalette.borderPassive
         }
@@ -197,7 +195,7 @@ HnApplicationWindow {
         ++window.inputEpoch;
     }
 
-    Action {
+    Controls.Action {
         id: rotateClockwise
         objectName: "rotateClockwiseAction"
         text: qsTr("Rotate Clockwise")
@@ -205,7 +203,7 @@ HnApplicationWindow {
         enabled: window.canInspect
         onTriggered: window.transformImage(1)
     }
-    Action {
+    Controls.Action {
         id: rotateCounterclockwise
         objectName: "rotateCounterclockwiseAction"
         text: qsTr("Rotate Counterclockwise")
@@ -213,7 +211,7 @@ HnApplicationWindow {
         enabled: window.canInspect
         onTriggered: window.transformImage(3)
     }
-    Action {
+    Controls.Action {
         id: flipHorizontal
         objectName: "flipHorizontalAction"
         text: qsTr("Flip Horizontally")
@@ -221,7 +219,7 @@ HnApplicationWindow {
         enabled: window.canInspect
         onTriggered: window.transformImage(4)
     }
-    Action {
+    Controls.Action {
         id: flipVertical
         objectName: "flipVerticalAction"
         text: qsTr("Flip Vertically")
@@ -229,7 +227,7 @@ HnApplicationWindow {
         enabled: window.canInspect
         onTriggered: window.transformImage(6)
     }
-    Action {
+    Controls.Action {
         id: resetTransform
         objectName: "resetTransformAction"
         text: qsTr("Reset Transform")
@@ -240,7 +238,7 @@ HnApplicationWindow {
             ++window.inputEpoch;
         }
     }
-    Action {
+    Controls.Action {
         id: copyImage
         objectName: "copyImageAction"
         text: qsTr("Copy Image")
@@ -251,7 +249,7 @@ HnApplicationWindow {
             window.clearImageFocus();
         }
     }
-    Action {
+    Controls.Action {
         id: copyPath
         objectName: "copyPathAction"
         text: qsTr("Copy Path")
@@ -262,7 +260,7 @@ HnApplicationWindow {
             window.clearImageFocus();
         }
     }
-    Action {
+    Controls.Action {
         id: imageInformation
         objectName: "imageInformationAction"
         text: qsTr("Image Information")
@@ -271,7 +269,7 @@ HnApplicationWindow {
         enabled: window.hasPath
         onTriggered: window.informationOpen = true
     }
-    Action {
+    Controls.Action {
         id: shortcutHelp
         objectName: "shortcutHelpAction"
         text: qsTr("Shortcut Help")
@@ -426,7 +424,7 @@ HnApplicationWindow {
         active: window.informationOpen
         sourceComponent: ImageInformationPopup {
             document: window.document
-            parent: Overlay.overlay
+            parent: Controls.Overlay.overlay
             Component.onCompleted: open()
             onClosed: window.informationOpen = false
         }
@@ -436,7 +434,7 @@ HnApplicationWindow {
         id: shortcutHelpLoader
         active: window.helpOpen
         sourceComponent: ShortcutHelpPopup {
-            parent: Overlay.overlay
+            parent: Controls.Overlay.overlay
             Component.onCompleted: open()
             onClosed: window.helpOpen = false
         }
@@ -491,10 +489,10 @@ HnApplicationWindow {
                         Accessible.name: qsTr("Menu")
                         enabled: !window.modalActive
                         onClicked: actionsMenu.open()
-                        HnStyle.Menu {
+                        Controls.Menu {
                             id: actionsMenu
                             objectName: "actionsMenu"
-                            popupType: Popup.Item
+                            popupType: Controls.Popup.Item
                             margins: 12
                             x: actionsButton.width - width
                             width: Math.min(380, window.width - 24)
@@ -513,7 +511,7 @@ HnApplicationWindow {
                                 interactive: contentHeight > height
                                 clip: true
                                 scrollBarReserve: interactive ? menuScrollBar.width : 0
-                                ScrollBar.vertical: ScrollBar {
+                                Controls.ScrollBar.vertical: Controls.ScrollBar {
                                     id: menuScrollBar
                                     active: true
                                 }

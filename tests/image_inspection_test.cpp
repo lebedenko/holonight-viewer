@@ -265,6 +265,12 @@ TEST(Canvas, FirstRenderGeneration) {
 }
 
 TEST(Viewer, IndependentOverlayTimers) {
+  QTemporaryDir dir;
+  ASSERT_TRUE(dir.isValid());
+  QImage image(64, 48, QImage::Format_RGB32);
+  image.fill(Qt::darkCyan);
+  ASSERT_TRUE(image.save(dir.filePath("a.png")));
+  ASSERT_TRUE(image.save(dir.filePath("b.png")));
   ImageDocument document;
   QQmlApplicationEngine engine;
   engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
@@ -290,7 +296,7 @@ TEST(Viewer, IndependentOverlayTimers) {
   // Shorter intervals exercise the production timer wiring without a long suite delay.
   arrows->setProperty("interval", 300);
   details->setProperty("interval", 500);
-  document.open({QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/sample.png")});
+  document.open({QUrl::fromLocalFile(dir.filePath("a.png"))});
   ASSERT_TRUE(QTest::qWaitFor([&] { return stripShown(); }));
   EXPECT_FALSE(arrowsShown());
   const auto geometry = canvas->imageRect();

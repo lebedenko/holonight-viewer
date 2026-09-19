@@ -9,7 +9,7 @@ import sys
 import tempfile
 
 root = Path(__file__).resolve().parent.parent
-fixtures = Path(tempfile.mkdtemp(prefix='installed-desktop.', dir=root / 'build'))
+fixtures = Path(tempfile.mkdtemp(prefix='installed-desktop.', dir=Path(sys.argv[2]) if len(sys.argv) > 2 else None))
 formats = runpy.run_path(str(Path(__file__).with_name('format-fixtures.py')))['FORMATS']
 entry = Path(sys.argv[1]).resolve(strict=True)
 subprocess.run(['desktop-file-validate', str(entry)], check=True)

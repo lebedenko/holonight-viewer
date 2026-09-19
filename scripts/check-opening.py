@@ -10,7 +10,7 @@ import tempfile
 
 root = Path(__file__).resolve().parent.parent
 binary = Path(sys.argv[1]).resolve(strict=True)
-fixtures = Path(tempfile.mkdtemp(prefix='opening-check.', dir=root / 'build'))
+fixtures = Path(tempfile.mkdtemp(prefix='opening-check.', dir=Path(sys.argv[2]) if len(sys.argv) > 2 else None))
 
 
 FORMATS = runpy.run_path(str(Path(__file__).with_name('format-fixtures.py')))['FORMATS']

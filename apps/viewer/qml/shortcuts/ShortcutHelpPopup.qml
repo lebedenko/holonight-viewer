@@ -2,13 +2,12 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls.Basic as Basic
-import Holonight as HnStyle
+import QtQuick.Controls as Controls
 import Holonight.Core
 import Holonight.Controls
 
 // Modal card listing the viewer's shortcuts; Main.qml owns when it is open.
-Basic.Popup {
+Controls.Popup {
     id: root
     objectName: "shortcutHelpPopup"
     // The popup is centered in its parent (the window overlay), so the parent stands in for the window.
@@ -156,9 +155,9 @@ Basic.Popup {
     padding: 16
     modal: true
     focus: true
-    closePolicy: Basic.Popup.CloseOnEscape | Basic.Popup.CloseOnPressOutside
+    closePolicy: Controls.Popup.CloseOnEscape | Controls.Popup.CloseOnPressOutside
     // Same light dimming as Image Information, so the image stays visible.
-    Basic.Overlay.modal: Rectangle {
+    Controls.Overlay.modal: Rectangle {
         objectName: "shortcutHelpDimmer"
         color: Qt.alpha(HoloniightPalette.shadow, 0.22)
     }
@@ -196,12 +195,12 @@ Basic.Popup {
                 rawText: qsTr("Shortcuts")
                 elide: Text.ElideRight
             }
-            HnStyle.Button {
+            Controls.Button {
                 id: closeButton
                 objectName: "shortcutHelpCloseButton"
                 Layout.alignment: Qt.AlignTop
-                display: Basic.AbstractButton.IconOnly
-                icon.source: "icons/close.svg"
+                display: Controls.AbstractButton.IconOnly
+                icon.source: "../icons/close.svg"
                 icon.width: HnMetrics.iconSize(HnControlSize.Normal)
                 icon.height: HnMetrics.iconSize(HnControlSize.Normal)
                 implicitWidth: HnMetrics.controlHeight(HnControlSize.Normal)
@@ -217,7 +216,7 @@ Basic.Popup {
             }
         }
 
-        Basic.ScrollView {
+        Controls.ScrollView {
             id: scroll
             objectName: "shortcutHelpScroll"
             Layout.fillWidth: true

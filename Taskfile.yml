@@ -14,7 +14,7 @@ tasks:
     cmds: ['bash scripts/prepare-deps.sh']
   configure:
     desc: Configure the selected build preset
-    cmds: ['cmake --preset {{.PRESET}} -DHOLONIGHT_DEPENDENCY_PREFIX="{{.HOLONIGHT_DEPENDENCY_PREFIX}}" -DHOLONIGHT_QML_IMPORT_PATH="{{.HOLONIGHT_QML_IMPORT_PATH}}"']
+    cmds: ['cmake --preset {{.PRESET}} -DCMAKE_PREFIX_PATH="{{.HOLONIGHT_DEPENDENCY_PREFIX}}" -DQML_IMPORT_PATH="{{.HOLONIGHT_QML_IMPORT_PATH}}"']
   build:
     desc: Configure and build the selected preset
     cmds:
@@ -31,29 +31,22 @@ tasks:
     desc: Launch Viewer, capture its window after an optional delay, then close it
     cmds: ['python3 scripts/screenshot.py {{.CLI_ARGS}}']
 
-  install:
-    desc: Build Release against system providers, install to /usr and refresh desktop metadata
+  stage:
+    desc: Stage the Release payload without modifying the host
+    requires:
+      vars: [DESTDIR]
     cmds:
-      - |
-        set -eu
-        export HOLONIGHT_DEPENDENCY_PREFIX=/usr
-        export HOLONIGHT_QML_IMPORT_PATH=/usr/lib/qt6/qml
-        export CMAKE_PREFIX_PATH=/usr
-        export QML_IMPORT_PATH=/usr/lib/qt6/qml
-        export QML2_IMPORT_PATH=/usr/lib/qt6/qml
-        export LD_LIBRARY_PATH=/usr/lib
-        cmake -S . -B build/system-install -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_PREFIX_PATH=/usr -DHOLONIGHT_DEPENDENCY_PREFIX=/usr -DHOLONIGHT_QML_IMPORT_PATH=/usr/lib/qt6/qml -DHolonightQt_DIR=/usr/lib/cmake/HolonightQt
-        cmake --build build/system-install --parallel 2
-        sudo cmake --install build/system-install
-        sudo update-desktop-database /usr/share/applications
+      - task: build
+        vars: {PRESET: release}
+      - DESTDIR="{{.DESTDIR}}" cmake --install build/release
 
-  uninstall:
-    desc: Remove the current and legacy Viewer payload from /usr and refresh desktop metadata
-    cmds: ['sudo env -u DESTDIR bash scripts/uninstall.sh']
-
-  uninstall-check:
-    desc: Verify uninstall in disposable staged filesystems with mocked privileged commands
-    cmds: ['python3 scripts/check-uninstall.py']
+  qml-import-check:
+    desc: Enforce runtime Controls imports
+    cmds: ['python3 scripts/check-qml-import-policy.py']
+  qmltypes-check:
+    desc: Verify generated application QML type metadata
+    deps: [build]
+    cmds: ['bash scripts/check-qmltypes.sh build/{{.PRESET}}']
 
   test:
     desc: Build and run tests
@@ -64,13 +57,10 @@ tasks:
   format:
     desc: Format C++ and QML sources
     cmds:
-      - clang-format -i apps/viewer/*.cpp apps/viewer/*.h tests/*.cpp tests/*.h
-      - bash scripts/qml-format.sh -i apps/viewer/Main.qml apps/viewer/FooterKeyHints.qml apps/viewer/ImageInformationPopup.qml apps/viewer/ShortcutHelpPopup.qml
+      - python3 scripts/format-sources.py
   format-check:
     desc: Check C++ and QML formatting
-    cmds:
-      - clang-format --dry-run --Werror apps/viewer/*.cpp apps/viewer/*.h tests/*.cpp tests/*.h
-      - bash scripts/check-qml-format.sh
+    cmds: ['python3 scripts/format-sources.py --check']
   tidy:
     desc: Run C++ clang-tidy checks
     cmds:
@@ -96,7 +86,7 @@ tasks:
         vars: {PRESET: release}
       - bash scripts/check-install.sh
   check:
-    desc: Sequentially build, test, check formatting, lint, licenses, staged installation and uninstall
+    desc: Sequentially build, test, check formatting, lint, licenses, staged installation and QML contracts
     aliases: [verify]
     cmds:
       - task: build
@@ -109,7 +99,8 @@ tasks:
         vars: {PRESET: debug}
       - task: license-check
       - task: install-check
-      - task: uninstall-check
+      - task: qml-import-check
+      - task: qmltypes-check
   clean:
     desc: Remove Viewer build directories while preserving local providers and evidence
     cmds:

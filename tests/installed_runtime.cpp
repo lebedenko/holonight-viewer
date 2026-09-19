@@ -5,12 +5,9 @@
 #include <QQmlApplicationEngine>
 #include <QTextStream>
 #include <QTimer>
-#include <QtQml/QQmlExtensionPlugin>
 
 #include <algorithm>
 #include <array>
-
-Q_IMPORT_QML_PLUGIN(HolonightViewerPlugin)
 
 namespace {
 bool requiredDecodersAvailable() {

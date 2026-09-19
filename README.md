@@ -209,58 +209,45 @@ Version **0.1.0** is a source release with CMake installation; no distribution
 packages, portable binaries or bundled providers are supplied. The
 [release notes](docs/releases/v0.1.0.md) list tested provider revisions.
 
-### System install
+### Installation and ownership
 
-Build the HoloNight providers against the same Qt build used by Viewer, using the
-dependency revisions in [CI](.github/workflows/build.yml): their private Qt API use
-ties the runtime ABI to that Qt build. Providers must already be installed under
-`/usr`, including QML modules under `/usr/lib/qt6/qml`; `task deps` supplies only
-development providers.
+Coordinated system installation and removal belong to the HoloNight umbrella.
+Viewer's Task workflow only stages files; it never invokes sudo:
 
 ```sh
-task install
+task stage DESTDIR=/your/stage
 ```
 
-`task install` configures Release in `build/system-install` with system provider
-paths, builds, runs `sudo cmake --install`, then refreshes
-`/usr/share/applications`. A failed build stops before installation, and development
-build caches remain separate. It installs the executable, desktop entry, icon and
-license files. A system installation discovers providers through Qt's normal module
-paths; no source-tree imports are embedded in the binary.
-
-The desktop entry appears in application menus, opens one file per process through
-`hn-viewer -- %f`, and advertises PNG/JPEG/BMP/WebP. Installing does not change the
-default image application.
-
-### Uninstall and reinstall
+For standalone installation, configure explicitly against compatible installed
+providers (the revisions in CI), build and inspect a stage first:
 
 ```sh
-task uninstall
-task install
+cmake -S . -B /your/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_PREFIX_PATH=/your/providers \
+  -DQML_IMPORT_PATH=/your/providers/lib/qt6/qml
+cmake --build /your/build
+DESTDIR=/your/stage cmake --install /your/build
 ```
 
-`task uninstall` uses sudo to remove only `/usr/bin/hn-viewer`, the legacy
-`/usr/bin/holonight-viewer`, the desktop entry and icon, and the two license files.
-It removes the license directory only if empty, preserves providers and user data,
-and needs neither configuration nor an install manifest. Missing files are harmless.
-It then refreshes the desktop database if the applications directory exists;
-command failures propagate. It always targets `/usr`, ignoring `DESTDIR`, so
-custom-prefix installations require manual removal.
+An administrator may then run `cmake --install /your/build` with appropriate
+permissions and refresh the desktop database. Keep the install manifest and file
+hashes for later ownership review. Prefer the umbrella installer for managed system
+ownership. CMake installation alone does not provide safe uninstall tracking.
 
-### Staged and custom-prefix installs
+The payload contains hn-viewer, the desktop entry, icon and license files. Runtime
+providers must be discoverable through Qt's normal module paths, or explicit
+`QML_IMPORT_PATH` and `LD_LIBRARY_PATH` for a custom prefix. The desktop entry opens
+one file via `hn-viewer -- %f` without changing the default image application.
 
-`DESTDIR` stages the install layout without changing the host:
+### Legacy standalone cleanup
 
-```sh
-DESTDIR=/your/stage cmake --install build/release                   # prefix /usr
-DESTDIR="$PWD/build/system-stage" cmake --install build/system-install
-DESTDIR="$PWD/build/system-stage" bash scripts/uninstall.sh
-```
-
-For a custom prefix, set `CMAKE_INSTALL_PREFIX` and provider paths when configuring,
-then expose its `bin` on `PATH`, `share` on `XDG_DATA_DIRS`, and the providers with
-`QML_IMPORT_PATH=<prefix>/lib/qt6/qml` and `LD_LIBRARY_PATH=<prefix>/lib` (adapt
-`lib` to your platform).
+The fixed-path uninstall script is retired and refuses removal. Before migrating,
+inspect the old `install_manifest.txt`, package ownership (for example `pacman -Qo`),
+and compare files against the original staged payload or recorded hashes. Have the
+owner remove only verified, unmodified files; preserve modified or uncertain files.
+Review both the current `hn-viewer` and legacy `holonight-viewer` executable paths,
+desktop entry, icon and license files. The umbrella rejects existing unowned files;
+it does not silently adopt legacy installations. Do not remove provider or user data.
 
 ### Upgrading from older checkouts
 
@@ -297,20 +284,21 @@ entries or icons in user directories.
 
 `task check` (alias `task verify`) runs, in sequence: debug and release builds, tests,
 format checking, C++/QML lint, license checking, staged installation verification
-and isolated uninstall checks. Each step is also available on its own: `test`,
+and QML import/metadata checks. Each step is also available on its own: `test`,
 `format-check`, `tidy`, `qml-lint`, `lint`, `license-check`, `install-check` and
-`uninstall-check`. `task format` applies C++ and QML formatting.
+`qml-import-check`, `qmltypes-check`. `task format` applies C++ and QML formatting.
 
 Run `viewer-smoke` through ctest: it starts the tests on a private D-Bus session with
 a mock portal. Run directly on a desktop session, it exits with an explanation
 instead of reaching the real portal.
 
-CMake `format` and `format-check` cover application C++ headers and application/test
-translation units; Task also formats and checks QML. QML formatting uses
+CMake and Task `format`/`format-check` share one recursive inventory of application
+and test C++ sources, headers and nested QML. QML formatting uses
 `QMLFORMAT` when set (an executable path or command name, without arguments), then
 `qmlformat`/`qmlformat-qt6` on `PATH`, `qtpaths6` installation directories, and
 `/usr/lib/qt6/bin/qmlformat`. An invalid explicit override fails instead of falling
-back. Temporary check output stays under `build/`.
+back. Fixture scripts accept an external build directory; standalone invocations
+use the system temporary directory.
 
 ```sh
 QMLFORMAT="/opt/Qt 6/bin/qmlformat" task format-check

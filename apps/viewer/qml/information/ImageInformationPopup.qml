@@ -1,13 +1,13 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import HolonightViewer
 import QtQuick.Layouts
-import QtQuick.Controls.Basic as Basic
-import Holonight as HnStyle
+import QtQuick.Controls as Controls
 import Holonight.Core
 
 // Modal card with structured facts about the current image; Main.qml owns when it is open.
-Basic.Popup {
+Controls.Popup {
     id: root
     objectName: "informationPopup"
     required property ImageDocument document
@@ -31,9 +31,9 @@ Basic.Popup {
     }
     modal: true
     focus: true
-    closePolicy: Basic.Popup.CloseOnEscape | Basic.Popup.CloseOnPressOutside
+    closePolicy: Controls.Popup.CloseOnEscape | Controls.Popup.CloseOnPressOutside
     // Light dimming, shared with Shortcut Help, so the image stays visible.
-    Basic.Overlay.modal: Rectangle {
+    Controls.Overlay.modal: Rectangle {
         objectName: "informationDimmer"
         color: Qt.alpha(HoloniightPalette.shadow, 0.22)
     }
@@ -121,12 +121,12 @@ Basic.Popup {
                     rawText: root.document.modifiedText
                 }
             }
-            HnStyle.Button {
+            Controls.Button {
                 id: closeButton
                 objectName: "informationCloseButton"
                 Layout.alignment: Qt.AlignTop
-                display: Basic.AbstractButton.IconOnly
-                icon.source: "icons/close.svg"
+                display: Controls.AbstractButton.IconOnly
+                icon.source: "../icons/close.svg"
                 icon.width: HnMetrics.iconSize(HnControlSize.Normal)
                 icon.height: HnMetrics.iconSize(HnControlSize.Normal)
                 implicitWidth: HnMetrics.controlHeight(HnControlSize.Normal)
@@ -142,7 +142,7 @@ Basic.Popup {
             }
         }
 
-        Basic.ScrollView {
+        Controls.ScrollView {
             id: scroll
             objectName: "informationScroll"
             Layout.fillWidth: true
@@ -194,7 +194,7 @@ Basic.Popup {
                         objectName: "informationSectionLabelFile"
                         rawText: root.fileSection ? root.fileSection.label.toUpperCase() : ""
                     }
-                    HnStyle.TextArea {
+                    Controls.TextArea {
                         id: pathText
                         objectName: "informationPathText"
                         Layout.fillWidth: true

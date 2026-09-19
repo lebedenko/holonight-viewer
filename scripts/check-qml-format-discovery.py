@@ -8,8 +8,7 @@ import subprocess
 import tempfile
 
 root = Path(__file__).resolve().parent.parent
-(root / 'build').mkdir(exist_ok=True)
-with tempfile.TemporaryDirectory(prefix='qml-discovery.', dir=root / 'build') as temporary:
+with tempfile.TemporaryDirectory(prefix='qml-discovery.') as temporary:
     fixtures = Path(temporary)
     path = fixtures / 'path'
     path.mkdir()

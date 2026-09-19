@@ -528,7 +528,8 @@ TEST(Workflow, InformationRejectsStaleRequestsAndKeepsErrorFacts) {
     return DecodeResult{
         .image = asymmetric(),
         .error = {},
-        .information = {.format = url.fileName(), .encodedSize = 123, .modified = {}, .decodedSize = {3, 2}}};
+        .information = {
+            .format = url.fileName(), .encodedSize = 123, .modified = {}, .decodedSize = {3, 2}, .exif = {}}};
   });
   const auto cleanup = qScopeGuard([&] { release.store(true); });
   document.open({QUrl::fromLocalFile(QStringLiteral(VIEWER_FIXTURE_DIR) + "/old.missing")});

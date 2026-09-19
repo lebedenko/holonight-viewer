@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
-stage=$(mktemp -d "$root/build/install-check.XXXXXX")
-DESTDIR="$stage" cmake --install "$root/build/release"
+build_dir=${1:-"$root/build/release"}
+build_dir=$(realpath "$build_dir")
+stage=$(mktemp -d "$build_dir/install-check.XXXXXX")
+DESTDIR="$stage" cmake --install "$build_dir"
 for file in bin/hn-viewer share/applications/org.holonight.Viewer.desktop \
   share/icons/hicolor/scalable/apps/org.holonight.Viewer.svg \
   share/licenses/holonight-viewer/LICENSE share/licenses/holonight-viewer/GPL-3.0-or-later.txt; do
@@ -23,7 +25,7 @@ set -e
 cat runtime.log
 test "$status" -eq 124
 if rg -i 'failed|error|not installed|not found|unavailable' runtime.log; then exit 1; fi
-python3 "$root/scripts/check-opening.py" "$stage/usr/bin/hn-viewer"
+python3 "$root/scripts/check-opening.py" "$stage/usr/bin/hn-viewer" "$build_dir"
 PATH="$stage/usr/bin:$PATH" QT_QPA_PLATFORM=offscreen QSG_RHI_BACKEND=software \
-  python3 "$root/scripts/check-installed-desktop.py" "$stage/usr/share/applications/org.holonight.Viewer.desktop"
+  python3 "$root/scripts/check-installed-desktop.py" "$stage/usr/share/applications/org.holonight.Viewer.desktop" "$build_dir"
 printf 'Staged installation passed: %s\n' "$stage"
