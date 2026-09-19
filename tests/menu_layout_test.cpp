@@ -257,7 +257,7 @@ TEST(MenuLayout, KeyboardNavigationSkipsSeparators) {
     auto* item = fixture.entry(index);
     return item ? item->property("text").toString() : QString();
   };
-  for (const auto [down, upward] : {std::pair{Qt::Key_Down, Qt::Key_Up}, std::pair{Qt::Key_J, Qt::Key_K}}) {
+  for (const auto& [down, upward] : {std::pair{Qt::Key_Down, Qt::Key_Up}, std::pair{Qt::Key_J, Qt::Key_K}}) {
     fixture.menu->setProperty("currentIndex", 1);
     ASSERT_EQ(labelAt(fixture.current()), "Refresh");
     QTest::keyClick(fixture.window, down);

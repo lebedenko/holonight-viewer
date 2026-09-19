@@ -21,3 +21,5 @@ Local prerequisites installed with user approval: qt6-imageformats (required Web
 ## Handoff
 
 Hosted CI and isolated container runtime are checked on the published implementation revision and recorded by the umbrella coordinator. Historical release deferrals remain unchanged. No actual Viewer system installation or removal was performed.
+
+Final clean integration compilation found two GCC range-loop copy warnings in menu/help tests, hidden in the earlier incremental log. Both loops now bind by const reference. The fresh integration suite passed 20/20 in 51.15 seconds against the pinned providers, with formatting/import/metadata/QML lint and focused clang-tidy passing. This follow-up and its published revision are recorded in the umbrella ledger.

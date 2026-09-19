@@ -256,7 +256,7 @@ TEST(ShortcutHelpPopup, SectionsRowsAndRendering) {
 }
 
 TEST(ShortcutHelpPopup, WidthsAndScrollingWithFixedHeader) {
-  for (const auto [host, expectedWidth] :
+  for (const auto& [host, expectedWidth] :
        {std::pair{QSize(1000, 700), 480.0}, std::pair{QSize(420, 280), 396.0}, std::pair{QSize(400, 280), 376.0}}) {
     StandaloneHelp fixture;
     ASSERT_TRUE(fixture.load(host.width(), host.height()));
