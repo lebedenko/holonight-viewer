@@ -1,6 +1,7 @@
 #include "image_document.h"
 
 #include <QAccessible>
+#include <QFontInfo>
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
 #include <QQmlProperty>
@@ -295,4 +296,36 @@ TEST(FooterKeyHints, VisualCapture) {
   StandaloneFooter standalone;
   ASSERT_TRUE(standalone.load(400));
   EXPECT_TRUE(standalone.window.grabWindow().save(capture + QStringLiteral("-footer-standalone-400.png")));
+}
+
+TEST(FooterKeyHints, TracksDescriptionPointAndPixelSizesWithMonospaceFamily) {
+  StandaloneFooter standalone;
+  ASSERT_TRUE(standalone.load(1000));
+  for (auto* row : hintRows(standalone.footer.get())) {
+    auto* keycap = part(row, "Keycap");
+    auto* label = part(row, "Label");
+    ASSERT_NE(keycap, nullptr);
+    ASSERT_NE(label, nullptr);
+    const auto family = keycap->property("font").value<QFont>().family();
+    EXPECT_EQ(QFontInfo(keycap->property("font").value<QFont>()).pixelSize(),
+              QFontInfo(label->property("font").value<QFont>()).pixelSize());
+    qreal smallHeight = 0;
+    for (int size : {8, 18, -32, 12}) {
+      QFont description(QStringLiteral("DejaVu Sans"));
+      if (size > 0) {
+        description.setPointSize(size);
+      } else {
+        description.setPixelSize(-size);
+      }
+      ASSERT_TRUE(label->setProperty("font", description));
+      const auto badgeFont = keycap->property("font").value<QFont>();
+      EXPECT_EQ(badgeFont.family(), family);
+      EXPECT_EQ(QFontInfo(badgeFont).pixelSize(), QFontInfo(description).pixelSize());
+      if (size == 8) {
+        smallHeight = keycap->implicitHeight();
+      } else {
+        EXPECT_GT(keycap->implicitHeight(), smallHeight);
+      }
+    }
+  }
 }

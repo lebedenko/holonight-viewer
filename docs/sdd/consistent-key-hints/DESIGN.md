@@ -25,3 +25,16 @@ Controls.Menu continues to skip separators and disabled actions; keep pointer
 scrolling enabled when content exceeds the viewport. Shortcut bindings and action
 handlers remain unchanged. Tests measure overflow instead of assuming it from
 window height, and activate Actual Size by keyboard in the compact viewport.
+
+## KH-007 design refinement
+
+Use the published provider's frameless sequence label in ViewerMenuItem. Bind the
+full font directly to the existing menu label, and color to the action's enabled
+state. Keep RowLayout sizing, semantic key arrays, menu navigation and scrollbar
+reservation unchanged.
+
+Bind each footer HnKeyHint point size to its adjacent description's resolved
+font point size. Qt resolves this value for pixel-sized descriptions too, avoiding
+loss of fractional point-to-pixel conversion and stale unit overrides. The badge
+retains its provider-default monospace family.
+Help continues to use shared framed hints. No action or shortcut logic changes.

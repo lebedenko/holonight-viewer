@@ -137,9 +137,11 @@ TEST(EmptyState, TextKeepsSizeWhileGlyphGivesWay) {
   }
   EXPECT_LT(previousGlyph, fullGlyph);
 
-  // At the minimum window the footer wraps, leaving too little height for glyph and hint together.
+  // The compact footer can leave room for the glyph even at the minimum window.
   ASSERT_TRUE(fixture.resize({420, 280}));
-  EXPECT_FALSE(fixture.glyph->isVisible());
+  if (fixture.glyph->isVisible()) {
+    EXPECT_TRUE(QRectF(0, 0, fixture.area->width(), fixture.area->height()).contains(fixture.inArea(fixture.glyph)));
+  }
   EXPECT_TRUE(fixture.primary->isVisible() && fixture.secondary->isVisible());
   EXPECT_EQ(fixture.secondary->property("font").value<QFont>(), secondaryFont);
   EXPECT_EQ(fixture.primary->property("font").value<QFont>(), primaryFont);
@@ -149,6 +151,14 @@ TEST(EmptyState, TextKeepsSizeWhileGlyphGivesWay) {
   if (fixture.secondary->implicitWidth() > fixture.area->width() - 32) {
     EXPECT_GT(fixture.secondary->property("lineCount").toInt(), 1);
   }
+
+  // Exercise actual height pressure independently of footer badge proportions.
+  fixture.window->setMinimumHeight(180);
+  ASSERT_TRUE(fixture.resize({420, 180}));
+  EXPECT_FALSE(fixture.glyph->isVisible());
+  EXPECT_TRUE(fixture.primary->isVisible() && fixture.secondary->isVisible());
+  EXPECT_EQ(fixture.primary->property("font").value<QFont>(), primaryFont);
+  EXPECT_EQ(fixture.secondary->property("font").value<QFont>(), secondaryFont);
 }
 
 TEST(EmptyState, HiddenOutsideEmptyAndAccessible) {

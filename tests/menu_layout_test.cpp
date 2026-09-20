@@ -3,6 +3,7 @@
 #include <QAccessible>
 #include <QColor>
 #include <QDir>
+#include <QFont>
 #include <QImage>
 #include <QQmlApplicationEngine>
 #include <QQuickItem>
@@ -334,5 +335,35 @@ TEST(MenuLayout, SeparatorsRenderAsPhysicalHairlines) {
     }
     QTest::keyClick(fixture.window, Qt::Key_Escape);
     ASSERT_TRUE(QTest::qWaitFor([&] { return !fixture.menu->property("visible").toBool(); }));
+  }
+}
+
+TEST(MenuLayout, FramelessSequencesFollowLabelTypographyAndState) {
+  MenuFixture fixture;
+  ASSERT_TRUE(fixture.load());
+  ASSERT_TRUE(fixture.openMenu());
+  auto* palette = fixture.engine.singletonInstance<QObject*>("Holonight.Core", "HoloniightPalette");
+  ASSERT_NE(palette, nullptr);
+  for (int index : {0, 6, 12, 18}) {
+    auto* item = fixture.entry(index);
+    ASSERT_NE(item, nullptr);
+    auto* label = item->findChild<QQuickItem*>("menuItemLabel");
+    auto* shortcut = item->findChild<QQuickItem*>("menuItemShortcut");
+    ASSERT_TRUE(label && shortcut);
+    EXPECT_FALSE(shortcut->property("background").isValid());
+    EXPECT_FALSE(shortcut->property("padding").isValid());
+    EXPECT_EQ(shortcut->property("font"), label->property("font"));
+    for (bool enabled : {true, false}) {
+      ASSERT_TRUE(item->setProperty("enabled", enabled));
+      EXPECT_EQ(shortcut->property("color"), palette->property(enabled ? "textMuted" : "textDisabled"));
+    }
+    QFont font(QStringLiteral("DejaVu Sans"));
+    font.setPixelSize(27);
+    font.setBold(true);
+    font.setItalic(true);
+    font.setLetterSpacing(QFont::AbsoluteSpacing, 1.5);
+    ASSERT_TRUE(label->setProperty("font", font));
+    EXPECT_EQ(shortcut->property("font").value<QFont>(), label->property("font").value<QFont>());
+    EXPECT_EQ(shortcut->property("accessibleText").toString(), text(kMenu.at(index).shortcut));
   }
 }

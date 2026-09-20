@@ -48,6 +48,7 @@ HnApplicationWindow {
         contentItem: RowLayout {
             spacing: HnMetrics.internalSpacing(HnControlSize.Normal)
             HnLabel {
+                id: menuLabel
                 objectName: "menuItemLabel"
                 Layout.fillWidth: true
                 rawText: control.text
@@ -55,8 +56,10 @@ HnApplicationWindow {
                 elide: Text.ElideRight
                 color: control.enabled ? HoloniightPalette.textPrimary : HoloniightPalette.textDisabled
             }
-            HnKeyHint {
+            HnKeySequenceLabel {
                 objectName: "menuItemShortcut"
+                font: menuLabel.font
+                color: control.enabled ? HoloniightPalette.textMuted : HoloniightPalette.textDisabled
                 visible: control.shortcutKeys.length > 0
                 keyGroups: control.shortcutKeys
                 Accessible.ignored: true

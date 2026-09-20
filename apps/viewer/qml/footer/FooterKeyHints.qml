@@ -62,9 +62,11 @@ Flow {
                 objectName: hintRow.objectName + "Keycap"
                 anchors.verticalCenter: parent.verticalCenter
                 keyGroups: hintRow.modelData.keyGroups
+                font.pointSize: hintLabel.font.pointSize
                 Accessible.ignored: true
             }
             HnLabel {
+                id: hintLabel
                 objectName: hintRow.objectName + "Label"
                 anchors.verticalCenter: parent.verticalCenter
                 role: HnTypographyRole.Caption
