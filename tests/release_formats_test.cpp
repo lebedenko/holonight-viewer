@@ -6,14 +6,15 @@
 #include <QTemporaryDir>
 #include <QTest>
 
+#include <array>
 #include <gtest/gtest.h>
 
 TEST(Release, RequiredIndependentFormats) {
   ImageDocument document;
-  for (const auto* format : {"png", "jpeg", "bmp", "webp"}) {
+  for (const auto* format : {"png", "jpeg", "bmp", "webp", "gif"}) {
     ASSERT_TRUE(QImageReader::supportedImageFormats().contains(format)) << "Required decoder: " << format;
   }
-  for (const auto* extension : {"png", "jpg", "bmp", "webp"}) {
+  for (const auto* extension : {"png", "jpg", "bmp", "webp", "gif"}) {
     const auto path = QStringLiteral(RELEASE_FIXTURE_DIR) + "/sample." + extension;
     QFile original(path);
     ASSERT_TRUE(original.open(QIODevice::ReadOnly));
@@ -40,7 +41,8 @@ TEST(Release, RequiredIndependentFormats) {
       EXPECT_LT(blue.green(), 40);
     } else {
       EXPECT_EQ(document.image().size(), QSize(1, 1));
-      EXPECT_EQ(document.image().pixelColor(0, 0), QColor(255, 0, 0, QByteArray(extension) == "bmp" ? 255 : 128));
+      EXPECT_EQ(document.image().pixelColor(0, 0),
+                QColor(255, 0, 0, QByteArray(extension) == "bmp" || QByteArray(extension) == "gif" ? 255 : 128));
     }
     document.transform(1);
     ASSERT_TRUE(original.open(QIODevice::ReadOnly));
@@ -124,5 +126,35 @@ TEST(Release, QtWebPContainersAndAnimatedFirstFrame) {
       EXPECT_EQ(reader.imageCount(), 2);
       EXPECT_EQ(result.image.pixelColor(0, 0), QColor(255, 0, 0, 128));
     }
+  }
+}
+
+TEST(Release, GifFixturesAreSequencesWithTheirDelaysAndLoops) {
+  struct Expected {
+    const char* name;
+    std::array<int, 2> delays;
+    int loopCount;
+  };
+  for (const auto& [name, delays, loopCount] :
+       {Expected{.name = "sample.gif", .delays = {100, 200}, .loopCount = -1},
+        Expected{.name = "gif87a.gif", .delays = {100, 100}, .loopCount = 0},
+        Expected{.name = "transparent.gif", .delays = {100, 200}, .loopCount = 2}}) {
+    QImageReader reader(QStringLiteral(RELEASE_FIXTURE_DIR) + "/" + name);
+    ASSERT_TRUE(reader.canRead()) << name;
+    EXPECT_EQ(reader.imageCount(), 2) << name;
+    EXPECT_EQ(reader.loopCount(), loopCount) << name;
+    for (const int delay : delays) {
+      ASSERT_FALSE(reader.read().isNull()) << name;
+      EXPECT_EQ(reader.nextImageDelay(), delay) << name;
+    }
+  }
+  // Both revisions are opened and played by the viewer itself.
+  ImageDocument document;
+  for (const auto* name : {"sample.gif", "gif87a.gif", "transparent.gif"}) {
+    document.open({QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/" + name)});
+    ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() != ImageDocument::Loading; })) << name;
+    ASSERT_EQ(document.state(), ImageDocument::Ready) << name;
+    EXPECT_TRUE(QTest::qWaitFor([&] { return document.animation()->animated(); })) << name;
+    EXPECT_EQ(document.animation()->frameCount(), 2) << name;
   }
 }

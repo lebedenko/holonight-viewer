@@ -4,6 +4,8 @@
 
 #include <QFileInfo>
 
+#include <algorithm>
+
 CachedImage DecodedImageCache::metadata(const QUrl& url) {
   const auto normalized = normalizedLocalUrl(url);
   const QFileInfo info(normalized.toLocalFile());
@@ -34,12 +36,12 @@ std::optional<CachedImage> DecodedImageCache::take(const QUrl& url) {
 }
 void DecodedImageCache::put(CachedImage entry) {
   const auto length = entry.image.sizeInBytes();
-  if (entry.image.isNull() || length > byteLimit || !valid(entry)) {
+  if (entry.image.isNull() || length > limit_ || !valid(entry)) {
     return;
   }
   // Remove a duplicate without retaining a second copy of its storage.
   take(entry.url);
-  while (!entries_.empty() && (entries_.size() >= 2 || bytes_ + length > byteLimit)) {
+  while (!entries_.empty() && (entries_.size() >= 2 || bytes_ + length > limit_)) {
     bytes_ -= entries_.back().image.sizeInBytes();
     entries_.pop_back();
   }
@@ -49,4 +51,11 @@ void DecodedImageCache::put(CachedImage entry) {
 void DecodedImageCache::clear() {
   entries_.clear();
   bytes_ = 0;
+}
+void DecodedImageCache::setLimit(qint64 bytes) {
+  limit_ = std::clamp<qint64>(bytes, 0, byteLimit);
+  while (!entries_.empty() && bytes_ > limit_) {
+    bytes_ -= entries_.back().image.sizeInBytes();
+    entries_.pop_back();
+  }
 }

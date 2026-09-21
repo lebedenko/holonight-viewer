@@ -9,6 +9,8 @@ Flow {
     objectName: "footer"
     spacing: 12
 
+    // Set while the current image is an animation that can be paused.
+    property bool animated: false
     readonly property var hints: [
         {
             name: "Navigate",
@@ -39,13 +41,20 @@ Flow {
             name: "Fullscreen",
             keyGroups: [[Qt.Key_F]],
             label: qsTr("Fullscreen")
-        },
+        }
+    ].concat(root.animated ? [
+        {
+            name: "PlayPause",
+            keyGroups: [[Qt.Key_Space]],
+            label: qsTr("Play/Pause")
+        }
+    ] : []).concat([
         {
             name: "Help",
             keyGroups: [[Qt.Key_Question]],
             label: qsTr("Help")
         }
-    ]
+    ])
 
     Repeater {
         model: root.hints

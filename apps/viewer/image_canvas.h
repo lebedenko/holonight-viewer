@@ -27,6 +27,8 @@ class ImageCanvas : public QQuickPaintedItem {
   [[nodiscard]] qreal magnification() const { return view_.magnification(); }
   [[nodiscard]] bool canPan() const { return view_.canPan(); }
   [[nodiscard]] QRectF imageRect() const { return view_.rect(); }
+  // Swaps in the next animation frame without touching zoom, pan or fit; a different size falls back to setImage().
+  Q_INVOKABLE void replaceFrame(const QImage& frame);
   Q_INVOKABLE void fit();
   Q_INVOKABLE void actualSize();
   Q_INVOKABLE void zoom(qreal factor, QPointF anchor);

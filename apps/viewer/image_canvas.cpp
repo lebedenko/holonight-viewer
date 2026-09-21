@@ -38,6 +38,14 @@ void ImageCanvas::setImage(const QImage& image) {
   refresh();
   emit imageChanged();
 }
+void ImageCanvas::replaceFrame(const QImage& frame) {
+  if (image_.isNull() || frame.size() != image_.size()) {
+    setImage(frame);
+    return;
+  }
+  image_ = frame;
+  update();
+}
 void ImageCanvas::setOrientation(int orientation) {
   if (orientation < 0 || orientation > 7) {
     return;

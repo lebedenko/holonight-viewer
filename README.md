@@ -77,7 +77,8 @@ an image opens, including a transparent one.
 | --- | --- |
 | `[` / Previous, `]` / Next | Browse siblings, stopping at folder boundaries |
 | `Ctrl+O` / Open… | Choose an image with the desktop file picker |
-| `Ctrl+R` / Refresh | Rescan the folder and reload the selected image, clearing the cache |
+| `Ctrl+R` / Refresh | Rescan the folder and reload the selected image, clearing the cache; an animated GIF restarts from its first frame |
+| `Space` | Play or pause an animated GIF (ignored for still images and while a header button has focus) |
 | `Ctrl+0` / Fit | Center the whole image and fit it as the window changes |
 | `1` / Actual Size | Center at one source pixel per physical display pixel |
 | `Ctrl++` or `Ctrl+=` / `Ctrl+-` | Zoom in/out around the canvas center |
@@ -128,9 +129,26 @@ shortcut footer stays visible below the canvas.
   renders and after zoom, Fit, Actual Size, rotate, flip or mouse movement; resizing
   does not reveal it. It shows transformed dimensions, decimal file size,
   physical-pixel scale (including Fit) and folder position, wrapping at narrow widths
-  without resizing the canvas.
+  without resizing the canvas. An animated GIF adds `Animated`, `Playing` or `Paused`,
+  and its frame count (`N frames`, omitted while unknown). If a frame cannot be decoded,
+  playback stops on the last good frame and the strip shows a "Playback stopped:
+  damaged frame" notice until you leave the file.
+- **Play/Pause button** sits at the center of the canvas for an animated GIF and fades
+  with the navigation arrows; its glyph and name show the action it performs.
 
 Both fade in and out.
+
+### Animated GIF
+
+A GIF with more than one frame plays automatically from its first frame, honouring
+each frame's delay (delays of 10 ms or less play as 100 ms, as browsers do) and its
+loop count, then stops on the final frame when it does not loop; `Space` or the
+button replays it. Pausing keeps the time left on the current frame. Zoom, pan and
+transforms carry on during playback and never restart it. Playback pauses while
+Open, Image Information or Shortcut Help is active and while the window is hidden or
+minimized, and resumes afterwards unless you paused it yourself; losing focus alone
+does not pause. Copy takes the frame on screen. A single-frame GIF behaves as a still
+image. Frame compositing (transparency, disposal) is Qt's GIF handler's.
 
 ### Image Information and Shortcut Help
 
@@ -183,9 +201,11 @@ persistence after exit is managed by the desktop.
 
 ## Supported formats and limits
 
-The guaranteed formats are static **PNG, JPEG, BMP and WebP**. Other installed Qt
-image handlers work on a best-effort basis, and animated files show their first frame
-only. Missing codecs fail qualification, not ordinary startup.
+The guaranteed formats are static **PNG, JPEG, BMP and WebP**, and **GIF** (GIF87a
+and GIF89a, including animation). Other installed Qt image handlers work on a
+best-effort basis, and other animated files (APNG, animated WebP) show their first
+frame only. Missing codecs, including the Qt GIF plugin, fail qualification, not
+ordinary startup.
 
 Qt is the primary decoder. A private libwebp fallback handles simple static RIFF
 VP8/VP8L files that Qt cannot inspect or decode, including the compact Qt 6.11.2
@@ -198,6 +218,11 @@ Installed runtimes need libwebp, libexif and the Qt plugins.
 | Decoded pixels | 32 million, and 32,768 on either axis |
 | Decoded image | 128 MiB |
 | Displayed image plus decode cache | 256 MiB |
+
+Every frame of a GIF is checked against the same decoded-pixel and decoded-image
+limits as a still image. While a GIF plays, the displayed frame and one look-ahead
+frame count toward the 256 MiB, and the decode cache gets what remains, so the
+frame count never changes memory use.
 
 Oversized images and unsupported dimensions produce an error instead of a
 lower-resolution substitute. See [Design notes](#design-notes) for what these bounds
@@ -393,6 +418,13 @@ Performance acceptance requires explicit user review of the measured tradeoffs.
   displayed image; display plus cache stays within 256 MiB. Hits are checked on the
   worker by absolute path, file size and modification time, so edits that preserve
   both need Ctrl+R.
+- **Animation:** frames are decoded one at a time on a dedicated thread through a
+  single reader per file; the controller holds only the displayed frame and one
+  look-ahead, never a list of frames. The canvas swaps each frame in place, so zoom,
+  pan and fit are untouched. Qt's GIF handler cannot rewind, so looping reopens the
+  file, and its frame count comes from a whole-file scan that runs after the first two
+  frames so it never delays playback. Timing is scheduled against deadlines on an
+  injectable clock rather than by sleeping.
 - **Memory beyond the bounds:** decoding/conversion and canvas textures add temporary
   memory, and codec-private allocations are not covered, so the limits are not a
   whole-process guarantee. Zoom, pan and transforms reuse the decoded image and a

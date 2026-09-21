@@ -63,6 +63,31 @@ if not size:
 lossy_webp = ctypes.string_at(output, size)
 codec.WebPFree(output)
 
+
+
+def gif_fixture(version, frames, loop=None):
+    """Two-colour (red, green) 1x1 GIF. frames: (delay_cs, disposal, transparent_index or None, pixel_index).
+
+    GIF87a has no extension blocks, so frames carry no delay, disposal or transparency there.
+    """
+    data = version + struct.pack('<HHBBB', 1, 1, 0x80, 0, 0) + bytes.fromhex('ff000000ff00')
+    if loop is not None:
+        data += b'\x21\xff\x0bNETSCAPE2.0\x03\x01' + struct.pack('<H', loop) + b'\0'
+    for delay, disposal, transparent, pixel in frames:
+        if version == b'GIF89a':
+            flags = (disposal << 2) | (1 if transparent is not None else 0)
+            data += b'\x21\xf9\x04' + struct.pack('<BHB', flags, delay, transparent or 0) + b'\0'
+        data += b'\x2c' + struct.pack('<HHHHB', 0, 0, 1, 1, 0) + b'\x02\x02' + (b'\x44' if pixel == 0 else b'\x4c') + b'\x01\0'
+    return data + b'\x3b'
+
+
+# Delays are 100 ms and 200 ms; the animation repeats forever (sample) or twice (transparent).
+GIF_FIXTURES = {
+    'sample.gif': gif_fixture(b'GIF89a', [(10, 1, None, 0), (20, 1, None, 1)], loop=0),
+    'gif87a.gif': gif_fixture(b'GIF87a', [(0, 0, None, 0), (0, 0, None, 1)]),
+    'transparent.gif': gif_fixture(b'GIF89a', [(10, 2, None, 0), (20, 2, 1, 1)], loop=2),
+}
+
 FORMATS = {'png': png, 'jpg': jpeg, 'bmp': bmp, 'webp': webp}
 
 if __name__ == '__main__':
@@ -72,5 +97,7 @@ if __name__ == '__main__':
     (destination / 'extended.webp').write_bytes(extended_webp)
     (destination / 'animated.webp').write_bytes(animated_webp)
     (destination / 'lossy.webp').write_bytes(lossy_webp)
+    for name, data in GIF_FIXTURES.items():
+        (destination / name).write_bytes(data)
     for extension, data in FORMATS.items():
         (destination / ('sample.' + extension)).write_bytes(data)

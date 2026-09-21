@@ -1,5 +1,6 @@
 #pragma once
 
+#include "animation_controller.h"
 #include "clipboard_controller.h"
 #include "decoded_image_cache.h"
 #include "directory_model.h"
@@ -54,6 +55,7 @@ class ImageDocument : public QObject {
   Q_PROPERTY(QString displayPath READ displayPath NOTIFY changed)
   Q_PROPERTY(QVariantList informationSections READ informationSections NOTIFY changed)
   Q_PROPERTY(ClipboardController* clipboard READ clipboard CONSTANT)
+  Q_PROPERTY(AnimationController* animation READ animation CONSTANT)
   Q_PROPERTY(State state READ state NOTIFY changed)
   Q_PROPERTY(QString fileName READ fileName NOTIFY changed)
   Q_PROPERTY(QString error READ error NOTIFY changed)
@@ -94,6 +96,7 @@ class ImageDocument : public QObject {
   [[nodiscard]] QString formattedFileSize() const;
   [[nodiscard]] const ImageInformation& information() const { return information_; }
   ClipboardController* clipboard() { return &clipboard_; }
+  AnimationController* animation() { return &animation_; }
   Q_INVOKABLE void transform(int operation);
   Q_INVOKABLE void resetTransform();
   Q_INVOKABLE void copyImage();
@@ -121,6 +124,8 @@ class ImageDocument : public QObject {
  signals:
   void openingFailed(QString fileName, QString error);
   void changed();
+  // A new animation frame is now image(); changed() is not emitted.
+  void frameChanged();
   void orientationChanged();
   void shutdownFinished();
 
@@ -138,6 +143,7 @@ class ImageDocument : public QObject {
   void maybePrefetch();
   void workerFinished();
   ClipboardController clipboard_;
+  AnimationController animation_;
   int orientation_ = 0;
   ImageInformation information_;
   DirectoryModel directory_;

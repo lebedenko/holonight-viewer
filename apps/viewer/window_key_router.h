@@ -17,6 +17,7 @@ class WindowKeyRouter : public QObject {
   Q_PROPERTY(bool imageReady MEMBER m_imageReady)
   Q_PROPERTY(bool modalActive MEMBER m_modalActive)
   Q_PROPERTY(bool menuOpen MEMBER m_menuOpen)
+  Q_PROPERTY(bool playbackAvailable MEMBER m_playbackAvailable)
 
  public:
   explicit WindowKeyRouter(QObject* parent = nullptr) : QObject(parent) {}
@@ -34,6 +35,7 @@ class WindowKeyRouter : public QObject {
  signals:
   void windowChanged();
   void panRequested(int horizontal, int vertical);
+  void playbackToggleRequested();
 
  protected:
   bool eventFilter(QObject* object, QEvent* event) override {
@@ -78,6 +80,12 @@ class WindowKeyRouter : public QObject {
         case Qt::Key_Down:
           emit panRequested(0, -40);
           break;
+        case Qt::Key_Space:
+          // A focused button keeps Space so that it activates as usual; auto-repeat would flicker the state.
+          if (!m_playbackAvailable || shift || keyEvent->isAutoRepeat() || headerOrPlaybackButtonFocused())
+            return false;
+          emit playbackToggleRequested();
+          break;
         default:
           return false;
       }
@@ -88,9 +96,17 @@ class WindowKeyRouter : public QObject {
   }
 
  private:
+  bool headerOrPlaybackButtonFocused() const {
+    const auto* focused = m_window->activeFocusItem();
+    if (!focused) return false;
+    for (const auto* name : {"informationButton", "fullscreenButton", "actionsButton", "playPauseButton"})
+      if (m_window->findChild<QQuickItem*>(QString::fromLatin1(name)) == focused) return true;
+    return false;
+  }
   QQuickWindow* m_window = nullptr;
   bool m_imageReady = false;
   bool m_modalActive = false;
   bool m_menuOpen = false;
+  bool m_playbackAvailable = false;
   bool m_forwarding = false;
 };

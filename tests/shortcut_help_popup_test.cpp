@@ -50,6 +50,9 @@ const std::vector<Section>& expectedSections() {
           .label = "Transform",
           .rows = {Row{.key = "R or Shift plus R", .description = "Rotate clockwise/counterclockwise", .keycap = true},
                    Row{.key = "X or Shift plus X", .description = "Flip horizontally/vertically", .keycap = true}}},
+      Section{.key = "Playback",
+              .label = "Playback",
+              .rows = {Row{.key = "Space", .description = "Toggle play/pause", .keycap = true}}},
       Section{.key = "Image",
               .label = "Image",
               .rows = {Row{.key = "I", .description = "Image information", .keycap = true},
@@ -253,7 +256,7 @@ TEST(ShortcutHelpPopup, SectionsRowsAndRendering) {
       ++rowCount;
     }
   }
-  EXPECT_EQ(rowCount, 19);
+  EXPECT_EQ(rowCount, 20);
 
   auto* title = fixture.item("shortcutHelpTitle");
   ASSERT_NE(title, nullptr);

@@ -33,11 +33,15 @@ class DecodedImageCache {
   static bool valid(const CachedImage& entry);
   std::optional<CachedImage> take(const QUrl& url);
   void put(CachedImage entry);
+  // Lowers or restores the byte budget (clamped to [0, byteLimit]) and evicts least recently used entries to fit.
+  void setLimit(qint64 bytes);
   void clear();
   [[nodiscard]] qsizetype count() const { return static_cast<qsizetype>(entries_.size()); }
   [[nodiscard]] qint64 bytes() const { return bytes_; }
+  [[nodiscard]] qint64 limit() const { return limit_; }
 
  private:
   std::list<CachedImage> entries_;
   qint64 bytes_ = 0;
+  qint64 limit_ = byteLimit;
 };

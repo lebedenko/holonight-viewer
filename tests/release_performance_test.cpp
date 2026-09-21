@@ -1,3 +1,4 @@
+#include "gif_fixture.h"
 #include "image_canvas.h"
 #include "image_document.h"
 
@@ -247,4 +248,112 @@ TEST(ReleasePerformance, NativeWorkflow) {
   RecordProperty("renderer_api", static_cast<int>(window->rendererInterface()->graphicsApi()));
   RecordProperty("render_loop", qEnvironmentVariable("QSG_RENDER_LOOP").toStdString());
   ASSERT_TRUE(QTest::qWaitFor([&] { return QFile::exists(outputDir + "/receiver-validated"); }, 60000));
+}
+
+// Opt-in like the exercises above. A 32 MP animation (8000 x 4000 screen, so 122 MiB per frame) must play without
+// the GUI thread ever stalling for 50 ms: decoding is off-thread and a swap only shares a QImage and repaints.
+TEST(ReleasePerformance, AnimatedGifFrameSwap) {
+  if (!qEnvironmentVariableIsSet("VIEWER_PERFORMANCE") || !gif::available()) {
+    GTEST_SKIP() << "Opt-in release performance exercise";
+  }
+  QDir().mkpath(QStringLiteral(VIEWER_FIXTURE_DIR));
+  QTemporaryDir dir(QStringLiteral(VIEWER_FIXTURE_DIR) + "/performance-XXXXXX");
+  ASSERT_TRUE(dir.isValid());
+  QFile file(dir.filePath("large.gif"));
+  ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+  file.write(gif::bytes("GIF89a",
+                        {{.delayCs = 10, .second = false},
+                         {.delayCs = 10, .second = true},
+                         {.delayCs = 10, .second = false},
+                         {.delayCs = 10, .second = true}},
+                        0, 8000, 4000));
+  file.close();
+  ImageDocument document;
+  ImageCanvas canvas;
+  canvas.setWidth(1600);
+  canvas.setHeight(900);
+  QObject::connect(&document, &ImageDocument::frameChanged, &canvas, [&] { canvas.replaceFrame(document.image()); });
+  QElapsedTimer clock;
+  clock.start();
+  qint64 last = 0;
+  qint64 maximum = 0;
+  QTimer timer;
+  QObject::connect(&timer, &QTimer::timeout, [&] {
+    const auto now = clock.elapsed();
+    maximum = std::max(maximum, now - last);
+    last = now;
+  });
+  timer.start(1);
+  document.open({QUrl::fromLocalFile(file.fileName())});
+  ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready; }, 20000));
+  canvas.setImage(document.image());
+  ASSERT_TRUE(QTest::qWaitFor([&] { return document.animation()->animated(); }, 20000));
+  int swaps = 0;
+  QObject::connect(document.animation(), &AnimationController::frameReady, &canvas, [&] { ++swaps; });
+  last = clock.elapsed();
+  maximum = 0;
+  ASSERT_TRUE(QTest::qWaitFor([&] { return swaps >= 6; }, 60000));
+  QElapsedTimer swap;
+  swap.start();
+  canvas.replaceFrame(document.image());
+  const auto swapNs = swap.nsecsElapsed();
+  RecordProperty("frame_pixels", 8000 * 4000);
+  RecordProperty("replace_frame_ns", swapNs);
+  RecordProperty("max_gui_stall_ms", maximum);
+  RecordProperty("swaps", swaps);
+  EXPECT_LT(maximum, 50) << "GUI thread stalled while playing a 32 MP GIF";
+  EXPECT_LT(swapNs, 50'000'000);
+}
+
+// The frame count comes from a whole-file scan on the animation thread. A 200 MiB file (a large comment block after
+// two small frames) makes that scan slow; opening and displaying must not wait for it.
+TEST(ReleasePerformance, AnimatedGifScanNeverBlocksTheGui) {
+  if (!qEnvironmentVariableIsSet("VIEWER_PERFORMANCE") || !gif::available()) {
+    GTEST_SKIP() << "Opt-in release performance exercise";
+  }
+  QDir().mkpath(QStringLiteral(VIEWER_FIXTURE_DIR));
+  QTemporaryDir dir(QStringLiteral(VIEWER_FIXTURE_DIR) + "/performance-XXXXXX");
+  ASSERT_TRUE(dir.isValid());
+  auto bytes = gif::bytes("GIF89a", {{.delayCs = 10, .second = false}, {.delayCs = 10, .second = true}}, 0);
+  bytes.chop(1);  // trailer
+  QFile file(dir.filePath("huge.gif"));
+  ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+  file.write(bytes);
+  file.write(QByteArray::fromHex("21fe"));
+  QByteArray chunk;  // 256-byte sub-blocks: length 255 then 255 bytes
+  for (int i = 0; i < 256; ++i) {
+    chunk.append(static_cast<char>(255)).append(QByteArray(255, 'x'));
+  }
+  constexpr int kChunks = 200 * 1024 * 1024 / 65536;
+  for (int i = 0; i < kChunks; ++i) {
+    file.write(chunk);
+  }
+  file.write(
+      QByteArray::fromHex("00"
+                          "3b"));
+  file.close();
+  ASSERT_GT(file.size(), 190LL * 1024 * 1024);
+  ImageDocument document;
+  QElapsedTimer clock;
+  clock.start();
+  qint64 last = 0;
+  qint64 maximum = 0;
+  QTimer timer;
+  QObject::connect(&timer, &QTimer::timeout, [&] {
+    const auto now = clock.elapsed();
+    maximum = std::max(maximum, now - last);
+    last = now;
+  });
+  timer.start(1);
+  document.open({QUrl::fromLocalFile(file.fileName())});
+  ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() != ImageDocument::Loading; }, 60000));
+  ASSERT_EQ(document.state(), ImageDocument::Ready) << document.error().toStdString();
+  RecordProperty("open_ms", clock.elapsed());
+  ASSERT_TRUE(QTest::qWaitFor([&] { return document.animation()->animated(); }, 60000));
+  RecordProperty("animated_ms", clock.elapsed());
+  ASSERT_TRUE(QTest::qWaitFor([&] { return document.animation()->frameCount() == 2; }, 120000));
+  RecordProperty("frame_count_known_ms", clock.elapsed());
+  RecordProperty("file_bytes", file.size());
+  RecordProperty("max_gui_stall_ms", maximum);
+  EXPECT_LT(maximum, 50) << "GUI thread blocked while the sequence was scanned";
 }

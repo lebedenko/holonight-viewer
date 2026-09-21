@@ -26,7 +26,7 @@ set_target_properties(viewer-protocol PROPERTIES AUTOMOC OFF)
 
 add_library(viewer-private STATIC
   image_orientation.cpp directory_model.cpp decoded_image_cache.cpp exif_metadata.cpp
-  view_geometry.cpp portal_request_builder.cpp wayland_foreign_export.cpp)
+  view_geometry.cpp portal_request_builder.cpp wayland_foreign_export.cpp frame_source.cpp frame_streamer.cpp)
 target_link_libraries(viewer-private PUBLIC Qt6::Quick Qt6::DBus PRIVATE
   PkgConfig::WebP PkgConfig::EXIF PkgConfig::WaylandClient Qt6::GuiPrivate viewer-protocol)
 target_include_directories(viewer-private PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -44,7 +44,7 @@ function(add_viewer_application target)
     list(APPEND module_qml "${app_dir}/${file}")
   endforeach()
   set(module_icons)
-  foreach(icon close empty-viewer information fullscreen menu)
+  foreach(icon close empty-viewer information fullscreen menu play pause)
     set(file "${app_dir}/icons/${icon}.svg")
     set_source_files_properties("${file}" PROPERTIES QT_RESOURCE_ALIAS "icons/${icon}.svg")
     list(APPEND module_icons "${file}")
@@ -61,6 +61,7 @@ function(add_viewer_application target)
     SOURCES
       "${app_dir}/window_state.h" "${app_dir}/window_key_router.h"
       "${app_dir}/clipboard_controller.h" "${app_dir}/clipboard_controller.cpp"
+      "${app_dir}/animation_controller.h" "${app_dir}/animation_controller.cpp"
       "${app_dir}/image_document.h" "${app_dir}/image_document.cpp"
       "${app_dir}/image_canvas.h" "${app_dir}/image_canvas.cpp"
       "${app_dir}/portal_file_chooser.h" "${app_dir}/portal_file_chooser.cpp"

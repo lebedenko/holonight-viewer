@@ -86,6 +86,17 @@ Controls.Popup {
             ]
         },
         {
+            key: "Playback",
+            label: qsTr("Playback"),
+            rows: [
+                {
+                    keyGroups: [[Qt.Key_Space]],
+                    description: qsTr("Toggle play/pause"),
+                    keycap: true
+                }
+            ]
+        },
+        {
             key: "Image",
             label: qsTr("Image"),
             rows: [

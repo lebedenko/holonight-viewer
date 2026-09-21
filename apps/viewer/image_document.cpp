@@ -1,5 +1,7 @@
 #include "image_document.h"
 
+#include "image_limits.h"
+
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -14,12 +16,6 @@
 #include <webp/decode.h>
 
 namespace {
-constexpr qint64 image_limit = 128 * 1024 * 1024;
-constexpr qint64 file_limit = 256 * 1024 * 1024;
-bool acceptableSize(QSize size) {
-  return size.width() > 0 && size.height() > 0 && size.width() <= 32768 && size.height() <= 32768 &&
-         static_cast<qint64>(size.width()) * size.height() <= 32000000;
-}
 // Only the simple single-bitstream RIFF form is eligible. Extended containers,
 // ancillary chunks and animation retain the installed Qt decoder's interpretation.
 QImage simpleWebPFallback(QFile& file, const std::atomic_bool& cancelled, bool& limited) {
@@ -31,8 +27,8 @@ QImage simpleWebPFallback(QFile& file, const std::atomic_bool& cancelled, bool& 
       (header.sliced(12, 4) != "VP8 " && header.sliced(12, 4) != "VP8L")) {
     return {};
   }
-  const auto bytes = file.read(file_limit + 1);
-  if (cancelled.load() || bytes.size() < 20 || bytes.size() > file_limit || bytes.first(4) != "RIFF" ||
+  const auto bytes = file.read(kFileLimitBytes + 1);
+  if (cancelled.load() || bytes.size() < 20 || bytes.size() > kFileLimitBytes || bytes.first(4) != "RIFF" ||
       bytes.sliced(8, 4) != "WEBP" || (bytes.sliced(12, 4) != "VP8 " && bytes.sliced(12, 4) != "VP8L")) {
     return {};
   }
@@ -48,7 +44,7 @@ QImage simpleWebPFallback(QFile& file, const std::atomic_bool& cancelled, bool& 
   if (WebPGetInfo(data, bytes.size(), &width, &height) == 0) {
     return {};
   }
-  if (!acceptableSize({width, height}) || static_cast<qint64>(width) * height * 4 > image_limit) {
+  if (!acceptableSize({width, height}) || static_cast<qint64>(width) * height * 4 > kImageLimitBytes) {
     limited = true;
     return {};
   }
@@ -64,6 +60,7 @@ QImage simpleWebPFallback(QFile& file, const std::atomic_bool& cancelled, bool& 
   }
   return image;
 }
+constexpr qint64 kDisplayAndCacheBytes = 2 * kImageLimitBytes;
 QString limitError() {
   return ImageDocument::tr("This image exceeds the viewing limit (32 million pixels or 128 MiB decoded).");
 }
@@ -133,7 +130,7 @@ DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
   if (!file.open(QIODevice::ReadOnly)) {
     return {.image = {}, .error = ImageDocument::tr("The file could not be opened for reading."), .information = facts};
   }
-  if (file.size() > file_limit) {
+  if (file.size() > kFileLimitBytes) {
     return {.image = {}, .error = ImageDocument::tr("The file exceeds the 256 MiB input limit."), .information = facts};
   }
   facts.exif = ExifMetadata::read(file, cancelled);
@@ -146,7 +143,7 @@ DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
   }
   auto image = std::move(decoded.image);
   facts = std::move(decoded.information);
-  if (!acceptableSize(image.size()) || image.sizeInBytes() > image_limit) {
+  if (!acceptableImage(image)) {
     return {.image = {}, .error = limitError(), .information = facts};
   }
   image.convertTo(QImage::Format_ARGB32_Premultiplied);
@@ -231,8 +228,7 @@ ImageDocument::ImageDocument(Decoder decoder, QObject* parent)
 ImageDocument::ImageDocument(Decoder decoder, DirectoryModel::Scanner scanner, QObject* parent)
     : QObject(parent), directory_(std::move(scanner)), worker_(new QObject), decoder_(std::move(decoder)) {
   // Set policy before any worker starts, including Qt's environment override.
-  qputenv("QT_IMAGEIO_MAXALLOC", "128");
-  QImageReader::setAllocationLimit(128);
+  configureDecodeLimits();
   worker_->moveToThread(&thread_);
   connect(&thread_, &QThread::finished, worker_, &QObject::deleteLater);
   connect(&thread_, &QThread::finished, this, &ImageDocument::workerFinished);
@@ -244,6 +240,14 @@ ImageDocument::ImageDocument(Decoder decoder, DirectoryModel::Scanner scanner, Q
     maybePrefetch();
   });
   connect(&clipboard_, &ClipboardController::shutdownFinished, this, &ImageDocument::workerFinished);
+  connect(&animation_, &AnimationController::shutdownFinished, this, &ImageDocument::workerFinished);
+  // The displayed frame replaces image_ without a changed(): only the canvas needs to repaint.
+  connect(&animation_, &AnimationController::frameReady, this, [this](const QImage& frame) {
+    if (state_ == Ready) {
+      image_ = frame;
+      emit frameChanged();
+    }
+  });
   thread_.start();
 }
 
@@ -283,6 +287,7 @@ void ImageDocument::open(const QList<QUrl>& urls) {
     if (cancellation_) {
       cancellation_->store(true);
     }
+    animation_.stop();
     orientation_ = 0;
     information_ = {};
     emit orientationChanged();
@@ -301,6 +306,7 @@ void ImageDocument::open(const QList<QUrl>& urls) {
 }
 
 void ImageDocument::select(const QUrl& url) {
+  animation_.stop();
   ++request_id_;
   if (cancellation_) {
     cancellation_->store(true);
@@ -368,6 +374,12 @@ void ImageDocument::startPending() {
           entry->image = result.image;
           entry->information = result.information;
         }
+        if (!result.image.isNull()) {
+          // Playback holds the displayed frame and one look-ahead; the cache gets what remains of the shared budget.
+          const bool gif = result.information.format == QLatin1String("GIF");
+          cache_.setLimit(gif ? kDisplayAndCacheBytes - (2 * result.image.sizeInBytes())
+                              : DecodedImageCache::byteLimit);
+        }
         if (!cancel->load() && !result.image.isNull()) {
           if (request.prefetch) {
             cache_.put(std::move(*entry));
@@ -404,6 +416,9 @@ void ImageDocument::complete(const Request& request, DecodeResult result) {
       emit openingFailed(file_name_, error_);
     }
     emit changed();
+    if (state_ == Ready && information_.format == QLatin1String("GIF")) {
+      animation_.start(localPath(), image_.size());
+    }
   }
   startPending();
   maybePrefetch();
@@ -424,7 +439,7 @@ void ImageDocument::maybePrefetch() {
 }
 
 void ImageDocument::workerFinished() {
-  if (++finished_workers_ == 3) {
+  if (++finished_workers_ == 4) {
     emit shutdownFinished();
   }
 }
@@ -440,6 +455,7 @@ void ImageDocument::shutdown() {
     cancellation_->store(true);
   }
   clipboard_.shutdown();
+  animation_.shutdown();
   directory_.shutdown();
   if (!busy_) {
     thread_.quit();

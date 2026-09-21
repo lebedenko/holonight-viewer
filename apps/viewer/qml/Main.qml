@@ -24,12 +24,13 @@ HnApplicationWindow {
     component ViewerButton: Controls.Button {
         id: control
         property bool floating: false
+        property real cornerRadius: HnMetrics.internalSpacing(HnControlSize.Compact)
         implicitWidth: Math.max(implicitContentWidth + leftPadding + rightPadding, HnMetrics.controlHeight(HnControlSize.Normal))
         background: Rectangle {
             color: control.down ? HoloniightPalette.surface : control.hovered ? HoloniightPalette.surfaceHover : control.floating ? Qt.alpha(HoloniightPalette.surface, 0.85) : "transparent"
             border.width: control.visualFocus ? HnMetrics.focusBorderWidth : control.floating ? HnMetrics.borderWidth : 0
             border.color: control.visualFocus ? HoloniightPalette.borderFocus : control.floating ? HoloniightPalette.borderPassive : "transparent"
-            radius: HnMetrics.internalSpacing(HnControlSize.Compact)
+            radius: control.cornerRadius
         }
     }
     component ViewerHeaderButton: ViewerButton {
@@ -102,7 +103,7 @@ HnApplicationWindow {
     function showArrows(): void {
         window.arrowsShown = true;
         // A hovered arrow holds the countdown until the pointer leaves it.
-        if (!previousButton.hovered && !nextButton.hovered)
+        if (!previousButton.hovered && !nextButton.hovered && !playPauseButton.hovered)
             arrowTimer.restart();
     }
     function hideArrows(): void {
@@ -115,6 +116,12 @@ HnApplicationWindow {
     function resumeArrows(): void {
         if (window.arrowsShown)
             arrowTimer.restart();
+    }
+    function togglePlayback(): void {
+        window.document.animation.toggle();
+        // The keyboard hides the arrows, so the strip is what shows the new state.
+        window.revealDetails();
+        window.clearImageFocus();
     }
     function revealDetails(): void {
         if (window.documentState !== ImageDocument.Ready)
@@ -156,6 +163,8 @@ HnApplicationWindow {
         imageReady: window.canInspect
         modalActive: window.modalActive
         menuOpen: window.actionsMenuOpen
+        playbackAvailable: window.document.animation.canToggle && window.canInspect
+        onPlaybackToggleRequested: window.togglePlayback()
         onPanRequested: (horizontal, vertical) => {
             canvas.pan(Qt.point(horizontal, vertical));
             window.clearImageFocus();
@@ -181,6 +190,32 @@ HnApplicationWindow {
             canvas.Accessible.announce(qsTr("Loaded %1.").arg(window.document.fileName));
         else if (documentState === ImageDocument.Error)
             canvas.Accessible.announce(qsTr("Error opening %1: %2").arg(window.document.fileName).arg(window.document.error));
+    }
+
+    // Playback pauses while a dialog covers the image or the window is hidden; focus loss alone does not pause.
+    Binding {
+        target: window.document.animation
+        property: "suspendedByModal"
+        value: window.modalActive
+    }
+    Binding {
+        target: window.document.animation
+        property: "suspendedByWindow"
+        value: !window.visible || window.visibility === Window.Minimized
+    }
+    // Each frame replaces the picture in place: zoom, pan and fit stay as they are.
+    Connections {
+        target: window.document
+        function onFrameChanged(): void {
+            canvas.replaceFrame(window.document.image);
+        }
+    }
+    Connections {
+        target: window.document.animation
+        function onFailureNoticeChanged(notice: string): void {
+            window.revealDetails();
+            canvas.Accessible.announce(notice);
+        }
     }
 
     Connections {
@@ -732,6 +767,35 @@ HnApplicationWindow {
                 onClicked: window.browse(-1)
             }
             ViewerButton {
+                id: playPauseButton
+                objectName: "playPauseButton"
+                readonly property bool shown: window.arrowsShown
+                readonly property bool playing: window.document.animation.playing
+                floating: true
+                display: Controls.AbstractButton.IconOnly
+                implicitWidth: 48
+                implicitHeight: 48
+                cornerRadius: 24
+                anchors.centerIn: parent
+                icon.source: playing ? "icons/pause.svg" : "icons/play.svg"
+                // Both sizes come from one value: icon.height reading icon.width is a binding loop on the group.
+                readonly property real glyphSize: Math.min(HnMetrics.iconSize(HnControlSize.Hero), 32)
+                icon.width: glyphSize
+                icon.height: glyphSize
+                // The name is the action the button performs.
+                Accessible.name: playing ? qsTr("Pause") : qsTr("Play")
+                enabled: window.document.animation.canToggle && !window.modalActive
+                opacity: shown ? 1 : 0
+                visible: window.document.animation.animated && (shown || opacity > 0)
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: 150
+                    }
+                }
+                onHoveredChanged: hovered ? window.pauseArrows() : window.resumeArrows()
+                onClicked: window.togglePlayback()
+            }
+            ViewerButton {
                 id: nextButton
                 objectName: "nextButton"
                 readonly property bool shown: window.arrowsShown
@@ -800,7 +864,7 @@ HnApplicationWindow {
                         spacing: 12
                         Repeater {
                             id: metadataSections
-                            model: [qsTr("%1 × %2").arg(window.document.transformedDimensions.width).arg(window.document.transformedDimensions.height), window.document.formattedFileSize, qsTr("%1%").arg(Number(canvas.magnification * 100).toLocaleString(Qt.locale(), 'f', canvas.magnification < 0.01 ? 4 : 1)), qsTr("%1 / %2").arg(window.document.position).arg(window.document.count)]
+                            model: [qsTr("%1 × %2").arg(window.document.transformedDimensions.width).arg(window.document.transformedDimensions.height), window.document.formattedFileSize, qsTr("%1%").arg(Number(canvas.magnification * 100).toLocaleString(Qt.locale(), 'f', canvas.magnification < 0.01 ? 4 : 1)), qsTr("%1 / %2").arg(window.document.position).arg(window.document.count)].concat(window.document.animation.animated ? [qsTr("Animated"), window.document.animation.playing ? qsTr("Playing") : qsTr("Paused")] : []).concat(window.document.animation.animated && window.document.animation.frameCount > 0 ? [qsTr("%1 frames").arg(window.document.animation.frameCount)] : [])
                             RowLayout {
                                 id: section
                                 required property string modelData
@@ -815,9 +879,22 @@ HnApplicationWindow {
                                     wrapMode: Text.Wrap
                                     rawText: section.modelData
                                     textFormat: Text.PlainText
+                                    Accessible.role: Accessible.StaticText
+                                    Accessible.name: rawText
                                 }
                             }
                         }
+                    }
+                    HnLabel {
+                        objectName: "playbackNotice"
+                        width: detailsFlow.width
+                        visible: window.document.animation.failureNotice.length > 0
+                        color: HoloniightPalette.warning
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        rawText: window.document.animation.failureNotice
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: rawText
                     }
                 }
             }
@@ -901,6 +978,7 @@ HnApplicationWindow {
         }
 
         FooterKeyHints {
+            animated: window.document.animation.canToggle
             Layout.fillWidth: true
             Layout.leftMargin: 12
             Layout.rightMargin: 12

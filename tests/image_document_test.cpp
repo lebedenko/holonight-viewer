@@ -1,5 +1,6 @@
 #include "image_document.h"
 
+#include "gif_fixture.h"
 #include "image_canvas.h"
 
 #include <QBuffer>
@@ -381,27 +382,105 @@ TEST(Canvas, FitsWithoutDistortion) {
   EXPECT_EQ(ImageCanvas::fitRect({4, 2}, {501.5, 400.25}), QRectF(0, 74.75, 501.5, 250.75));
 }
 
-TEST(Document, FirstAnimationFrameOnly) {
-  ImageDocument document;
-  if (!QImageReader::supportedImageFormats().contains("gif")) {
+namespace {
+QUrl writeGif(const QString& name, const QList<gif::Frame>& frames, int loopField = -1) {
+  return writeFixture(name, gif::bytes("GIF89a", frames, loopField));
+}
+QImage firstFrame(const QUrl& url) {
+  QImageReader reader(url.toLocalFile());
+  return reader.read().convertToFormat(QImage::Format_ARGB32_Premultiplied);
+}
+}  // namespace
+
+TEST(Document, AnimatedGifAutoplaysAfterItsFirstFrame) {
+  if (!gif::available()) {
     GTEST_SKIP() << "GIF handler is not installed";
   }
-  const auto header = QByteArray::fromHex("47494638396101000100800000000000ffffff");
-  const auto frame = QByteArray::fromHex("21f90400010000002c0000000001000100000202440100");
-  const auto url = writeFixture(
-      "two-frames.gif", header + frame +
-                            QByteArray(frame).replace(QByteArray::fromHex("4401"), QByteArray::fromHex("4c01")) +
-                            QByteArray::fromHex("3b"));
-  QImageReader reader(url.toLocalFile());
-  ASSERT_EQ(reader.imageCount(), 2);
-  const auto first = reader.read().convertToFormat(QImage::Format_ARGB32_Premultiplied);
-  ASSERT_NE(reader.read().convertToFormat(QImage::Format_ARGB32_Premultiplied), first);
+  ImageDocument document;
+  const auto url = writeGif("two-frames.gif", {{.delayCs = 50, .second = false}, {.delayCs = 30, .second = true}});
+  const auto first = firstFrame(url);
+  QSignalSpy frames(&document, &ImageDocument::frameChanged);
+  QSignalSpy changes(&document, &ImageDocument::changed);
   document.open({url});
   ASSERT_TRUE(settled(document));
   ASSERT_EQ(document.state(), ImageDocument::Ready);
+  // Frame 0 is the ordinary static result; playback attaches afterwards.
   EXPECT_EQ(document.image(), first);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return document.animation()->animated(); }));
+  QElapsedTimer clock;
+  clock.start();
+  EXPECT_EQ(document.image(), first);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return frames.count() == 1; }, 3000));
+  EXPECT_GE(clock.elapsed(), 350);  // frame 0 stays for (about) its whole 500 ms delay
+  EXPECT_NE(document.image(), first);
+  EXPECT_EQ(document.state(), ImageDocument::Ready);
+  // A frame swap never goes through changed(): only the state changes did.
+  const auto changedAfterFrame = changes.count();
   QTest::qWait(50);
+  EXPECT_EQ(changes.count(), changedAfterFrame);
+}
+
+TEST(Document, SingleFrameGifStaysStatic) {
+  if (!gif::available()) {
+    GTEST_SKIP() << "GIF handler is not installed";
+  }
+  ImageDocument document;
+  document.open({writeGif("one-frame.gif", {{.delayCs = 10, .second = false}})});
+  ASSERT_TRUE(settled(document));
+  ASSERT_EQ(document.state(), ImageDocument::Ready);
+  QTest::qWait(300);
+  EXPECT_FALSE(document.animation()->animated());
+  EXPECT_FALSE(document.animation()->canToggle());
+  EXPECT_TRUE(document.animation()->failureNotice().isEmpty());
+}
+
+TEST(Document, RefreshAndNavigationRestartPlaybackFromFrameZero) {
+  if (!gif::available()) {
+    GTEST_SKIP() << "GIF handler is not installed";
+  }
+  ImageDocument document;
+  const auto url =
+      writeGif("restart.gif",
+               {{.delayCs = 5, .second = false}, {.delayCs = 5, .second = true}, {.delayCs = 5, .second = false}}, 0);
+  const auto first = firstFrame(url);
+  document.open({url});
+  ASSERT_TRUE(settled(document));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return document.animation()->frameIndex() >= 1; }));
+  document.animation()->toggle();
+  ASSERT_TRUE(document.animation()->userPaused());
+  document.refresh();
+  // The old session is gone at once, and the reloaded one starts unpaused from frame 0.
+  EXPECT_FALSE(document.animation()->animated());
+  EXPECT_FALSE(document.animation()->userPaused());
+  ASSERT_TRUE(settled(document));
   EXPECT_EQ(document.image(), first);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return document.animation()->animated(); }));
+  EXPECT_TRUE(document.animation()->playing());
+  EXPECT_TRUE(QTest::qWaitFor([&] { return document.animation()->frameIndex() >= 1; }));
+}
+
+TEST(Document, DamagedFirstFrameIsAnErrorNotAnAnimation) {
+  ImageDocument document;
+  document.open({writeFixture("broken.gif", QByteArray("GIF89a") + QByteArray(40, '\x7f'))});
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(document.state(), ImageDocument::Error);
+  EXPECT_FALSE(document.animation()->animated());
+}
+
+TEST(Document, CopyWhilePlayingUsesTheCurrentFrameAndKeepsPlaying) {
+  if (!gif::available()) {
+    GTEST_SKIP() << "GIF handler is not installed";
+  }
+  ImageDocument document;
+  document.open({writeGif("copy.gif", {{.delayCs = 5, .second = false}, {.delayCs = 5, .second = true}}, 0)});
+  ASSERT_TRUE(settled(document));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return document.animation()->animated(); }));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return document.animation()->frameIndex() == 1; }));
+  document.copyImage();
+  EXPECT_TRUE(document.animation()->playing());
+  EXPECT_TRUE(QTest::qWaitFor([&] { return !document.clipboard()->busy(); }));
+  EXPECT_TRUE(document.animation()->playing());
+  EXPECT_EQ(document.state(), ImageDocument::Ready);
 }
 
 TEST(Document, UnreadableAndSpecialFiles) {
