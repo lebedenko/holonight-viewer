@@ -5,16 +5,17 @@
 #include <QImageReader>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QtEndian>
 
 #include <array>
 #include <gtest/gtest.h>
 
 TEST(Release, RequiredIndependentFormats) {
   ImageDocument document;
-  for (const auto* format : {"png", "jpeg", "bmp", "webp", "gif"}) {
+  for (const auto* format : {"png", "jpeg", "bmp", "webp", "gif", "tif", "tiff"}) {
     ASSERT_TRUE(QImageReader::supportedImageFormats().contains(format)) << "Required decoder: " << format;
   }
-  for (const auto* extension : {"png", "jpg", "bmp", "webp", "gif"}) {
+  for (const auto* extension : {"png", "jpg", "bmp", "webp", "gif", "tif"}) {
     const auto path = QStringLiteral(RELEASE_FIXTURE_DIR) + "/sample." + extension;
     QFile original(path);
     ASSERT_TRUE(original.open(QIODevice::ReadOnly));
@@ -156,5 +157,107 @@ TEST(Release, GifFixturesAreSequencesWithTheirDelaysAndLoops) {
     ASSERT_EQ(document.state(), ImageDocument::Ready) << name;
     EXPECT_TRUE(QTest::qWaitFor([&] { return document.animation()->animated(); })) << name;
     EXPECT_EQ(document.animation()->frameCount(), 2) << name;
+  }
+}
+
+TEST(Release, TiffGuaranteedVariantsDecode) {
+  struct Expected {
+    const char* name = nullptr;
+    QColor color;
+  };
+  std::atomic_bool cancelled{false};
+  for (const auto& [name, color] : {Expected{.name = "tiff-rgb8.tif", .color = QColor(255, 0, 0, 255)},
+                                    Expected{.name = "sample.tif", .color = QColor(255, 0, 0, 128)},
+                                    Expected{.name = "tiff-gray8.tif", .color = QColor(128, 128, 128, 255)},
+                                    Expected{.name = "tiff-palette8.tif", .color = QColor(255, 0, 0, 255)}}) {
+    const auto result = decodeImage(QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/" + name), cancelled);
+    ASSERT_FALSE(result.image.isNull()) << name << ": " << result.error.toStdString();
+    EXPECT_TRUE(result.error.isEmpty()) << name;
+    EXPECT_EQ(result.image.size(), QSize(1, 1)) << name;
+    EXPECT_EQ(result.image.pixelColor(0, 0), color) << name;
+    EXPECT_EQ(result.information.format, "TIFF") << name;
+    // These fixtures carry no EXIF tags: that is an empty summary, not an error.
+    EXPECT_EQ(result.information.exif, ExifDetails{}) << name;
+  }
+}
+
+TEST(Release, TiffMultiPageShowsFirstPage) {
+  std::atomic_bool cancelled{false};
+  const auto result =
+      decodeImage(QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/tiff-two-page.tif"), cancelled);
+  ASSERT_FALSE(result.image.isNull()) << result.error.toStdString();
+  EXPECT_EQ(result.image.pixelColor(0, 0), QColor(255, 0, 0, 255));
+  EXPECT_NE(result.image.pixelColor(0, 0), QColor(0, 255, 0, 255));
+}
+
+namespace {
+QByteArray readFixture(const char* name) {
+  QFile file(QStringLiteral(RELEASE_FIXTURE_DIR) + "/" + name);
+  EXPECT_TRUE(file.open(QIODevice::ReadOnly)) << name;
+  return file.readAll();
+}
+
+DecodeResult decodeBytes(QTemporaryDir& directory, const QByteArray& bytes) {
+  const auto path = directory.filePath("copy.tif");
+  QFile file(path);
+  EXPECT_TRUE(file.open(QIODevice::WriteOnly));
+  EXPECT_EQ(file.write(bytes), bytes.size());
+  file.close();
+  const std::atomic_bool cancelled{false};
+  return decodeImage(QUrl::fromLocalFile(path), cancelled);
+}
+}  // namespace
+
+TEST(Release, TiffLimitsApply) {
+  QTemporaryDir directory(QStringLiteral(RELEASE_FIXTURE_DIR) + "/tiff-XXXXXX");
+  ASSERT_TRUE(directory.isValid());
+  const auto original = readFixture("tiff-rgb8.tif");
+  // The fixture writer puts ImageWidth's value word at offset 18 and ImageLength's at offset 30.
+  const auto patched = [&](quint32 width, quint32 height) {
+    const auto word = [](quint32 value) {
+      QByteArray bytes(4, '\0');
+      qToLittleEndian(value, bytes.data());
+      return bytes;
+    };
+    auto bytes = original;
+    bytes.replace(18, 4, word(width));
+    bytes.replace(30, 4, word(height));
+    return decodeBytes(directory, bytes);
+  };
+  const auto accepted = patched(1, 1);
+  ASSERT_FALSE(accepted.image.isNull()) << accepted.error.toStdString();
+  for (const auto& [width, height] : {std::pair<quint32, quint32>{32769, 1}, {1, 32769}, {6000, 6000}}) {
+    const auto result = patched(width, height);
+    EXPECT_TRUE(result.image.isNull()) << width << "x" << height;
+    EXPECT_EQ(result.error, "This image exceeds the viewing limit (32 million pixels or 128 MiB decoded).")
+        << width << "x" << height << ": " << result.error.toStdString();
+  }
+}
+
+TEST(Release, TiffTruncatedIsAnError) {
+  QTemporaryDir directory(QStringLiteral(RELEASE_FIXTURE_DIR) + "/tiff-XXXXXX");
+  ASSERT_TRUE(directory.isValid());
+  const auto truncated = decodeBytes(directory, readFixture("tiff-truncated.tif"));
+  EXPECT_TRUE(truncated.image.isNull());
+  EXPECT_FALSE(truncated.error.isEmpty());
+  // Every proper prefix stops at a different stage: header, IFD, tag data or strip.
+  const auto original = readFixture("tiff-rgb8.tif");
+  ASSERT_FALSE(decodeBytes(directory, original).image.isNull());
+  for (qsizetype size = 0; size < original.size(); ++size) {
+    const auto result = decodeBytes(directory, original.first(size));
+    EXPECT_TRUE(result.image.isNull()) << size;
+    EXPECT_FALSE(result.error.isEmpty()) << size;
+  }
+}
+
+TEST(Release, TiffBestEffortVariantsNeverCrashOrHang) {
+  const std::atomic_bool cancelled{false};
+  for (const auto* name :
+       {"tiff-be-rgb16.tif", "tiff-be-float.tif", "tiff-be-cmyk.tif", "tiff-be-lab.tif", "tiff-be-tiled.tif",
+        "tiff-be-bigtiff.tif", "tiff-be-lzw.tif", "tiff-be-packbits.tif", "tiff-be-deflate.tif"}) {
+    const auto result = decodeImage(QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/" + name), cancelled);
+    // Best effort: either the variant opens or the user gets an error; never both, never neither.
+    EXPECT_NE(result.image.isNull(), result.error.isEmpty()) << name;
+    RecordProperty(name, result.image.isNull() ? result.error.toStdString() : "decoded");
   }
 }

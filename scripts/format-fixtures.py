@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent release fixtures: stdlib PNG/BMP, fixed JPEG, libwebp RGBA."""
+"""Independent release fixtures: stdlib PNG/BMP/TIFF, fixed JPEG, libwebp RGBA."""
 import base64
 import ctypes
 import ctypes.util
@@ -7,6 +7,166 @@ from pathlib import Path
 import struct
 import sys
 import zlib
+
+# TIFF field types: name -> (type code, struct format of one value).
+TIFF_KINDS = {'BYTE': (1, 'B'), 'ASCII': (2, None), 'SHORT': (3, 'H'), 'LONG': (4, 'I'), 'RATIONAL': (5, 'II')}
+
+
+def tiff_header(e, first_ifd=8):
+    return (b'II*\0' if e == '<' else b'MM\0*') + struct.pack(e + 'I', first_ifd)
+
+
+def tiff_ifd(e, base, entries, next_ifd=0):
+    """One IFD placed at file offset base, followed by the values that do not fit its 4-byte value words.
+
+    entries: (tag, kind, values); ASCII values are bytes, RATIONAL values are (numerator, denominator) pairs.
+    Entries are written in tag order. The length depends only on the kinds and counts, never on the values.
+    """
+    entries = sorted(entries, key=lambda entry: entry[0])
+    table_length = 2 + 12 * len(entries) + 4
+    table = struct.pack(e + 'H', len(entries))
+    extra = b''
+    for tag, kind, values in entries:
+        code, unit = TIFF_KINDS[kind]
+        if kind == 'ASCII':
+            raw = values
+        elif kind == 'RATIONAL':
+            raw = b''.join(struct.pack(e + unit, *pair) for pair in values)
+        else:
+            raw = b''.join(struct.pack(e + unit, value) for value in values)
+        count = len(values)
+        if len(raw) <= 4:
+            value = raw.ljust(4, b'\0')  # Inline values are left-justified in file order.
+        else:
+            value = struct.pack(e + 'I', base + table_length + len(extra))
+            extra += raw + bytes(len(raw) % 2)
+        table += struct.pack(e + 'HHI', tag, code, count) + value
+    return table + struct.pack(e + 'I', next_ifd) + extra
+
+
+def tiff_image_tags(strip_offset, pixels, photometric, bits, extra=(), compression=1, width=1, height=1):
+    samples = len(bits)
+    return [(256, 'LONG', [width]), (257, 'LONG', [height]), (258, 'SHORT', bits), (259, 'SHORT', [compression]),
+            (262, 'SHORT', [photometric]), (273, 'LONG', [strip_offset]), (277, 'SHORT', [samples]),
+            (278, 'LONG', [height]), (279, 'LONG', [len(pixels)])] + list(extra)
+
+
+def tiff_page(e, base, pixels, photometric, bits, extra=(), next_ifd=0, compression=1):
+    """IFD, its out-of-line values and one strip, starting at file offset base."""
+    length = len(tiff_ifd(e, base, tiff_image_tags(0, pixels, photometric, bits, extra, compression)))
+    tags = tiff_image_tags(base + length, pixels, photometric, bits, extra, compression)
+    return tiff_ifd(e, base, tags, next_ifd) + pixels
+
+
+def tiff_file(pixels, photometric, bits, extra=(), e='<', compression=1):
+    return tiff_header(e) + tiff_page(e, 8, pixels, photometric, bits, extra, compression=compression)
+
+
+def tiff_two_pages(e='<'):
+    red = tiff_page(e, 8, b'\xff\0\0', 2, [8, 8, 8])
+    second = 8 + len(red)
+    return (tiff_header(e) + tiff_page(e, 8, b'\xff\0\0', 2, [8, 8, 8], next_ifd=second)
+            + tiff_page(e, second, b'\0\xff\0', 2, [8, 8, 8]))
+
+
+def tiff_with_exif(e):
+    """RGB8 1x1 with the strip first and IFD0 after it, as libtiff-style writers lay files out."""
+    pixels = b'\xff\0\0'
+    pixel_offset = 8
+    ifd0_offset = pixel_offset + len(pixels) + 1
+    camera = [(271, 'ASCII', b'Acme\0'), (272, 'ASCII', b'TiffCam\0')]
+    tags = tiff_image_tags(pixel_offset, pixels, 2, [8, 8, 8], camera + [(34665, 'LONG', [0]), (34853, 'LONG', [0])])
+    ifd0_length = len(tiff_ifd(e, ifd0_offset, tags))
+    exif_offset = ifd0_offset + ifd0_length
+    exif_ifd = tiff_ifd(e, exif_offset, [(34855, 'SHORT', [400])])
+    gps_offset = exif_offset + len(exif_ifd)
+    gps_ifd = tiff_ifd(e, gps_offset, [(1, 'ASCII', b'N\0'), (2, 'RATIONAL', [(50, 1), (30, 1), (0, 1)]),
+                                       (3, 'ASCII', b'E\0'), (4, 'RATIONAL', [(30, 1), (15, 1), (0, 1)])])
+    pointers = [(34665, 'LONG', [exif_offset]), (34853, 'LONG', [gps_offset])]
+    tags = tiff_image_tags(pixel_offset, pixels, 2, [8, 8, 8], camera + pointers)
+    return tiff_header(e, ifd0_offset) + pixels + b'\0' + tiff_ifd(e, ifd0_offset, tags) + exif_ifd + gps_ifd
+
+
+def tiff_lzw_single_pixel(data):
+    """TIFF LZW (MSB-first, 9-bit codes): clear code, each byte as a literal, end code. Short enough that the width never grows."""
+    bits = ''.join(format(code, '09b') for code in [256, *data, 257])
+    bits += '0' * (-len(bits) % 8)
+    return int(bits, 2).to_bytes(len(bits) // 8, 'big')
+
+
+def tiff_tiled():
+    """One 16x16 RGB tile holding a 1x1 image: the tile tags replace the strip tags."""
+    tile = b'\xff\0\0' * 256
+
+    def tags(offset):
+        return [(256, 'LONG', [1]), (257, 'LONG', [1]), (258, 'SHORT', [8, 8, 8]), (259, 'SHORT', [1]),
+                (262, 'SHORT', [2]), (277, 'SHORT', [3]), (322, 'LONG', [16]), (323, 'LONG', [16]),
+                (324, 'LONG', [offset]), (325, 'LONG', [len(tile)])]
+    return tiff_header('<') + tiff_ifd('<', 8, tags(8 + len(tiff_ifd('<', 8, tags(0))))) + tile
+
+
+def tiff_bigtiff():
+    """BigTIFF (magic 43): 8-byte offsets, 20-byte IFD entries. Uncompressed RGB8 1x1, strip after the IFD."""
+    def entry(tag, code, value):
+        return struct.pack('<HHQ', tag, code, 1) + value.ljust(8, b'\0')
+
+    def ifd(strip_offset):
+        entries = [entry(256, 4, struct.pack('<I', 1)), entry(257, 4, struct.pack('<I', 1)),
+                   struct.pack('<HHQ', 258, 3, 3) + struct.pack('<HHH', 8, 8, 8).ljust(8, b'\0'),
+                   entry(259, 3, struct.pack('<H', 1)), entry(262, 3, struct.pack('<H', 2)),
+                   entry(273, 4, struct.pack('<I', strip_offset)), entry(277, 3, struct.pack('<H', 3)),
+                   entry(278, 4, struct.pack('<I', 1)), entry(279, 4, struct.pack('<I', 3))]
+        return struct.pack('<Q', len(entries)) + b''.join(entries) + struct.pack('<Q', 0)
+    return b'II+\0' + struct.pack('<HHQ', 8, 0, 16) + ifd(16 + len(ifd(0))) + b'\xff\0\0'
+
+
+def build_tiff_fixtures():
+    """Every TIFF fixture by file name; a pure function of this script, so two calls return identical bytes."""
+    rgb8 = tiff_file(b'\xff\0\0', 2, [8, 8, 8])
+    # Palette entry 2 is red; the ColorMap holds all reds, then all greens, then all blues.
+    color_map = [0] * 768
+    color_map[2] = 0xffff
+    return {
+        'tiff-rgb8.tif': rgb8,
+        # Alpha 128 is unassociated (ExtraSamples 2), so the stored bytes are not premultiplied.
+        'sample.tif': tiff_file(b'\xff\0\0\x80', 2, [8, 8, 8, 8], [(338, 'SHORT', [2])]),
+        'tiff-gray8.tif': tiff_file(b'\x80', 1, [8]),
+        'tiff-palette8.tif': tiff_file(b'\x02', 3, [8], [(320, 'SHORT', color_map)]),
+        'tiff-two-page.tif': tiff_two_pages(),
+        # Two bytes short of the strip: the IFD is intact, so the size is known but the pixels are not.
+        'tiff-truncated.tif': rgb8[:-2],
+        'tiff-exif.tif': tiff_with_exif('<'),
+        'tiff-exif-be.tif': tiff_with_exif('>'),
+        # Best-effort variants. They may decode or fail, but must never crash or hang.
+        'tiff-be-rgb16.tif': tiff_file(struct.pack('<3H', 0xffff, 0, 0), 2, [16, 16, 16]),
+        'tiff-be-float.tif': tiff_file(struct.pack('<3f', 1, 0, 0), 2, [32, 32, 32], [(339, 'SHORT', [3, 3, 3])]),
+        'tiff-be-cmyk.tif': tiff_file(b'\0\xff\xff\0', 5, [8, 8, 8, 8]),
+        'tiff-be-lab.tif': tiff_file(b'\x80\x80\x80', 8, [8, 8, 8]),
+        'tiff-be-tiled.tif': tiff_tiled(),
+        'tiff-be-bigtiff.tif': tiff_bigtiff(),
+        'tiff-be-lzw.tif': tiff_file(tiff_lzw_single_pixel(b'\xff\0\0'), 2, [8, 8, 8], compression=5),
+        'tiff-be-packbits.tif': tiff_file(b'\x02\xff\0\0', 2, [8, 8, 8], compression=32773),
+        'tiff-be-deflate.tif': tiff_file(zlib.compress(b'\xff\0\0'), 2, [8, 8, 8], compression=8),
+    }
+
+
+def self_check():
+    """Prove the TIFF fixtures are deterministic and made without Qt or a TIFF library."""
+    if build_tiff_fixtures() != build_tiff_fixtures():
+        return 'TIFF fixtures differ between two builds'
+    forbidden = [name for name in sys.modules
+                 if name.split('.')[0] in ('PyQt5', 'PyQt6', 'PySide2', 'PySide6', 'PIL', 'tifffile', 'libtiff')]
+    if forbidden:
+        return 'TIFF fixtures must not use ' + ', '.join(sorted(forbidden))
+    return None
+
+
+if __name__ == '__main__' and sys.argv[1:] == ['--self-check']:
+    # Runs before the libwebp block below, which needs a system library the check does not.
+    sys.exit(self_check())
+
+TIFF_FIXTURES = build_tiff_fixtures()
+
 
 def chunk(kind, payload):
     return struct.pack('>I', len(payload)) + kind + payload + struct.pack('>I', zlib.crc32(kind + payload))
@@ -98,6 +258,8 @@ if __name__ == '__main__':
     (destination / 'animated.webp').write_bytes(animated_webp)
     (destination / 'lossy.webp').write_bytes(lossy_webp)
     for name, data in GIF_FIXTURES.items():
+        (destination / name).write_bytes(data)
+    for name, data in TIFF_FIXTURES.items():
         (destination / name).write_bytes(data)
     for extension, data in FORMATS.items():
         (destination / ('sample.' + extension)).write_bytes(data)

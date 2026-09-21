@@ -25,7 +25,8 @@ struct ExifDetails {
 };
 
 namespace ExifMetadata {
-// Locates the EXIF block in a JPEG, PNG or WebP stream with bounded seeks and reads.
+// Locates the EXIF block in a JPEG, PNG or WebP stream with bounded seeks and reads. A TIFF up to 64 MiB is
+// its own EXIF block and is returned whole.
 QByteArray payload(QIODevice& source, const std::atomic_bool& cancelled);
 // Parses an "Exif\0\0"-prefixed TIFF block with libexif.
 ExifDetails parse(const QByteArray& payload);

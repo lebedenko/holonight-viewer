@@ -13,6 +13,9 @@
 namespace ExifMetadata {
 namespace {
 constexpr qint64 max_payload = 1024 * 1024;
+// A TIFF is its own EXIF block and its IFDs can sit anywhere, so the whole file is handed to libexif.
+constexpr qint64 max_tiff_payload = 64 * 1024 * 1024;
+constexpr qint64 tiff_read_chunk = 1024 * 1024;
 constexpr int max_records = 4096;
 const QByteArray exif_header("Exif\0\0", 6);
 
@@ -247,6 +250,23 @@ QString altitude(ExifData* data) {
   const auto below = integer(data, EXIF_IFD_GPS, EXIF_TAG_GPS_ALTITUDE_REF).value_or(0) == 1;
   return QStringLiteral("%1 m").arg(qRound(below ? -*value : *value));
 }
+
+// Oversized files are skipped, not truncated, for the same reason as oversized blocks. BigTIFF is not matched.
+QByteArray tiffPayload(QIODevice& source, const std::atomic_bool& cancelled) {
+  if (source.size() > max_tiff_payload || !source.seek(0)) {
+    return {};
+  }
+  QByteArray data = exif_header;
+  data.reserve(exif_header.size() + source.size());
+  while (!source.atEnd()) {
+    const auto part = source.read(tiff_read_chunk);
+    if (part.isEmpty() || cancelled.load()) {
+      return {};
+    }
+    data += part;
+  }
+  return data;
+}
 }  // namespace
 
 QByteArray payload(QIODevice& source, const std::atomic_bool& cancelled) {
@@ -265,6 +285,9 @@ QByteArray payload(QIODevice& source, const std::atomic_bool& cancelled) {
   if (signature.size() == 12 && signature.startsWith("RIFF") && signature.sliced(8) == "WEBP") {
     source.seek(12);
     return webpPayload(source, cancelled);
+  }
+  if (signature.startsWith(QByteArray("II*\0", 4)) || signature.startsWith(QByteArray("MM\0*", 4))) {
+    return tiffPayload(source, cancelled);
   }
   return {};
 }

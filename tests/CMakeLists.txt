@@ -26,6 +26,7 @@ set_tests_properties(viewer-qml-failure PROPERTIES WILL_FAIL TRUE TIMEOUT 5)
 target_compile_definitions(viewer-smoke PRIVATE VIEWER_FIXTURE_DIR="${CMAKE_CURRENT_BINARY_DIR}/fixtures/images")
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME viewer-tiff-fixtures-deterministic COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/format-fixtures.py" --self-check)
 add_test(NAME viewer-uninstall-policy COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-uninstall.py")
 add_test(NAME viewer-qml-format-discovery COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-qml-format-discovery.py")
 add_test(NAME viewer-opening COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-opening.py" $<TARGET_FILE:holonight-viewer> "${CMAKE_CURRENT_BINARY_DIR}")

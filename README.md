@@ -19,8 +19,8 @@ opened read-only and never changed.
 - **Tests:** Qt Test, GTest and `dbus-run-session`.
 - **Checks:** clang-format, clang-tidy (run-clang-tidy), REUSE, desktop-file-utils,
   GIO and Python 3.
-- **Codecs:** Qt Base's PNG/BMP support and JPEG plugin, plus Qt Image Formats' WebP
-  plugin (Arch: `qt6-base qt6-imageformats`). See
+- **Codecs:** Qt Base's PNG/BMP support and JPEG plugin, plus Qt Image Formats' WebP,
+  GIF and TIFF plugins (Arch: `qt6-base qt6-imageformats`). See
   [Supported formats](#supported-formats-and-limits).
 
 On Arch, the [CI Dockerfile](packaging/Dockerfile.ci) lists all packages.
@@ -163,8 +163,8 @@ scroll these sections:
 - **FILE:** the path with the home directory shown as `~`, selectable and copyable
 
 Missing facts and empty sections are omitted, and "Details unavailable" replaces an
-empty summary. EXIF is read from JPEG, PNG and WebP files with libexif; damaged
-metadata is omitted. Facts follow cached image snapshots and the open card follows
+empty summary. EXIF is read from JPEG, PNG, WebP and TIFF files (TIFF up to 64 MiB) with libexif;
+damaged metadata is omitted. Facts follow cached image snapshots and the open card follows
 document changes; after closing it, `Ctrl+R` also refreshes the cached facts.
 
 **Shortcut Help** (`?`) is a matching card with a fixed "Shortcuts" header and
@@ -201,11 +201,15 @@ persistence after exit is managed by the desktop.
 
 ## Supported formats and limits
 
-The guaranteed formats are static **PNG, JPEG, BMP and WebP**, and **GIF** (GIF87a
-and GIF89a, including animation). Other installed Qt image handlers work on a
-best-effort basis, and other animated files (APNG, animated WebP) show their first
-frame only. Missing codecs, including the Qt GIF plugin, fail qualification, not
-ordinary startup.
+The guaranteed formats are static **PNG, JPEG, BMP, WebP and TIFF**, and **GIF** (GIF87a
+and GIF89a, including animation). TIFF is guaranteed for single-page, 8-bit,
+uncompressed RGB, RGBA, grayscale and palette files; a multi-page TIFF shows its
+first page only. Other TIFF variants (16-bit, float, CMYK, Lab, tiled, BigTIFF and
+compressed files) and other installed Qt image handlers work on a best-effort basis:
+they either open or show an error, and some valid files, such as tiled TIFF, may not
+open. Other animated files (APNG, animated WebP) show their first frame only. Missing
+codecs, including the Qt GIF and TIFF plugins, fail qualification, not ordinary
+startup.
 
 Qt is the primary decoder. A private libwebp fallback handles simple static RIFF
 VP8/VP8L files that Qt cannot inspect or decode, including the compact Qt 6.11.2

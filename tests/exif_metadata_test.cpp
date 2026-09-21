@@ -4,6 +4,7 @@
 #include "image_document.h"
 
 #include <QBuffer>
+#include <QFile>
 #include <QFileInfo>
 #include <QImage>
 #include <QTemporaryDir>
@@ -22,6 +23,31 @@ ExifDetails readBytes(QByteArray bytes) {
   buffer.open(QIODevice::ReadOnly);
   const std::atomic_bool cancelled{false};
   return ExifMetadata::read(buffer, cancelled);
+}
+
+QString fixturePath(const char* name) { return QStringLiteral(RELEASE_FIXTURE_DIR) + "/" + name; }
+
+QByteArray fixtureBytes(const char* name) {
+  QFile file(fixturePath(name));
+  EXPECT_TRUE(file.open(QIODevice::ReadOnly)) << name;
+  return file.readAll();
+}
+
+// Writes the TIFF fixture into a sparse file of the given size: the zero padding follows the IFDs and their data.
+QString paddedTiff(QTemporaryDir& directory, qint64 size) {
+  const auto path = directory.filePath(QStringLiteral("padded-%1.tif").arg(size));
+  QFile file(path);
+  EXPECT_TRUE(file.open(QIODevice::WriteOnly));
+  const auto bytes = fixtureBytes("tiff-exif.tif");
+  EXPECT_EQ(file.write(bytes), bytes.size());
+  EXPECT_TRUE(file.resize(size));
+  return path;
+}
+
+ExifDetails readFile(const QString& path, const std::atomic_bool& cancelled) {
+  QFile file(path);
+  EXPECT_TRUE(file.open(QIODevice::ReadOnly)) << path.toStdString();
+  return ExifMetadata::read(file, cancelled);
 }
 }  // namespace
 
@@ -75,6 +101,48 @@ TEST(ExifMetadata, ExtractsJpegPngAndWebPBlocks) {
   // WebP: an odd-sized chunk is padded, and EXIF may omit the JPEG signature.
   QByteArray chunks = QByteArray("ICCP") + le32(3) + "abc" + '\0' + "EXIF" + le32(tiffBlock.size()) + tiffBlock;
   EXPECT_EQ(readBytes(QByteArray("RIFF") + le32(chunks.size() + 4) + "WEBP" + chunks), expected);
+}
+
+TEST(ExifMetadata, ReadsTiffCameraExposureAndLocation) {
+  // A TIFF file is itself the EXIF block: the bytes after the "Exif" signature of a payload are a valid TIFF.
+  const auto expected = ExifMetadata::parse(sonyPayload());
+  ASSERT_TRUE(expected.hasCamera() && expected.hasLocation());
+  EXPECT_EQ(readBytes(sonyPayload().sliced(6)), expected);
+
+  // Fixtures written independently: IFD0 follows the pixel data, in both byte orders.
+  const std::atomic_bool cancelled{false};
+  for (const auto* name : {"tiff-exif.tif", "tiff-exif-be.tif"}) {
+    const auto details = readFile(fixturePath(name), cancelled);
+    EXPECT_EQ(details.camera, "Acme TiffCam") << name;
+    EXPECT_EQ(details.iso, "ISO 400") << name;
+    EXPECT_EQ(details.location, QStringLiteral("50.50000° N, 30.25000° E")) << name;
+    const auto decoded = decodeImage(QUrl::fromLocalFile(fixturePath(name)), cancelled);
+    ASSERT_FALSE(decoded.image.isNull()) << name << ": " << decoded.error.toStdString();
+    EXPECT_EQ(decoded.information.exif, details) << name;
+  }
+}
+
+TEST(ExifMetadata, SkipsTiffOverSizeLimit) {
+  constexpr qint64 limit = 64 * 1024 * 1024;
+  QTemporaryDir directory;
+  ASSERT_TRUE(directory.isValid());
+  const std::atomic_bool cancelled{false};
+  const auto expected = readFile(fixturePath("tiff-exif.tif"), cancelled);
+  ASSERT_TRUE(expected.hasCamera() && expected.hasLocation());
+  EXPECT_EQ(readFile(paddedTiff(directory, limit), cancelled), expected);
+
+  // One byte over the limit skips EXIF, but the image still opens without an error.
+  const auto oversized = paddedTiff(directory, limit + 1);
+  EXPECT_EQ(readFile(oversized, cancelled), ExifDetails{});
+  const auto decoded = decodeImage(QUrl::fromLocalFile(oversized), cancelled);
+  EXPECT_FALSE(decoded.image.isNull()) << decoded.error.toStdString();
+  EXPECT_TRUE(decoded.error.isEmpty());
+  EXPECT_EQ(decoded.information.exif, ExifDetails{});
+
+  // BigTIFF is not matched, and a cancelled read returns nothing.
+  EXPECT_EQ(readFile(fixturePath("tiff-be-bigtiff.tif"), cancelled), ExifDetails{});
+  const std::atomic_bool stopped{true};
+  EXPECT_EQ(readFile(fixturePath("tiff-exif.tif"), stopped), ExifDetails{});
 }
 
 TEST(ExifMetadata, IgnoresMissingOversizedAndDamagedBlocks) {

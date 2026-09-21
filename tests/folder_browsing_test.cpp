@@ -87,6 +87,23 @@ TEST(Directory, OrderingFilteringAndRoles) {
   EXPECT_EQ(scanDirectory(QUrl::fromLocalFile(empty.filePath("missing")), cancel).urls.size(), 1);
 }
 
+TEST(Directory, ListsTiffSuffixesInAnyCase) {
+  QTemporaryDir dir(temporaryPattern());
+  ASSERT_TRUE(dir.isValid());
+  // The scan matches suffixes only, so placeholder contents are enough.
+  for (const auto& name : {"a.tif", "b.TIF", "c.tiff", "d.TIFF", "e.tifx"}) {
+    ASSERT_FALSE(writeFile(dir, QString::fromUtf8(name)).isEmpty());
+  }
+  const std::atomic_bool cancel{false};
+  const auto result = scanDirectory(QUrl::fromLocalFile(dir.filePath("a.tif")), cancel);
+  ASSERT_TRUE(result.error.isEmpty());
+  QStringList names;
+  for (const auto& url : result.urls) {
+    names.append(url.fileName());
+  }
+  EXPECT_EQ(names, (QStringList{"a.tif", "b.TIF", "c.tiff", "d.TIFF"}));
+}
+
 TEST(Directory, BoundedPendingStaleRejectionAndShutdown) {
   std::atomic_int calls{0};
   std::atomic_bool release{false};

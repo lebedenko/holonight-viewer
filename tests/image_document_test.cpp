@@ -520,3 +520,11 @@ TEST(Document, LargeImageAndShutdown) {
   document.shutdown();
   ASSERT_TRUE(QTest::qWaitFor([&] { return !finished.isEmpty(); }));
 }
+
+TEST(Document, NameFiltersListTiffSuffixes) {
+  const auto filters = ImageDocument::nameFilters();
+  ASSERT_EQ(filters.size(), 2);
+  const auto patterns = filters.first().section('(', 1).chopped(1).split(' ');
+  EXPECT_TRUE(patterns.contains("*.tif"));
+  EXPECT_TRUE(patterns.contains("*.tiff"));
+}

@@ -11,7 +11,7 @@
 
 namespace {
 bool requiredDecodersAvailable() {
-  const std::array required{"png", "jpeg", "bmp", "webp", "gif"};
+  const std::array required{"png", "jpeg", "bmp", "webp", "gif", "tif", "tiff"};
   return std::ranges::all_of(required, [](const char* format) {
     if (!QImageReader::supportedImageFormats().contains(format)) {
       QTextStream(stderr) << "Missing required decoder: " << format << '\n';
@@ -73,7 +73,7 @@ int main(int argc, char* argv[]) {
   if (engine.rootObjects().isEmpty() || document.state() != ImageDocument::Empty) {
     return 1;
   }
-  const QStringList extensions{"png", "jpg", "bmp", "webp", "gif"};
+  const QStringList extensions{"png", "jpg", "bmp", "webp", "gif", "tif"};
   int index = 0;
   QObject::connect(&document, &ImageDocument::changed, &app, [&] {
     // Directory and clipboard updates share this signal; consume each file once.
