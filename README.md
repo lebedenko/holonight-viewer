@@ -395,6 +395,41 @@ Qualification keeps the generic `QClipboard::image()` receiver mandatory; explic
 PNG reception is a separate diagnostic. Follow the native matrix, including Orca, in
 the [release verification](docs/sdd/release-readiness/VERIFICATION.md).
 
+### Offscreen document performance
+
+Build `viewer-smoke` in Release with `BUILD_TESTING=ON` and the same explicit
+installed-provider prefix used by the application. From the repository root:
+
+```sh
+cmake -S . -B build/performance-acceptance -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DBUILD_TESTING=ON -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib \
+  -DCMAKE_PREFIX_PATH="$PWD/build/deps/prefix" \
+  -DQML_IMPORT_PATH="$PWD/build/deps/prefix/lib/qt6/qml"
+cmake --build build/performance-acceptance --parallel 2
+python3 scripts/measure-release.py build/performance-acceptance/tests/viewer-smoke \
+  build/image-performance/baseline --scenario all
+```
+
+The runner supplies a private D-Bus session, offscreen platform and explicit QML/library
+paths. `--prefix` selects a different installed-provider prefix, which must match the
+build. The original binary/output invocation still measures `large`; other scenarios
+are `navigation`, `gif-playback`, `gif-scan` and `folder`. Each runs five fresh processes
+sequentially. Use an empty output directory; preserve earlier results. Finish builds
+before running and avoid competing benchmarks.
+
+Artifacts include logs/XML, 20 ms Linux RSS samples, per-trial metrics, median/min/max
+summaries and source/binary/toolchain/provider provenance. Skips, failures, missing
+metrics and timeouts fail measurement. Navigation checks selected identity and pixels,
+then measures two-image reuse, twelve-image cache pressure, rapid selection and shutdown.
+The default large workflow includes clipboard preparation, but no external transfer.
+
+Operation timings exclude fixture production; whole-process peak RSS includes it and
+allocator retention. An empty Viewer cache is not a cold OS cache. GUI timer gaps include
+QtTest polling and scheduling effects; no universal new latency/RSS threshold is imposed.
+These measurements do not qualify native rendering, clipboard transport or physical
+monitors. Historical native qualification below remains separate; its focus-automating
+harness is not used by this iteration. See the [performance SDD](docs/sdd/image-performance/SPEC.md).
+
 ### Native performance measurement
 
 Opt-in tooling measures the production QML window against a separate interactive

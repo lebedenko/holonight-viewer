@@ -236,3 +236,11 @@ replaces canvas focus with a neutral focus target. Tab and Shift+Tab wrap throug
 enabled header buttons; arrow keys pan from window focus; J/K navigate Actions.
 The canvas has no tab stop or focus outline. See the
 [verification record](sdd/header-keyboard-navigation/VERIFICATION.md).
+
+## Image performance (2026-09-23)
+
+The [performance iteration](sdd/image-performance/SPEC.md) adds reproducible offscreen
+Release measurements for large images, repeated navigation/cache pressure, GIFs and
+large folders. [Verification](sdd/image-performance/VERIFICATION.md) records the five-run
+baseline and limitations. No production correction was justified by these measurements;
+native performance and clipboard transport qualification remain separate.

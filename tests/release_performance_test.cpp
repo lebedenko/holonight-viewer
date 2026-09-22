@@ -65,12 +65,22 @@ TEST(ReleasePerformance, LargeWorkflow) {
   });
   timer.start(1);
   document.open({QUrl::fromLocalFile(dir.filePath("1.png"))});
-  ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready; }));
+  ASSERT_TRUE(QTest::qWaitFor(
+      [&] {
+        return document.state() == ImageDocument::Ready && document.localPath() == dir.filePath("1.png") &&
+               document.image().size() == QSize(8000, 4000) && document.image().pixelColor(0, 0).red() > 75;
+      },
+      30000));
   RecordProperty("open_ms", clock.elapsed());
   ASSERT_TRUE(QTest::qWaitFor([&] { return document.canNext(); }));
   auto start = clock.elapsed();
   document.next();
-  ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready; }));
+  ASSERT_TRUE(QTest::qWaitFor(
+      [&] {
+        return document.state() == ImageDocument::Ready && document.localPath() == dir.filePath("2.png") &&
+               document.image().size() == QSize(8000, 4000) && document.image().pixelColor(0, 0).red() < 75;
+      },
+      30000));
   RecordProperty("navigation_ms", clock.elapsed() - start);
   start = clock.elapsed();
   for (int i = 0; i < 8; ++i) {
@@ -356,4 +366,108 @@ TEST(ReleasePerformance, AnimatedGifScanNeverBlocksTheGui) {
   RecordProperty("file_bytes", file.size());
   RecordProperty("max_gui_stall_ms", maximum);
   EXPECT_LT(maximum, 50) << "GUI thread blocked while the sequence was scanned";
+}
+
+TEST(ReleasePerformance, RepeatedNavigation) {
+  if (!qEnvironmentVariableIsSet("VIEWER_PERFORMANCE")) {
+    GTEST_SKIP() << "Opt-in release performance exercise";
+  }
+  QDir().mkpath(QStringLiteral(VIEWER_FIXTURE_DIR));
+  QTemporaryDir dir(QStringLiteral(VIEWER_FIXTURE_DIR) + "/navigation-XXXXXX");
+  ASSERT_TRUE(dir.isValid());
+  constexpr int count = 12;
+  constexpr int extent = 2048;
+  const auto color = [](int index) { return QColor(20 + (index * 17), 100, 200 - (index * 11)); };
+  const auto path = [&](int index) { return dir.filePath(QString("%1.png").arg(index, 2, 10, QLatin1Char('0'))); };
+  for (int index = 0; index < count; ++index) {
+    QImage source(extent, extent, QImage::Format_ARGB32_Premultiplied);
+    source.fill(color(index));
+    ASSERT_TRUE(source.save(path(index)));
+  }
+  ImageDocument document;
+  QElapsedTimer clock;
+  clock.start();
+  qint64 last = 0;
+  qint64 maximum = 0;
+  int ticks = 0;
+  QTimer timer;
+  QObject::connect(&timer, &QTimer::timeout, [&] {
+    const auto now = clock.elapsed();
+    maximum = std::max(maximum, now - last);
+    last = now;
+    ++ticks;
+  });
+  timer.start(1);
+  const auto ready = [&](int index) {
+    return QTest::qWaitFor(
+        [&] {
+          return !document.scanning() && document.state() == ImageDocument::Ready &&
+                 document.localPath() == path(index) && document.image().size() == QSize(extent, extent) &&
+                 document.image().pixelColor(0, 0) == color(index);
+        },
+        30000);
+  };
+  const auto rss = [&](const std::string& name) {
+    QFile status("/proc/self/status");
+    ASSERT_TRUE(status.open(QIODevice::ReadOnly));
+    const auto lines = status.readAll().split('\n');
+    for (const auto& line : lines) {
+      if (line.startsWith("VmRSS:")) {
+        bool valid = false;
+        const auto value = line.simplified().split(' ').at(1).toInt(&valid);
+        ASSERT_TRUE(valid);
+        RecordProperty(name, value);
+        return;
+      }
+    }
+    FAIL() << "No Linux RSS sample";
+  };
+  document.open({QUrl::fromLocalFile(path(0))});
+  ASSERT_TRUE(ready(0));
+  RecordProperty("first_open_ms", clock.elapsed());
+  ASSERT_EQ(document.count(), count);
+  rss("rss_first_open_kib");
+  auto start = clock.elapsed();
+  for (int cycle = 0; cycle < 10; ++cycle) {
+    document.next();
+    ASSERT_TRUE(ready(1));
+    document.previous();
+    ASSERT_TRUE(ready(0));
+  }
+  RecordProperty("warm_20_selections_ms", clock.elapsed() - start);
+  rss("rss_warm_kib");
+  // Twelve 16 MiB images exceed the existing 128 MiB decoded cache.
+  for (int cycle = 0; cycle < 3; ++cycle) {
+    start = clock.elapsed();
+    for (int index = 1; index < count; ++index) {
+      document.next();
+      ASSERT_TRUE(ready(index));
+    }
+    for (int index = count - 2; index >= 0; --index) {
+      document.previous();
+      ASSERT_TRUE(ready(index));
+    }
+    RecordProperty("pressure_cycle_" + std::to_string(cycle) + "_ms", clock.elapsed() - start);
+    rss("rss_pressure_cycle_" + std::to_string(cycle) + "_kib");
+  }
+  start = clock.elapsed();
+  for (int index = 1; index < count; ++index) {
+    document.next();
+  }
+  ASSERT_TRUE(ready(count - 1));
+  RecordProperty("rapid_latest_selection_ms", clock.elapsed() - start);
+  bool stopped = false;
+  QObject::connect(&document, &ImageDocument::shutdownFinished, [&] { stopped = true; });
+  document.previous();  // Shutdown while foreground/prefetch work can still be pending.
+  start = clock.elapsed();
+  document.shutdown();
+  ASSERT_TRUE(QTest::qWaitFor([&] { return stopped; }, 30000));
+  RecordProperty("shutdown_ms", clock.elapsed() - start);
+  maximum = std::max(maximum, clock.elapsed() - last);
+  timer.stop();
+  RecordProperty("max_gui_timer_gap_ms", maximum);
+  RecordProperty("timer_ticks", ticks);
+  RecordProperty("image_bytes", extent * extent * 4);
+  RecordProperty("image_count", count);
+  rss("rss_shutdown_kib");
 }
