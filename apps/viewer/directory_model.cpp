@@ -2,11 +2,11 @@
 
 #include <QDir>
 #include <QFileInfo>
-#include <QImageReader>
 #include <QSet>
 
 #include <algorithm>
 #include <filesystem>
+#include <holonight_images/image.h>
 
 QUrl normalizedLocalUrl(const QUrl& url) {
   return QUrl::fromLocalFile(QDir::cleanPath(QFileInfo(url.toLocalFile()).absoluteFilePath()));
@@ -61,8 +61,8 @@ DirectoryResult scanDirectory(const QUrl& selected, const std::atomic_bool& canc
   const auto explicitUrl = normalizedLocalUrl(selected);
   const QFileInfo selectedInfo(explicitUrl.toLocalFile());
   QSet<QString> suffixes;
-  for (const auto& format : QImageReader::supportedImageFormats()) {
-    suffixes.insert(QString::fromLatin1(format).toCaseFolded());
+  for (const auto& format : HolonightImages::supportedSuffixes()) {
+    suffixes.insert(format.toCaseFolded());
   }
   // SVG decodes via QSvgRenderer, not QImageReader, so it is listed unconditionally here.
   suffixes.insert(QStringLiteral("svg"));

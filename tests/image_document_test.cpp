@@ -1,5 +1,6 @@
 #include "image_document.h"
 
+#include "frame_source.h"
 #include "gif_fixture.h"
 #include "image_canvas.h"
 #include "image_limits.h"
@@ -654,4 +655,25 @@ TEST(Document, SelectingAwayFromSvgClearsRendererAndBytes) {
   ASSERT_EQ(document.state(), ImageDocument::Ready);
   EXPECT_EQ(document.svgRenderer(), nullptr);
   EXPECT_TRUE(document.previewImage().cacheKey() == document.image().cacheKey());
+}
+
+TEST(Document, ConstructionPreservesApplicationAllocationPolicy) {
+  const auto original = QImageReader::allocationLimit();
+  const auto originalEnvironment = qgetenv("QT_IMAGEIO_MAXALLOC");
+  const auto restore = qScopeGuard([&] {
+    QImageReader::setAllocationLimit(original);
+    if (originalEnvironment.isNull()) {
+      qunsetenv("QT_IMAGEIO_MAXALLOC");
+    } else {
+      qputenv("QT_IMAGEIO_MAXALLOC", originalEnvironment);
+    }
+  });
+  qputenv("QT_IMAGEIO_MAXALLOC", "64");
+  QImageReader::setAllocationLimit(64);
+  // Qt may cache its environment override; construction must preserve the effective value.
+  const auto effectiveLimit = QImageReader::allocationLimit();
+  ImageDocument document;
+  const auto frameSource = makeQtGifFrameSource();
+  EXPECT_EQ(QImageReader::allocationLimit(), effectiveLimit);
+  EXPECT_EQ(qgetenv("QT_IMAGEIO_MAXALLOC"), "64");
 }

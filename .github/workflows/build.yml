@@ -19,6 +19,11 @@ jobs:
           repository: lebedenko/holonight-qt
           ref: 863af4183bdf09ce05199b37e8f5dfb46a311ba1
           path: holonight-qt
+      - uses: actions/checkout@v4
+        with:
+          repository: lebedenko/holonight-images
+          ref: efe3e780327fa793fb76c82b18fddde15298120b
+          path: holonight-images
       - name: Build CI image locally
         run: docker build -t viewer-ci -f viewer/packaging/Dockerfile.ci viewer
       - name: Build and verify

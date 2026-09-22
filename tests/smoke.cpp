@@ -1,5 +1,6 @@
 #include "image_canvas.h"
 #include "image_document.h"
+#include "image_limits.h"
 #include "mock_portal.h"
 
 #include <QAccessible>
@@ -352,6 +353,7 @@ TEST(Viewer, EmbeddedStyleSelection) {
 }
 
 int main(int argc, char* argv[]) {
+  configureDecodeLimits();
   qunsetenv("QT_QUICK_CONTROLS_FALLBACK_STYLE");
   qunsetenv("QT_QUICK_CONTROLS_CONF");
   QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs);

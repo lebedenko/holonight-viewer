@@ -497,3 +497,11 @@ for source and checksum assets.
 ## License
 
 GPL-3.0-or-later; see [LICENSE](LICENSE).
+
+## Shared raster processing
+
+Build and install `holonight-images` before configuring, or use `task deps` with a sibling checkout
+(`HOLONIGHT_IMAGES_SOURCE` overrides its location). `find_package(HolonightImages CONFIG REQUIRED)`
+provides `HolonightImages::Images`; custom builds pass its prefix through `CMAKE_PREFIX_PATH`.
+The provider owns raster decoding and structured EXIF extraction; presentation and scheduling remain here.
+See [migration SDD](docs/sdd/shared-image-architecture/DESIGN.md).

@@ -5,6 +5,7 @@
 #include <QSize>
 
 #include <cstdlib>
+#include <holonight_images/image.h>
 
 // Decode policy shared by the static path and animation playback.
 inline constexpr qint64 kImageLimitBytes = 128 * 1024 * 1024;
@@ -27,3 +28,11 @@ inline void configureDecodeLimits() {
   qputenv("QT_IMAGEIO_MAXALLOC", "128");
   QImageReader::setAllocationLimit(128);
 }
+
+inline constexpr HolonightImages::Limits kRasterLimits{.inputBytes = kFileLimitBytes,
+                                                       .sourcePixels = 32000000,
+                                                       .sourceExtent = 32768,
+                                                       .decodedBytes = kImageLimitBytes,
+                                                       .metadataBytes = 1024 * 1024,
+                                                       .tiffMetadataBytes = 64 * 1024 * 1024,
+                                                       .metadataRecords = 4096};

@@ -3,7 +3,7 @@
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 context=$(mktemp -d "$root/build/runtime-check.XXXXXX")
-for provider in holonight-config holonight-qt; do
+for provider in holonight-config holonight-qt holonight-images; do
   DESTDIR="$context/payload" cmake --install "$root/build/deps/$provider" --prefix /usr
 done
 DESTDIR="$context/payload" cmake --install "$root/build/release" --prefix /usr

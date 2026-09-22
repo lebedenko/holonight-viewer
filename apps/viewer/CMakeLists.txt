@@ -1,6 +1,4 @@
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(WebP REQUIRED IMPORTED_TARGET GLOBAL libwebp)
-pkg_check_modules(EXIF REQUIRED IMPORTED_TARGET libexif)
 pkg_check_modules(WaylandClient REQUIRED IMPORTED_TARGET wayland-client)
 pkg_check_modules(WaylandProtocols REQUIRED wayland-protocols)
 pkg_check_modules(WaylandScanner REQUIRED wayland-scanner)
@@ -27,8 +25,8 @@ set_target_properties(viewer-protocol PROPERTIES AUTOMOC OFF)
 add_library(viewer-private STATIC
   image_orientation.cpp directory_model.cpp decoded_image_cache.cpp exif_metadata.cpp
   view_geometry.cpp portal_request_builder.cpp wayland_foreign_export.cpp frame_source.cpp frame_streamer.cpp)
-target_link_libraries(viewer-private PUBLIC Qt6::Quick Qt6::DBus PRIVATE
-  PkgConfig::WebP PkgConfig::EXIF PkgConfig::WaylandClient Qt6::GuiPrivate viewer-protocol)
+target_link_libraries(viewer-private PUBLIC Qt6::Quick Qt6::DBus HolonightImages::Images PRIVATE
+  PkgConfig::WaylandClient Qt6::GuiPrivate viewer-protocol)
 target_include_directories(viewer-private PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(viewer-private SYSTEM PRIVATE "${xdg_foreign_dir}")
 viewer_warnings(viewer-private)
@@ -69,7 +67,7 @@ function(add_viewer_application target)
   qt_add_resources(${target} viewer-config PREFIX "/" BASE "${app_dir}"
     FILES "${app_dir}/qtquickcontrols2.conf")
   target_link_libraries(${target} PRIVATE viewer-private Qt6::QuickControls2 Qt6::Svg
-    HolonightQt::Core HolonightQt::Controls PkgConfig::WebP)
+    HolonightQt::Core HolonightQt::Controls)
   target_compile_definitions(${target} PRIVATE VIEWER_VERSION="${PROJECT_VERSION}")
   viewer_warnings(${target})
 endfunction()

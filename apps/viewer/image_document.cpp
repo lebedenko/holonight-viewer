@@ -5,63 +5,16 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#include <QImageReader>
 #include <QLocale>
 #include <QPainter>
 #include <QStringList>
 #include <QSvgRenderer>
 #include <QVariantMap>
-#include <QtEndian>
 
 #include <array>
 #include <utility>
-#include <webp/decode.h>
 
 namespace {
-// Only the simple single-bitstream RIFF form is eligible. Extended containers,
-// ancillary chunks and animation retain the installed Qt decoder's interpretation.
-QImage simpleWebPFallback(QFile& file, const std::atomic_bool& cancelled, bool& limited) {
-  if (cancelled.load() || !file.seek(0)) {
-    return {};
-  }
-  const auto header = file.peek(20);
-  if (header.size() != 20 || header.first(4) != "RIFF" || header.sliced(8, 4) != "WEBP" ||
-      (header.sliced(12, 4) != "VP8 " && header.sliced(12, 4) != "VP8L")) {
-    return {};
-  }
-  const auto bytes = file.read(kFileLimitBytes + 1);
-  if (cancelled.load() || bytes.size() < 20 || bytes.size() > kFileLimitBytes || bytes.first(4) != "RIFF" ||
-      bytes.sliced(8, 4) != "WEBP" || (bytes.sliced(12, 4) != "VP8 " && bytes.sliced(12, 4) != "VP8L")) {
-    return {};
-  }
-  const auto* data = static_cast<const uint8_t*>(static_cast<const void*>(bytes.constData()));
-  const quint64 riff_size = qFromLittleEndian<quint32>(bytes.sliced(4, 4).constData());
-  const quint64 chunk_size = qFromLittleEndian<quint32>(bytes.sliced(16, 4).constData());
-  if (riff_size + 8 != static_cast<quint64>(bytes.size()) ||
-      20 + chunk_size + (chunk_size & 1) != static_cast<quint64>(bytes.size())) {
-    return {};
-  }
-  int width = 0;
-  int height = 0;
-  if (WebPGetInfo(data, bytes.size(), &width, &height) == 0) {
-    return {};
-  }
-  if (!acceptableSize({width, height}) || static_cast<qint64>(width) * height * 4 > kImageLimitBytes) {
-    limited = true;
-    return {};
-  }
-  if (cancelled.load()) {
-    return {};
-  }
-  QImage image(width, height, QImage::Format_RGBA8888);
-  if (image.isNull() ||
-      WebPDecodeRGBAInto(data, bytes.size(), image.bits(), image.sizeInBytes(),
-                         static_cast<int>(image.bytesPerLine())) == nullptr ||
-      cancelled.load()) {
-    return {};
-  }
-  return image;
-}
 constexpr qint64 kDisplayAndCacheBytes = 2 * kImageLimitBytes;
 // Validation-only: constructed on the worker thread, discarded before this function returns. ImageDocument builds
 // its own persistent QSvgRenderer once, on the GUI thread, from the source path while retaining these bytes.
@@ -95,37 +48,19 @@ QString decoderError(bool readable, QSize dimensions) {
   return ImageDocument::tr("The image is damaged, unreadable, or exceeds the decode memory limit.");
 }
 DecodeResult readImage(QFile& file, const std::atomic_bool& cancelled, ImageInformation facts) {
-  QImageReader reader(&file);
-  reader.setAutoTransform(true);
-  const bool readable = reader.canRead();
-  facts.format = QString::fromLatin1(reader.format()).toUpper();
-  const auto dimensions = readable ? reader.size() : QSize{};
-  if (dimensions.isValid() && !acceptableSize(dimensions)) {
-    return {.image = {}, .error = limitError(), .information = facts, .svgData = {}};
-  }
-  QImage image;
-  if (readable && dimensions.isValid()) {
-    image = reader.read();
-  }
-  if (cancelled.load()) {
+  auto result = HolonightImages::decode(file, {.limits = kRasterLimits, .bound = {}}, cancelled);
+  facts.format = QString::fromLatin1(result.inspection.format).toUpper();
+  if (result.outcome == HolonightImages::Outcome::Cancelled) {
     return {};
   }
-  if (image.isNull()) {
-    bool limited = false;
-    image = simpleWebPFallback(file, cancelled, limited);
-    if (cancelled.load()) {
-      return {};
-    }
-    if (limited) {
-      return {.image = {}, .error = limitError(), .information = facts, .svgData = {}};
-    }
-    if (!image.isNull()) {
-      facts.format = QStringLiteral("WEBP");
-    } else {
-      return {.image = {}, .error = decoderError(readable, dimensions), .information = facts, .svgData = {}};
-    }
+  if (result.outcome != HolonightImages::Outcome::Success) {
+    const auto error =
+        result.outcome == HolonightImages::Outcome::ResourceLimit
+            ? limitError()
+            : decoderError(result.outcome != HolonightImages::Outcome::Unsupported, result.inspection.sourceSize);
+    return {.image = {}, .error = error, .information = facts, .svgData = {}};
   }
-  return {.image = std::move(image), .error = {}, .information = facts, .svgData = {}};
+  return {.image = std::move(result.image), .error = {}, .information = facts, .svgData = {}};
 }
 }  // namespace
 
@@ -273,8 +208,6 @@ ImageDocument::ImageDocument(Decoder decoder, QObject* parent)
 
 ImageDocument::ImageDocument(Decoder decoder, DirectoryModel::Scanner scanner, QObject* parent)
     : QObject(parent), directory_(std::move(scanner)), worker_(new QObject), decoder_(std::move(decoder)) {
-  // Set policy before any worker starts, including Qt's environment override.
-  configureDecodeLimits();
   worker_->moveToThread(&thread_);
   connect(&thread_, &QThread::finished, worker_, &QObject::deleteLater);
   connect(&thread_, &QThread::finished, this, &ImageDocument::workerFinished);
@@ -313,8 +246,8 @@ bool ImageDocument::isLocalUrl(const QUrl& url) {
 
 QStringList ImageDocument::nameFilters() {
   QStringList patterns;
-  for (const auto& format : QImageReader::supportedImageFormats()) {
-    patterns.append("*." + QString::fromLatin1(format));
+  for (const auto& format : HolonightImages::supportedSuffixes()) {
+    patterns.append("*." + format);
   }
   // SVG decodes via QSvgRenderer, not QImageReader, so it is listed unconditionally here.
   patterns.append(QStringLiteral("*.svg"));

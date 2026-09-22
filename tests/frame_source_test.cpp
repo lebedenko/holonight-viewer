@@ -128,7 +128,7 @@ TEST(FrameSource, AllocationLimitAppliesToEachReadNotTheSequence) {
   if (!gifAvailable()) {
     GTEST_SKIP() << kNoGifPlugin;
   }
-  // ImageDocument also sets the environment override, which wins over setAllocationLimit(), so set both.
+  // Application startup also sets the environment override, which wins over setAllocationLimit(), so set both.
   const auto original = QImageReader::allocationLimit();
   const auto originalEnvironment = qgetenv("QT_IMAGEIO_MAXALLOC");
   const auto restore = qScopeGuard([&] {

@@ -8,7 +8,6 @@
 namespace {
 class QtGifFrameSource final : public FrameSource {
  public:
-  QtGifFrameSource() { configureDecodeLimits(); }
   bool open(const QString& path) override {
     close();
     file_.setFileName(path);

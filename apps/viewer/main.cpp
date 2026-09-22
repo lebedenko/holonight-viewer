@@ -1,4 +1,5 @@
 #include "image_document.h"
+#include "image_limits.h"
 
 #include <QCommandLineParser>
 #include <QGuiApplication>
@@ -10,6 +11,7 @@
 #include <cstdlib>
 
 int main(int argc, char* argv[]) {
+  configureDecodeLimits();
   QGuiApplication app(argc, argv);
   QGuiApplication::setApplicationName(QStringLiteral("holonight-viewer"));
   QGuiApplication::setApplicationDisplayName(QStringLiteral("HoloNight Viewer"));

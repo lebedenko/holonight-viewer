@@ -1,4 +1,5 @@
 #include "image_document.h"
+#include "image_limits.h"
 
 #include <QGuiApplication>
 #include <QImageReader>
@@ -55,6 +56,7 @@ bool matchesFixture(const QImage& image, const QString& extension) {
 }  // namespace
 
 int main(int argc, char* argv[]) {
+  configureDecodeLimits();
   QGuiApplication app(argc, argv);
   const auto args = QCoreApplication::arguments();
   if (args.size() != 2) {
