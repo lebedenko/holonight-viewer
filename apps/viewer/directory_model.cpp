@@ -64,6 +64,8 @@ DirectoryResult scanDirectory(const QUrl& selected, const std::atomic_bool& canc
   for (const auto& format : QImageReader::supportedImageFormats()) {
     suffixes.insert(QString::fromLatin1(format).toCaseFolded());
   }
+  // SVG decodes via QSvgRenderer, not QImageReader, so it is listed unconditionally here.
+  suffixes.insert(QStringLiteral("svg"));
   std::error_code error;
   const auto path = std::filesystem::path(selectedInfo.absolutePath().toStdString());
   std::filesystem::directory_iterator iterator(path, error);

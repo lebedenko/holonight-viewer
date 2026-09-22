@@ -9,6 +9,7 @@
 #include <QDir>
 #include <QImage>
 #include <QObject>
+#include <QSvgRenderer>
 #include <QThread>
 #include <QUrl>
 #include <QVariantList>
@@ -23,10 +24,20 @@ struct DecodeResult {
   QImage image;
   QString error;
   ImageInformation information;
+  QByteArray svgData;  // Non-empty only for a successfully validated SVG.
 };
 
 DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled);
 QUrl commandLineUrl(const QString& argument);
+// viewBox is authoritative when present; otherwise Qt's own width/height-or-300x150 resolution.
+QSize svgIntrinsicSize(const QSvgRenderer& renderer);
+
+// Exposes QSvgRenderer as a property type to QML/qmllint without making it constructible there.
+struct QSvgRendererForeign {
+  Q_GADGET
+  QML_FOREIGN(QSvgRenderer)
+  QML_ANONYMOUS
+};
 
 // Image Information presentation helpers; pure so tests need no decoded image.
 // Replaces a leading home directory with "~"; a sibling such as "/home/alice2" is left unchanged.
@@ -60,6 +71,8 @@ class ImageDocument : public QObject {
   Q_PROPERTY(QString fileName READ fileName NOTIFY changed)
   Q_PROPERTY(QString error READ error NOTIFY changed)
   Q_PROPERTY(QImage image READ image NOTIFY changed)
+  Q_PROPERTY(QSvgRenderer* svgRenderer READ svgRenderer NOTIFY changed)
+  Q_PROPERTY(QImage previewImage READ previewImage NOTIFY changed)
   Q_PROPERTY(int position READ position NOTIFY changed)
   Q_PROPERTY(int count READ count NOTIFY changed)
   Q_PROPERTY(bool scanning READ scanning NOTIFY changed)
@@ -80,7 +93,7 @@ class ImageDocument : public QObject {
   ~ImageDocument() override;
   [[nodiscard]] int orientation() const { return orientation_; }
   [[nodiscard]] QSize transformedDimensions() const {
-    return ImageOrientation::dimensions(orientation_, image_.size());
+    return ImageOrientation::dimensions(orientation_, information_.decodedSize);
   }
   [[nodiscard]] QString localPath() const { return selected_url_.toLocalFile(); }
   [[nodiscard]] QString summaryLine() const {
@@ -105,6 +118,12 @@ class ImageDocument : public QObject {
   [[nodiscard]] QString fileName() const { return file_name_; }
   [[nodiscard]] QString error() const { return error_; }
   [[nodiscard]] QImage image() const { return image_; }
+  // Non-null only once a document has finished loading as SVG; the discriminator ImageCanvas paints against.
+  [[nodiscard]] QSvgRenderer* svgRenderer() {
+    return state_ == Ready && information_.format == QLatin1String("SVG") ? &svg_renderer_ : nullptr;
+  }
+  // Always a raster QImage: the decoded image for raster formats, or an on-demand bounded rasterization for SVG.
+  [[nodiscard]] QImage previewImage();
   [[nodiscard]] int position() const { return selected_index_ + 1; }
   [[nodiscard]] int count() const { return directory_.rowCount(); }
   [[nodiscard]] bool scanning() const { return directory_.scanning(); }
@@ -169,4 +188,6 @@ class ImageDocument : public QObject {
   QString file_name_;
   QString error_;
   QImage image_;
+  QByteArray svg_data_;
+  QSvgRenderer svg_renderer_;
 };

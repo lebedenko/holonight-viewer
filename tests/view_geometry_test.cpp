@@ -3,6 +3,8 @@
 #include "image_canvas.h"
 
 #include <QPainter>
+#include <QSignalSpy>
+#include <QSvgRenderer>
 
 #include <gtest/gtest.h>
 #include <limits>
@@ -120,4 +122,42 @@ TEST(ImageCanvas, PhysicalPixelsAlphaAndBoundedPainting) {
     EXPECT_EQ(canvas.size(), QSizeF(160, 80));
     EXPECT_EQ(canvas.image().cacheKey(), source.cacheKey());
   }
+}
+TEST(ImageCanvas, DualModeSvgPaintTakesTheVectorBranch) {
+  QSvgRenderer renderer(
+      QByteArray("<?xml version=\"1.0\"?>"
+                 "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 200\">"
+                 "<rect width=\"100\" height=\"200\" fill=\"#ff0000\"/></svg>"));
+  ASSERT_TRUE(renderer.isValid());
+  ImageCanvas canvas;
+  canvas.setSize({100, 200});
+  canvas.setSvgRenderer(&renderer);
+  EXPECT_EQ(canvas.svgRenderer(), &renderer);
+  EXPECT_TRUE(canvas.image().isNull());
+  canvas.actualSize();
+  QImage output(100, 200, QImage::Format_ARGB32_Premultiplied);
+  output.fill(Qt::transparent);
+  QPainter painter(&output);
+  canvas.paint(&painter);
+  painter.end();
+  EXPECT_EQ(output.pixelColor(50, 100), QColor(Qt::red));
+  QSignalSpy rendered(&canvas, &ImageCanvas::firstRendered);
+  QCoreApplication::processEvents();
+  EXPECT_EQ(rendered.size(), 1);
+  // Zooming in re-renders the vector geometry at the new scale rather than resampling a fixed raster, so the
+  // interior stays exactly opaque red at any magnification instead of blurring at intermediate zoom levels.
+  canvas.zoom(4, {50, 100});
+  QImage zoomed(100, 200, QImage::Format_ARGB32_Premultiplied);
+  zoomed.fill(Qt::transparent);
+  QPainter zoomedPainter(&zoomed);
+  canvas.paint(&zoomedPainter);
+  zoomedPainter.end();
+  EXPECT_EQ(zoomed.pixelColor(50, 100), QColor(Qt::red));
+  // Setting a raster image clears vector mode, and vice versa; the two are mutually exclusive.
+  QImage raster(10, 10, QImage::Format_ARGB32_Premultiplied);
+  raster.fill(Qt::blue);
+  canvas.setImage(raster);
+  EXPECT_EQ(canvas.svgRenderer(), nullptr);
+  canvas.setSvgRenderer(&renderer);
+  EXPECT_TRUE(canvas.image().isNull());
 }

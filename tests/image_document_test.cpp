@@ -2,6 +2,7 @@
 
 #include "gif_fixture.h"
 #include "image_canvas.h"
+#include "image_limits.h"
 
 #include <QBuffer>
 #include <QCryptographicHash>
@@ -10,12 +11,14 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QImageReader>
+#include <QPainter>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTest>
 #include <QTimer>
 #include <QTransform>
 
+#include <algorithm>
 #include <atomic>
 #include <gtest/gtest.h>
 
@@ -53,7 +56,7 @@ bool settled(ImageDocument& document) {
 DecodeResult solidResult() {
   QImage image(4, 2, QImage::Format_ARGB32_Premultiplied);
   image.fill(Qt::red);
-  return {.image = image, .error = {}, .information = {}};
+  return {.image = image, .error = {}, .information = {}, .svgData = {}};
 }
 }  // namespace
 
@@ -236,7 +239,7 @@ TEST(Document, StaleErrorAndValidationCannotReplaceNewestState) {
       while (!release.load()) {
         QThread::msleep(1);
       }
-      return DecodeResult{.image = {}, .error = "stale failure", .information = {}};
+      return DecodeResult{.image = {}, .error = "stale failure", .information = {}, .svgData = {}};
     }
     return solidResult();
   });
@@ -267,7 +270,7 @@ TEST(Document, ShutdownDrainsWithoutBlockingEventLoop) {
     while (!release.load()) {
       QThread::msleep(1);
     }
-    return DecodeResult{.image = {}, .error = "canceled failure", .information = {}};
+    return DecodeResult{.image = {}, .error = "canceled failure", .information = {}, .svgData = {}};
   });
   const auto cleanup = qScopeGuard([&] { release.store(true); });
   QSignalSpy failures(&document, &ImageDocument::openingFailed);
@@ -312,7 +315,7 @@ TEST(Document, FailureEventsIgnoreDirectoryChangesAndRepeatPerRequest) {
   std::atomic_bool scan_started{false};
   ImageDocument document(
       [](const QUrl&, const std::atomic_bool&) {
-        return DecodeResult{.image = {}, .error = "expected failure", .information = {}};
+        return DecodeResult{.image = {}, .error = "expected failure", .information = {}, .svgData = {}};
       },
       [&](const QUrl&, const std::atomic_bool&) {
         scan_started.store(true);
@@ -360,7 +363,7 @@ TEST(Document, SuccessfulTransformsAndPrefetchFailuresDoNotReportOpeningFailures
           return solidResult();
         }
         prefetched.store(true);
-        return DecodeResult{.image = {}, .error = "prefetch failure", .information = {}};
+        return DecodeResult{.image = {}, .error = "prefetch failure", .information = {}, .svgData = {}};
       },
       [&](const QUrl&, const std::atomic_bool&) { return DirectoryResult{.urls = {selected, neighbor}, .error = {}}; });
   QSignalSpy failures(&document, &ImageDocument::openingFailed);
@@ -527,4 +530,128 @@ TEST(Document, NameFiltersListTiffSuffixes) {
   const auto patterns = filters.first().section('(', 1).chopped(1).split(' ');
   EXPECT_TRUE(patterns.contains("*.tif"));
   EXPECT_TRUE(patterns.contains("*.tiff"));
+}
+
+TEST(Document, NameFiltersListSvgSuffix) {
+  const auto filters = ImageDocument::nameFilters();
+  const auto patterns = filters.first().section('(', 1).chopped(1).split(' ');
+  EXPECT_TRUE(patterns.contains("*.svg"));
+}
+
+namespace {
+// Hand-written, independent of QSvgRenderer: a Qt SVG-handler regression cannot hide behind a Qt-written fixture.
+QByteArray svgWithViewBox() {
+  return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+         "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 200\">"
+         "<rect width=\"100\" height=\"200\" fill=\"#ff0000\"/></svg>";
+}
+QByteArray svgWithoutViewBox() {
+  return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"60\" height=\"40\">"
+         "<rect width=\"60\" height=\"40\" fill=\"#0000ff\"/></svg>";
+}
+QByteArray malformedSvg() {
+  return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+         "<svg xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"10\" height=\"10\"";
+}
+}  // namespace
+
+TEST(Document, SvgWithViewBoxDecodesToViewBoxSize) {
+  ImageDocument document;
+  bool rendererWasValidWhenPublished = false;
+  QObject::connect(&document, &ImageDocument::changed, [&] {
+    if (document.state() == ImageDocument::Ready && document.svgRenderer() != nullptr) {
+      rendererWasValidWhenPublished = document.svgRenderer()->isValid();
+    }
+  });
+  document.open({writeFixture("valid-with-viewBox.svg", svgWithViewBox())});
+  ASSERT_TRUE(settled(document));
+  ASSERT_EQ(document.state(), ImageDocument::Ready) << document.error().toStdString();
+  EXPECT_EQ(document.information().format, "SVG");
+  EXPECT_EQ(document.information().decodedSize, QSize(100, 200));
+  EXPECT_TRUE(document.image().isNull());
+  ASSERT_NE(document.svgRenderer(), nullptr);
+  EXPECT_TRUE(document.svgRenderer()->isValid());
+  EXPECT_TRUE(rendererWasValidWhenPublished);
+  EXPECT_EQ(document.transformedDimensions(), QSize(100, 200));
+  document.transform(1);
+  EXPECT_EQ(document.transformedDimensions(), QSize(200, 100));
+}
+
+TEST(Document, SvgResolvesRelativeLocalReferences) {
+  ASSERT_TRUE(writeFixture("svg-reference.png", encodedImage("PNG")).isValid());
+  ImageDocument document;
+  document.open({writeFixture("with-relative-reference.svg",
+                              "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"40\" height=\"20\">"
+                              "<image href=\"svg-reference.png\" width=\"40\" height=\"20\"/>"
+                              "</svg>")});
+  ASSERT_TRUE(settled(document));
+  ASSERT_EQ(document.state(), ImageDocument::Ready) << document.error().toStdString();
+  QImage output(40, 20, QImage::Format_ARGB32_Premultiplied);
+  output.fill(Qt::transparent);
+  QPainter painter(&output);
+  document.svgRenderer()->render(&painter, output.rect());
+  EXPECT_EQ(output.pixelColor(0, 0), QColor(255, 0, 0, 128));
+}
+
+TEST(Document, SvgWithoutViewBoxFallsBackToDefaultSize) {
+  ImageDocument document;
+  document.open({writeFixture("valid-without-viewBox.svg", svgWithoutViewBox())});
+  ASSERT_TRUE(settled(document));
+  ASSERT_EQ(document.state(), ImageDocument::Ready) << document.error().toStdString();
+  EXPECT_EQ(document.information().decodedSize, QSize(60, 40));
+}
+
+TEST(Document, MalformedSvgFailsThroughTheGenericErrorPath) {
+  ImageDocument document;
+  QSignalSpy failures(&document, &ImageDocument::openingFailed);
+  document.open({writeFixture("malformed.svg", malformedSvg())});
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(document.state(), ImageDocument::Error);
+  EXPECT_FALSE(document.error().isEmpty());
+  EXPECT_TRUE(document.image().isNull());
+  EXPECT_EQ(document.svgRenderer(), nullptr);
+  EXPECT_EQ(failures.size(), 1);
+}
+
+TEST(Document, OversizedSvgIsRejectedBeforeParsing) {
+  ImageDocument document;
+  QFile sparse(fixturePath("oversized.svg"));
+  ASSERT_TRUE(sparse.open(QIODevice::WriteOnly));
+  ASSERT_TRUE(sparse.resize(kSvgFileLimitBytes + 1));
+  sparse.close();
+  document.open({QUrl::fromLocalFile(sparse.fileName())});
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(document.state(), ImageDocument::Error);
+  EXPECT_TRUE(document.error().contains("10 MiB"));
+}
+
+TEST(Document, SvgHasNoCameraOrLocationSectionsAndPreviewIsRasterized) {
+  ImageDocument document;
+  document.open({writeFixture("preview.svg", svgWithViewBox())});
+  ASSERT_TRUE(settled(document));
+  ASSERT_EQ(document.state(), ImageDocument::Ready) << document.error().toStdString();
+  const auto sections = document.informationSections();
+  for (const auto& section : sections) {
+    const auto key = section.toMap().value("key").toString();
+    EXPECT_NE(key, "Camera");
+    EXPECT_NE(key, "Location");
+  }
+  const auto preview = document.previewImage();
+  ASSERT_FALSE(preview.isNull());
+  EXPECT_LE(std::max(preview.width(), preview.height()), 256);
+  EXPECT_EQ(preview.width() * 200, preview.height() * 100);  // Same 100:200 aspect ratio as the source viewBox.
+}
+
+TEST(Document, SelectingAwayFromSvgClearsRendererAndBytes) {
+  ImageDocument document;
+  document.open({writeFixture("cleared.svg", svgWithViewBox())});
+  ASSERT_TRUE(settled(document));
+  ASSERT_EQ(document.state(), ImageDocument::Ready);
+  ASSERT_NE(document.svgRenderer(), nullptr);
+  document.open({writeFixture("after-svg.png", encodedImage("PNG"))});
+  ASSERT_TRUE(settled(document));
+  ASSERT_EQ(document.state(), ImageDocument::Ready);
+  EXPECT_EQ(document.svgRenderer(), nullptr);
+  EXPECT_TRUE(document.previewImage().cacheKey() == document.image().cacheKey());
 }

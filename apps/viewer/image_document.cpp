@@ -7,7 +7,9 @@
 #include <QFileInfo>
 #include <QImageReader>
 #include <QLocale>
+#include <QPainter>
 #include <QStringList>
+#include <QSvgRenderer>
 #include <QVariantMap>
 #include <QtEndian>
 
@@ -61,6 +63,25 @@ QImage simpleWebPFallback(QFile& file, const std::atomic_bool& cancelled, bool& 
   return image;
 }
 constexpr qint64 kDisplayAndCacheBytes = 2 * kImageLimitBytes;
+// Validation-only: constructed on the worker thread, discarded before this function returns. ImageDocument builds
+// its own persistent QSvgRenderer once, on the GUI thread, from the source path while retaining these bytes.
+DecodeResult decodeSvg(QFile& file, const std::atomic_bool& cancelled, ImageInformation facts) {
+  const auto bytes = file.readAll();
+  if (cancelled.load()) {
+    return {};
+  }
+  // Loading by filename retains the document directory as the base for trusted local references.
+  QSvgRenderer renderer;
+  if (!renderer.load(file.fileName())) {
+    return {.image = {},
+            .error = ImageDocument::tr("The SVG file is damaged or could not be parsed."),
+            .information = facts,
+            .svgData = {}};
+  }
+  facts.format = QStringLiteral("SVG");
+  facts.decodedSize = svgIntrinsicSize(renderer);
+  return {.image = {}, .error = {}, .information = facts, .svgData = bytes};
+}
 QString limitError() {
   return ImageDocument::tr("This image exceeds the viewing limit (32 million pixels or 128 MiB decoded).");
 }
@@ -80,7 +101,7 @@ DecodeResult readImage(QFile& file, const std::atomic_bool& cancelled, ImageInfo
   facts.format = QString::fromLatin1(reader.format()).toUpper();
   const auto dimensions = readable ? reader.size() : QSize{};
   if (dimensions.isValid() && !acceptableSize(dimensions)) {
-    return {.image = {}, .error = limitError(), .information = facts};
+    return {.image = {}, .error = limitError(), .information = facts, .svgData = {}};
   }
   QImage image;
   if (readable && dimensions.isValid()) {
@@ -96,17 +117,22 @@ DecodeResult readImage(QFile& file, const std::atomic_bool& cancelled, ImageInfo
       return {};
     }
     if (limited) {
-      return {.image = {}, .error = limitError(), .information = facts};
+      return {.image = {}, .error = limitError(), .information = facts, .svgData = {}};
     }
     if (!image.isNull()) {
       facts.format = QStringLiteral("WEBP");
     } else {
-      return {.image = {}, .error = decoderError(readable, dimensions), .information = facts};
+      return {.image = {}, .error = decoderError(readable, dimensions), .information = facts, .svgData = {}};
     }
   }
-  return {.image = std::move(image), .error = {}, .information = facts};
+  return {.image = std::move(image), .error = {}, .information = facts, .svgData = {}};
 }
 }  // namespace
+
+QSize svgIntrinsicSize(const QSvgRenderer& renderer) {
+  const auto viewBox = renderer.viewBoxF();
+  return viewBox.isValid() ? viewBox.size().toSize() : renderer.defaultSize();
+}
 
 DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
   if (cancelled.load()) {
@@ -119,19 +145,38 @@ DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
     facts.modified = info.lastModified();
   }
   if (!info.exists()) {
-    return {.image = {}, .error = ImageDocument::tr("The file no longer exists."), .information = facts};
+    return {.image = {}, .error = ImageDocument::tr("The file no longer exists."), .information = facts, .svgData = {}};
   }
   if (!info.isFile()) {
     return {.image = {},
             .error = ImageDocument::tr("Choose a regular image file, not a folder or special file."),
-            .information = facts};
+            .information = facts,
+            .svgData = {}};
   }
   QFile file(info.absoluteFilePath());
   if (!file.open(QIODevice::ReadOnly)) {
-    return {.image = {}, .error = ImageDocument::tr("The file could not be opened for reading."), .information = facts};
+    return {.image = {},
+            .error = ImageDocument::tr("The file could not be opened for reading."),
+            .information = facts,
+            .svgData = {}};
+  }
+  // SVG is dispatched by extension, not content-sniffing: it has no reliable magic-byte signature, and this is the
+  // same signal REQ-F-001..003 already use for format registration and directory scanning. It skips EXIF entirely
+  // (XML has none) and the raster kFileLimitBytes/kImageLimitBytes checks, which do not apply to it.
+  if (info.suffix().compare(QLatin1String("svg"), Qt::CaseInsensitive) == 0) {
+    if (file.size() > kSvgFileLimitBytes) {
+      return {.image = {},
+              .error = ImageDocument::tr("The SVG file exceeds the 10 MiB size limit."),
+              .information = facts,
+              .svgData = {}};
+    }
+    return decodeSvg(file, cancelled, facts);
   }
   if (file.size() > kFileLimitBytes) {
-    return {.image = {}, .error = ImageDocument::tr("The file exceeds the 256 MiB input limit."), .information = facts};
+    return {.image = {},
+            .error = ImageDocument::tr("The file exceeds the 256 MiB input limit."),
+            .information = facts,
+            .svgData = {}};
   }
   facts.exif = ExifMetadata::read(file, cancelled);
   if (cancelled.load() || !file.seek(0)) {
@@ -144,17 +189,18 @@ DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
   auto image = std::move(decoded.image);
   facts = std::move(decoded.information);
   if (!acceptableImage(image)) {
-    return {.image = {}, .error = limitError(), .information = facts};
+    return {.image = {}, .error = limitError(), .information = facts, .svgData = {}};
   }
   image.convertTo(QImage::Format_ARGB32_Premultiplied);
   if (image.isNull()) {
     return {.image = {},
             .error = ImageDocument::tr("There is not enough memory to display this image."),
-            .information = facts};
+            .information = facts,
+            .svgData = {}};
   }
   image.setDevicePixelRatio(1);
   facts.decodedSize = image.size();
-  return {.image = std::move(image), .error = {}, .information = facts};
+  return {.image = std::move(image), .error = {}, .information = facts, .svgData = {}};
 }
 
 QUrl commandLineUrl(const QString& argument) {
@@ -270,6 +316,8 @@ QStringList ImageDocument::nameFilters() {
   for (const auto& format : QImageReader::supportedImageFormats()) {
     patterns.append("*." + QString::fromLatin1(format));
   }
+  // SVG decodes via QSvgRenderer, not QImageReader, so it is listed unconditionally here.
+  patterns.append(QStringLiteral("*.svg"));
   patterns.sort();
   patterns.removeDuplicates();
   return {tr("Images (%1)").arg(patterns.join(' ')), tr("All files (*)")};
@@ -293,6 +341,7 @@ void ImageDocument::open(const QList<QUrl>& urls) {
     emit orientationChanged();
     selected_url_ = QUrl{};
     image_ = {};
+    svg_data_.clear();
     file_name_.clear();
     state_ = Error;
     error_ = tr("Open exactly one local image file. Remote URLs are not supported.");
@@ -317,6 +366,7 @@ void ImageDocument::select(const QUrl& url) {
   selected_url_ = url;
   selected_index_ = directory_.indexOf(url);
   image_ = {};
+  svg_data_.clear();
   error_.clear();
   file_name_ = url.fileName();
   state_ = Loading;
@@ -407,8 +457,14 @@ void ImageDocument::complete(const Request& request, DecodeResult result) {
   if (!request.prefetch && request.requestId == request_id_) {
     information_ = std::move(result.information);
     image_ = std::move(result.image);
+    svg_data_ = std::move(result.svgData);
     error_ = std::move(result.error);
-    state_ = image_.isNull() ? Error : Ready;
+    if (error_.isEmpty() && information_.format == QLatin1String("SVG") &&
+        !svg_renderer_.load(request.url.toLocalFile())) {
+      svg_data_.clear();
+      error_ = tr("The SVG file is damaged or could not be parsed.");
+    }
+    state_ = (image_.isNull() && svg_data_.isEmpty()) ? Error : Ready;
     if (state_ == Error && error_.isEmpty()) {
       error_ = tr("The image could not be decoded.");
     }
@@ -522,4 +578,24 @@ QString ImageDocument::formattedFileSize() const {
   return information_.encodedSize < 0
              ? tr("Unavailable")
              : QLocale().formattedDataSize(information_.encodedSize, 1, QLocale::DataSizeSIFormat);
+}
+
+QImage ImageDocument::previewImage() {
+  if (!image_.isNull()) {
+    return image_;
+  }
+  if (state_ != Ready || information_.format != QLatin1String("SVG") || !svg_renderer_.isValid()) {
+    return {};
+  }
+  constexpr int kPreviewMaxDimension = 256;  // Comfortably above the 96x96 popup box at any DPR this app targets.
+  const auto raster =
+      svgIntrinsicSize(svg_renderer_).scaled(kPreviewMaxDimension, kPreviewMaxDimension, Qt::KeepAspectRatio);
+  if (raster.isEmpty()) {
+    return {};
+  }
+  QImage preview(raster, QImage::Format_ARGB32_Premultiplied);
+  preview.fill(Qt::transparent);
+  QPainter painter(&preview);
+  svg_renderer_.render(&painter, preview.rect());
+  return preview;
 }

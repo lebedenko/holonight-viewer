@@ -685,6 +685,7 @@ HnApplicationWindow {
                 objectName: "imageCanvas"
                 anchors.fill: parent
                 image: window.document.image
+                svgRenderer: window.document.svgRenderer
                 orientation: window.document.orientation
                 onOrientationChanged: ++window.inputEpoch
                 displayPixelRatio: window.devicePixelRatio

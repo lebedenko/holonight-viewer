@@ -1,5 +1,6 @@
 #include "image_canvas.h"
 
+#include "image_document.h"
 #include "image_orientation.h"
 
 #include <QCoreApplication>
@@ -29,12 +30,26 @@ void ImageCanvas::refresh() {
   emit viewChanged();
 }
 void ImageCanvas::setImage(const QImage& image) {
-  if (image_.cacheKey() == image.cacheKey()) {
+  if (svg_renderer_ == nullptr && image_.cacheKey() == image.cacheKey()) {
     return;
   }
   ++generation_;
   image_ = image;
-  view_.setImage(ImageOrientation::dimensions(orientation_, image.size()));
+  svg_renderer_ = nullptr;
+  content_size_ = image.size();
+  view_.setImage(ImageOrientation::dimensions(orientation_, content_size_));
+  refresh();
+  emit imageChanged();
+}
+void ImageCanvas::setSvgRenderer(QSvgRenderer* renderer) {
+  if (svg_renderer_ == renderer) {
+    return;
+  }
+  ++generation_;
+  svg_renderer_ = renderer;
+  image_ = {};
+  content_size_ = renderer != nullptr && renderer->isValid() ? svgIntrinsicSize(*renderer) : QSize{};
+  view_.setImage(ImageOrientation::dimensions(orientation_, content_size_));
   refresh();
   emit imageChanged();
 }
@@ -51,7 +66,7 @@ void ImageCanvas::setOrientation(int orientation) {
     return;
   }
   orientation_ = orientation;
-  view_.setImage(ImageOrientation::dimensions(orientation_, image_.size()));
+  view_.setImage(ImageOrientation::dimensions(orientation_, content_size_));
   view_.fit();
   refresh();
   emit orientationChanged();
@@ -109,18 +124,26 @@ void ImageCanvas::paint(QPainter* painter) {
   const QRectF source((visible.topLeft() - destination.topLeft()) / view_.scale(), visible.size() / view_.scale());
   painter->setClipRect(boundingRect());
   painter->setRenderHint(QPainter::SmoothPixmapTransform, view_.magnification() < 1);
-  const auto mapping = ImageOrientation::mapping(orientation_, image_.size());
-  const auto decodedSource = mapping.inverted().mapRect(source);
+  const auto mapping = ImageOrientation::mapping(orientation_, content_size_);
   painter->translate(destination.topLeft());
   painter->scale(view_.scale(), view_.scale());
   painter->setTransform(mapping, true);
-  painter->drawImage(decodedSource, image_, decodedSource);
+  // Dual-mode paint (REQ-NF-003): raster formats rasterize once at decode time and are blitted every frame; SVG
+  // has no raster form to blit and is painted as vector geometry directly under the current transform, so it
+  // stays crisp at any zoom instead of resampling a fixed-resolution QImage.
+  if (svg_renderer_ != nullptr && svg_renderer_->isValid()) {
+    svg_renderer_->render(painter, QRectF(QPointF(0, 0), content_size_));
+  } else {
+    const auto decodedSource = mapping.inverted().mapRect(source);
+    painter->drawImage(decodedSource, image_, decodedSource);
+  }
   if (painted_generation_ != generation_) {
     painted_generation_ = generation_;
     QMetaObject::invokeMethod(
         this,
         [this, generation = generation_] {
-          if (generation == generation_ && !image_.isNull()) {
+          if (generation == generation_ &&
+              (!image_.isNull() || (svg_renderer_ != nullptr && svg_renderer_->isValid()))) {
             emit firstRendered();
           }
         },

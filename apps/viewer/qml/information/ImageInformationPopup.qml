@@ -75,7 +75,7 @@ Controls.Popup {
                 ImageCanvas {
                     anchors.fill: parent
                     anchors.margins: HnMetrics.borderWidth
-                    image: root.document.image
+                    image: root.document.previewImage
                     orientation: root.document.orientation
                     displayPixelRatio: Screen.devicePixelRatio
                     enabled: false

@@ -3,6 +3,7 @@
 
 #include <QImage>
 #include <QQuickPaintedItem>
+#include <QSvgRenderer>
 #include <QtQml/qqmlregistration.h>
 
 class ImageCanvas : public QQuickPaintedItem {
@@ -10,6 +11,7 @@ class ImageCanvas : public QQuickPaintedItem {
   QML_ELEMENT
   Q_PROPERTY(int orientation READ orientation WRITE setOrientation NOTIFY orientationChanged)
   Q_PROPERTY(QImage image READ image WRITE setImage NOTIFY imageChanged)
+  Q_PROPERTY(QSvgRenderer* svgRenderer READ svgRenderer WRITE setSvgRenderer NOTIFY imageChanged)
   Q_PROPERTY(qreal displayPixelRatio READ displayPixelRatio WRITE setDisplayPixelRatio NOTIFY viewportChanged)
   Q_PROPERTY(bool fitting READ fitting NOTIFY viewChanged)
   Q_PROPERTY(qreal magnification READ magnification NOTIFY viewChanged)
@@ -21,6 +23,8 @@ class ImageCanvas : public QQuickPaintedItem {
   void setOrientation(int orientation);
   [[nodiscard]] QImage image() const { return image_; }
   void setImage(const QImage& image);
+  [[nodiscard]] QSvgRenderer* svgRenderer() const { return svg_renderer_; }
+  void setSvgRenderer(QSvgRenderer* renderer);
   [[nodiscard]] qreal displayPixelRatio() const { return pixel_ratio_; }
   void setDisplayPixelRatio(qreal ratio);
   [[nodiscard]] bool fitting() const { return view_.fitting(); }
@@ -55,6 +59,8 @@ class ImageCanvas : public QQuickPaintedItem {
   quint64 painted_generation_ = 0;
   int orientation_ = 0;
   QImage image_;
+  QSvgRenderer* svg_renderer_ = nullptr;  // Non-owning; ImageDocument owns the lifetime.
+  QSize content_size_;                    // Intrinsic size in content units, raster or vector.
   ViewGeometry view_;
   qreal pixel_ratio_ = 1;
 };

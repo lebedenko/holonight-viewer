@@ -68,7 +68,7 @@ function(add_viewer_application target)
     NO_IMPORT_SCAN)
   qt_add_resources(${target} viewer-config PREFIX "/" BASE "${app_dir}"
     FILES "${app_dir}/qtquickcontrols2.conf")
-  target_link_libraries(${target} PRIVATE viewer-private Qt6::QuickControls2
+  target_link_libraries(${target} PRIVATE viewer-private Qt6::QuickControls2 Qt6::Svg
     HolonightQt::Core HolonightQt::Controls PkgConfig::WebP)
   target_compile_definitions(${target} PRIVATE VIEWER_VERSION="${PROJECT_VERSION}")
   viewer_warnings(${target})

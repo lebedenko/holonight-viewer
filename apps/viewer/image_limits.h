@@ -9,6 +9,8 @@
 // Decode policy shared by the static path and animation playback.
 inline constexpr qint64 kImageLimitBytes = 128 * 1024 * 1024;
 inline constexpr qint64 kFileLimitBytes = 256 * 1024 * 1024;
+// SVG is XML text, not a raster codec; kFileLimitBytes/kImageLimitBytes do not apply to it.
+inline constexpr qint64 kSvgFileLimitBytes = 10 * 1024 * 1024;
 
 inline bool acceptableSize(QSize size) {
   return size.width() > 0 && size.height() > 0 && size.width() <= 32768 && size.height() <= 32768 &&

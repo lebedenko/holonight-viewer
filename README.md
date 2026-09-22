@@ -20,7 +20,8 @@ opened read-only and never changed.
 - **Checks:** clang-format, clang-tidy (run-clang-tidy), REUSE, desktop-file-utils,
   GIO and Python 3.
 - **Codecs:** Qt Base's PNG/BMP support and JPEG plugin, plus Qt Image Formats' WebP,
-  GIF and TIFF plugins (Arch: `qt6-base qt6-imageformats`). See
+  GIF and TIFF plugins (Arch: `qt6-base qt6-imageformats`), plus Qt's own `Qt6::Svg`
+  module for vector SVG rendering (not a `QImageReader` plugin). See
   [Supported formats](#supported-formats-and-limits).
 
 On Arch, the [CI Dockerfile](packaging/Dockerfile.ci) lists all packages.
@@ -201,8 +202,8 @@ persistence after exit is managed by the desktop.
 
 ## Supported formats and limits
 
-The guaranteed formats are static **PNG, JPEG, BMP, WebP and TIFF**, and **GIF** (GIF87a
-and GIF89a, including animation). TIFF is guaranteed for single-page, 8-bit,
+The guaranteed formats are static **PNG, JPEG, BMP, WebP, TIFF and SVG**, and **GIF**
+(GIF87a and GIF89a, including animation). TIFF is guaranteed for single-page, 8-bit,
 uncompressed RGB, RGBA, grayscale and palette files; a multi-page TIFF shows its
 first page only. Other TIFF variants (16-bit, float, CMYK, Lab, tiled, BigTIFF and
 compressed files) and other installed Qt image handlers work on a best-effort basis:
@@ -210,6 +211,13 @@ they either open or show an error, and some valid files, such as tiled TIFF, may
 open. Other animated files (APNG, animated WebP) show their first frame only. Missing
 codecs, including the Qt GIF and TIFF plugins, fail qualification, not ordinary
 startup.
+
+SVG renders as true vector graphics, staying crisp at any zoom level instead of being
+decoded to a fixed-resolution raster; it is not subject to the pixel/decoded-image
+limits below or the decode cache, and it carries no EXIF. SVG files are capped at
+10 MiB, checked before parsing; larger or malformed files report the same
+damaged/unreadable error as other formats. `.svgz` (gzip-compressed) and animated
+(SMIL/CSS) SVG are not supported — only the static markup renders.
 
 Qt is the primary decoder. A private libwebp fallback handles simple static RIFF
 VP8/VP8L files that Qt cannot inspect or decode, including the compact Qt 6.11.2
@@ -429,6 +437,10 @@ Performance acceptance requires explicit user review of the measured tradeoffs.
   file, and its frame count comes from a whole-file scan that runs after the first two
   frames so it never delays playback. Timing is scheduled against deadlines on an
   injectable clock rather than by sleeping.
+- **SVG:** rendered directly as vector geometry every frame, never rasterized to a
+  cached `QImage`, so it never enters the decode cache and stays crisp through an
+  interactive zoom. The Image Information thumbnail still rasterizes it (bounded, on
+  demand) since vector fidelity does not matter at that scale.
 - **Memory beyond the bounds:** decoding/conversion and canvas textures add temporary
   memory, and codec-private allocations are not covered, so the limits are not a
   whole-process guarantee. Zoom, pan and transforms reuse the decoded image and a
