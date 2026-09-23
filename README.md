@@ -332,10 +332,11 @@ instead of reaching the real portal.
 CMake and Task `format`/`format-check` share one recursive inventory of application
 and test C++ sources, headers and nested QML. QML formatting uses
 `QMLFORMAT` when set (an executable path or command name, without arguments), then
-`qmlformat`/`qmlformat-qt6` on `PATH`, `qtpaths6` installation directories, and
-`/usr/lib/qt6/bin/qmlformat`. An invalid explicit override fails instead of falling
-back. Fixture scripts accept an external build directory; standalone invocations
-use the system temporary directory.
+`qtpaths6` directories in order (`QT_INSTALL_BINS`, `QT_HOST_BINS`,
+`QT_INSTALL_LIBEXECS`, `QT_HOST_LIBEXECS`), `/usr/lib/qt6/bin/qmlformat`,
+then `qmlformat-qt6` and `qmlformat` on `PATH`. An invalid explicit override fails
+instead of falling back. Fixture scripts accept an external build directory;
+standalone invocations use the system temporary directory.
 
 ```sh
 QMLFORMAT="/opt/Qt 6/bin/qmlformat" task format-check

@@ -39,19 +39,61 @@ with tempfile.TemporaryDirectory(prefix='qml-discovery.') as temporary:
     check('Cannot find qmlformat', code=1)
     check('Invalid QMLFORMAT override', override='', code=1)
     check('Invalid QMLFORMAT override', override=str(fixtures / 'missing'), code=1)
-    executable(fallback, 'printf "fallback\\n"')
-    check('fallback')
-    executable(path / 'qtpaths6', '[[ $1 == --query && $2 == QT_INSTALL_BINS ]] || exit 1\n'
-               + 'printf "%s\\n" "' + str(qt) + '"')
-    executable(qt / 'qmlformat', 'printf "qtpaths\\n"')
-    check('qtpaths')
-    executable(path / 'qmlformat-qt6', 'printf "path-qt6\\n"')
-    check('path-qt6')
     executable(path / 'qmlformat', 'printf "path-default\\n"')
     check('path-default')
+    executable(path / 'qmlformat-qt6', 'printf "path-qt6\\n"')
+    check('path-qt6')
+    executable(fallback, 'printf "fallback\\n"')
+    check('fallback')
+
+    properties = ('QT_INSTALL_BINS', 'QT_HOST_BINS',
+                  'QT_INSTALL_LIBEXECS', 'QT_HOST_LIBEXECS')
+    directories = [qt / property for property in properties]
+    query = '[[ $1 == --query ]] || exit 1\ncase $2 in\n'
+    for property, directory in zip(properties, directories):
+        directory.mkdir()
+        executable(directory / 'qmlformat', f'printf "{property}\\n"')
+        query += f'{property}) printf "%s\\n" "{directory}" ;;\n'
+    query += '*) exit 1 ;;\nesac'
+    executable(path / 'qtpaths6', query)
+    # All candidates compete initially; remove each winner to test query order.
+    for property, directory in zip(properties, directories):
+        check(property)
+        (directory / 'qmlformat').unlink()
+    check('fallback')
+
+    executable(qt / 'qmlformat', 'printf "qtpaths\\n"')
+    executable(path / 'qtpaths6',
+               '[[ $1 == --query ]] || exit 1\ncase $2 in\n'
+               'QT_INSTALL_BINS) echo "failed query" >&2; exit 1 ;;\n'
+               'QT_HOST_BINS) exit 0 ;;\n'
+               f'QT_INSTALL_LIBEXECS) printf "%s\\n" "{qt}" ;;\n'
+               '*) exit 1 ;;\nesac')
+    check('qtpaths')
+    (qt / 'qmlformat').chmod(0o644)
+    check('fallback')
+    executable(path / 'qtpaths6', 'echo "failed query" >&2\nexit 1')
+    check('fallback')
+    fallback.unlink()
+    check('path-qt6')
+    (path / 'qmlformat-qt6').unlink()
+    check('path-default')
+    (path / 'qmlformat').unlink()
+    check('Cannot find qmlformat', code=1)
+
+    # Restore every discovery tier while validating explicit overrides.
+    executable(fallback, 'printf "fallback\\n"')
+    executable(qt / 'qmlformat', 'printf "qtpaths\\n"')
+    executable(path / 'qtpaths6', f'printf "%s\\n" "{qt}"')
+    executable(path / 'qmlformat-qt6', 'printf "path-qt6\\n"')
+    executable(path / 'qmlformat', 'printf "path-default\\n"')
+    check('Invalid QMLFORMAT override', override='', code=1)
+    check('Invalid QMLFORMAT override', override=str(fixtures / 'missing'), code=1)
+    check('Invalid QMLFORMAT override', override=str(qt), code=1)
+    check('Invalid QMLFORMAT override', override='printf', code=1)
     explicit = fixtures / 'explicit formatter'
-    executable(explicit, 'printf "override <%s> <%s>\\n" "$1" "$2"')
-    check('override <-i> <a file.qml>', override=str(explicit))
+    executable(explicit, 'printf "override <%s> <%s> <%s>\\n" "$#" "$1" "$2"')
+    check('override <2> <-i> <a file.qml>', override=str(explicit))
     check('path-qt6', override='qmlformat-qt6')
     executable(explicit, 'echo "formatter failed" >&2\nexit 23')
     check('formatter failed', override=str(explicit), code=23)

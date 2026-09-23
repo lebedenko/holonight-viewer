@@ -14,11 +14,6 @@ if [[ ${QMLFORMAT+x} ]]; then
   fi
 else
   formatter=''
-  for name in qmlformat qmlformat-qt6; do
-    if formatter=$(command -v -- "$name"); then
-      break
-    fi
-  done
   if [[ -z $formatter ]] && command -v qtpaths6 >/dev/null 2>&1; then
     for property in QT_INSTALL_BINS QT_HOST_BINS QT_INSTALL_LIBEXECS QT_HOST_LIBEXECS; do
       directory=$(qtpaths6 --query "$property" 2>/dev/null) || continue
@@ -30,6 +25,13 @@ else
   fi
   if [[ -z $formatter && -x /usr/lib/qt6/bin/qmlformat ]]; then
     formatter=/usr/lib/qt6/bin/qmlformat
+  fi
+  if [[ -z $formatter ]]; then
+    for name in qmlformat-qt6 qmlformat; do
+      if formatter=$(command -v -- "$name"); then
+        break
+      fi
+    done
   fi
   if [[ -z $formatter ]]; then
     echo 'Cannot find qmlformat. Set QMLFORMAT to an executable or install Qt 6 formatting tools.' >&2
