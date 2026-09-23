@@ -1,16 +1,22 @@
 #include "exif_fixture.h"
+#include "image_canvas.h"
 #include "image_document.h"
 
 #include <QBuffer>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QImage>
+#include <QPainter>
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQuickItem>
+#include <QQuickRenderControl>
+#include <QQuickRenderTarget>
 #include <QQuickWindow>
+#include <QScreen>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -443,4 +449,116 @@ TEST(ImageInformationPopup, DimsLikeShortcutHelp) {
   EXPECT_NEAR(help, information, 0.001);
   QTest::keyClick(window, Qt::Key_Escape);
   window->close();
+}
+
+// Redirected rendering separates window DPR from screen DPR without a native window or input.
+TEST(ImageInformationPopup, PreviewTracksWindowDprAndPhysicalSampling) {
+  if (QGuiApplication::platformName() != QStringLiteral("offscreen")) {
+    GTEST_SKIP() << "Deterministic offscreen regression; not native visual qualification";
+  }
+  const WarningCollector collector;
+  QTemporaryDir directory;
+  ASSERT_TRUE(directory.isValid());
+  QImage pattern(128, 128, QImage::Format_RGB32);
+  for (int row = 0; row < pattern.height(); ++row) {
+    for (int column = 0; column < pattern.width(); ++column) {
+      pattern.setPixelColor(column, row, (column + row) % 2 == 0 ? Qt::black : Qt::white);
+    }
+  }
+  const auto path = directory.filePath(QStringLiteral("pattern.png"));
+  ASSERT_TRUE(pattern.save(path));
+  ImageDocument document;
+  document.open({QUrl::fromLocalFile(path)});
+  ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready; }));
+
+  QQmlEngine engine;
+  QQuickRenderControl control;
+  QQuickWindow window(&control);
+  window.resize(480, 480);
+  QImage buffer(960, 960, QImage::Format_ARGB32_Premultiplied);
+  const auto screenRatio = window.screen()->devicePixelRatio();
+  const auto setRatio = [&](qreal ratio) {
+    auto target = QQuickRenderTarget::fromPaintDevice(&buffer);
+    target.setDevicePixelRatio(ratio);
+    window.setRenderTarget(target);
+    // Redirected targets need the notification normally supplied by the platform surface.
+    QEvent changed(QEvent::DevicePixelRatioChange);
+    QCoreApplication::sendEvent(&window, &changed);
+    control.polishItems();
+  };
+  QQuickItem host;
+  host.setSize({480, 480});
+  QQmlComponent component(&engine);
+  component.loadFromModule("HolonightViewer", "ImageInformationPopup");
+  const std::unique_ptr<QObject> popup(
+      component.createWithInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)},
+                                             {QStringLiteral("parent"), QVariant::fromValue(&host)}}));
+  ASSERT_NE(popup, nullptr) << component.errorString().toStdString();
+  auto* content = popup->property("contentItem").value<QQuickItem*>();
+  ASSERT_NE(content, nullptr);
+  auto* canvas = content->findChild<ImageCanvas*>();
+  ASSERT_NE(canvas, nullptr);
+  EXPECT_EQ(canvas->window(), nullptr);
+  EXPECT_DOUBLE_EQ(canvas->displayPixelRatio(), 1);
+
+  // Attach to an already scaled window to cover the null-window fallback and attachment binding.
+  setRatio(1.5);
+  host.setParentItem(window.contentItem());
+  ASSERT_TRUE(QMetaObject::invokeMethod(popup.get(), "open"));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return popup->property("opened").toBool(); }));
+  control.polishItems();
+  EXPECT_EQ(canvas->window(), &window);
+  EXPECT_DOUBLE_EQ(canvas->displayPixelRatio(), 1.5);
+  ASSERT_EQ(canvas->image().size(), QSize(128, 128));
+  ASSERT_EQ(canvas->size(), QSizeF(94, 94));
+  const auto fitted = canvas->imageRect();
+  EXPECT_EQ(fitted, QRectF(0, 0, 94, 94));
+
+  const auto checkPreview = [&](qreal ratio) {
+    SCOPED_TRACE(ratio);
+    EXPECT_DOUBLE_EQ(window.effectiveDevicePixelRatio(), ratio);
+    EXPECT_DOUBLE_EQ(window.screen()->devicePixelRatio(), screenRatio);
+    EXPECT_DOUBLE_EQ(canvas->displayPixelRatio(), ratio);
+    EXPECT_DOUBLE_EQ(canvas->magnification(), 94.0 * ratio / 128.0);
+    EXPECT_EQ(canvas->imageRect(), fitted);
+    EXPECT_TRUE(canvas->fitting());
+    EXPECT_TRUE(canvas->isVisible());
+    EXPECT_EQ(content->findChild<ImageCanvas*>(), canvas);
+    EXPECT_EQ(canvas->image(), document.previewImage());
+    EXPECT_EQ(canvas->orientation(), document.orientation());
+
+    QImage painted(QSizeF(canvas->width() * ratio, canvas->height() * ratio).toSize(),
+                   QImage::Format_ARGB32_Premultiplied);
+    painted.setDevicePixelRatio(ratio);
+    painted.fill(Qt::transparent);
+    QPainter painter(&painted);
+    canvas->paint(&painter);
+    const bool downsampling = 94.0 * ratio < 128.0;
+    EXPECT_EQ(painter.testRenderHint(QPainter::SmoothPixmapTransform), downsampling);
+    painter.end();
+    int blendedPixels = 0;
+    // Ignore fractional edge coverage; interior samples are either exact checker colors or blends.
+    for (int row = 1; row < painted.height() - 1; ++row) {
+      for (int column = 1; column < painted.width() - 1; ++column) {
+        const auto color = painted.pixelColor(column, row);
+        EXPECT_EQ(color.alpha(), 255);
+        if (color.red() > 0 && color.red() < 255) {
+          ++blendedPixels;
+        }
+      }
+    }
+    EXPECT_EQ(blendedPixels > 0, downsampling) << blendedPixels;
+  };
+  for (const qreal ratio : {1.0, 1.25, 1.5, 2.0}) {
+    setRatio(ratio);
+    checkPreview(ratio);
+  }
+  ASSERT_TRUE(QMetaObject::invokeMethod(popup.get(), "close"));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !popup->property("visible").toBool(); }));
+  setRatio(1.25);
+  ASSERT_TRUE(QMetaObject::invokeMethod(popup.get(), "open"));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return popup->property("opened").toBool(); }));
+  control.polishItems();
+  checkPreview(1.25);
+  EXPECT_TRUE(collector.warnings.isEmpty()) << collector.warnings.join('\n').toStdString();
 }

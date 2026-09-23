@@ -77,7 +77,7 @@ Controls.Popup {
                     anchors.margins: HnMetrics.borderWidth
                     image: root.document.previewImage
                     orientation: root.document.orientation
-                    displayPixelRatio: Screen.devicePixelRatio
+                    displayPixelRatio: Window.window ? Window.window.devicePixelRatio : 1
                     enabled: false
                     Accessible.ignored: true
                 }

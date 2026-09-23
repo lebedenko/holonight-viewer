@@ -244,3 +244,14 @@ Release measurements for large images, repeated navigation/cache pressure, GIFs 
 large folders. [Verification](sdd/image-performance/VERIFICATION.md) records the five-run
 baseline and limitations. No production correction was justified by these measurements;
 native performance and clipboard transport qualification remain separate.
+
+## Information preview DPR (2026-09-23)
+
+The [DPR audit](sdd/information-preview-dpr/SPEC.md) reproduced incorrect physical
+magnification and smoothing when window and screen DPR differ. The popup preview
+now follows its owning window DPR, with a fallback of 1 before attachment.
+Offscreen coverage checks attachment, live DPR changes, painted sampling and
+close/reopen while preserving fitted logical bounds. See the
+[verification record](sdd/information-preview-dpr/VERIFICATION.md) for acceptance
+evidence. Manual visual checks passed by user report on 2026-09-23. All unrelated
+release deferrals remain open.
