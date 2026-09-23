@@ -107,7 +107,7 @@ TEST(Release, SimpleWebPContentCorruptionAndLimits) {
   broken.replace(21, 4, QByteArray::fromHex("ffffff1f"));
   result = decode(broken);
   EXPECT_TRUE(result.image.isNull());
-  EXPECT_TRUE(result.error.contains("viewing limit"));
+  EXPECT_EQ(result.outcome, HolonightImages::Outcome::ResourceLimit);
   cancelled.store(true);
   EXPECT_TRUE(decode(original).image.isNull());
 }
@@ -177,7 +177,9 @@ TEST(Release, TiffGuaranteedVariantsDecode) {
     EXPECT_EQ(result.image.pixelColor(0, 0), color) << name;
     EXPECT_EQ(result.information.format, "TIFF") << name;
     // These fixtures carry no EXIF tags: that is an empty summary, not an error.
-    EXPECT_EQ(result.information.exif, ExifDetails{}) << name;
+    ExifDetails empty;
+    empty.outcome = HolonightImages::Outcome::Success;
+    EXPECT_EQ(result.information.exif, empty) << name;
   }
 }
 
@@ -229,8 +231,7 @@ TEST(Release, TiffLimitsApply) {
   for (const auto& [width, height] : {std::pair<quint32, quint32>{32769, 1}, {1, 32769}, {6000, 6000}}) {
     const auto result = patched(width, height);
     EXPECT_TRUE(result.image.isNull()) << width << "x" << height;
-    EXPECT_EQ(result.error, "This image exceeds the viewing limit (32 million pixels or 128 MiB decoded).")
-        << width << "x" << height << ": " << result.error.toStdString();
+    EXPECT_EQ(result.outcome, HolonightImages::Outcome::ResourceLimit) << width << "x" << height;
   }
 }
 
@@ -239,14 +240,18 @@ TEST(Release, TiffTruncatedIsAnError) {
   ASSERT_TRUE(directory.isValid());
   const auto truncated = decodeBytes(directory, readFixture("tiff-truncated.tif"));
   EXPECT_TRUE(truncated.image.isNull());
-  EXPECT_FALSE(truncated.error.isEmpty());
+  ASSERT_TRUE(truncated.outcome);
+  EXPECT_NE(truncated.outcome, HolonightImages::Outcome::Success);
+  EXPECT_NE(truncated.outcome, HolonightImages::Outcome::Cancelled);
   // Every proper prefix stops at a different stage: header, IFD, tag data or strip.
   const auto original = readFixture("tiff-rgb8.tif");
   ASSERT_FALSE(decodeBytes(directory, original).image.isNull());
   for (qsizetype size = 0; size < original.size(); ++size) {
     const auto result = decodeBytes(directory, original.first(size));
     EXPECT_TRUE(result.image.isNull()) << size;
-    EXPECT_FALSE(result.error.isEmpty()) << size;
+    ASSERT_TRUE(result.outcome) << size;
+    EXPECT_NE(result.outcome, HolonightImages::Outcome::Success) << size;
+    EXPECT_NE(result.outcome, HolonightImages::Outcome::Cancelled) << size;
   }
 }
 
@@ -257,7 +262,9 @@ TEST(Release, TiffBestEffortVariantsNeverCrashOrHang) {
         "tiff-be-bigtiff.tif", "tiff-be-lzw.tif", "tiff-be-packbits.tif", "tiff-be-deflate.tif"}) {
     const auto result = decodeImage(QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/" + name), cancelled);
     // Best effort: either the variant opens or the user gets an error; never both, never neither.
-    EXPECT_NE(result.image.isNull(), result.error.isEmpty()) << name;
-    RecordProperty(name, result.image.isNull() ? result.error.toStdString() : "decoded");
+    ASSERT_TRUE(result.outcome) << name;
+    EXPECT_NE(result.outcome, HolonightImages::Outcome::Cancelled) << name;
+    EXPECT_NE(result.image.isNull(), result.outcome == HolonightImages::Outcome::Success) << name;
+    RecordProperty(name, static_cast<int>(*result.outcome));
   }
 }

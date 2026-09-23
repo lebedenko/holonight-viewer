@@ -51,6 +51,9 @@ ExifDetails format(const HolonightImages::ExifFacts& facts) {
 }  // namespace
 ExifDetails parse(const QByteArray& payload) { return format(HolonightImages::parseExif(payload)); }
 ExifDetails read(QIODevice& source, const std::atomic_bool& cancelled) {
-  return format(HolonightImages::readMetadata(source, kRasterLimits, cancelled).facts);
+  const auto result = HolonightImages::readMetadata(source, kRasterLimits, cancelled);
+  auto details = format(result.facts);
+  details.outcome = result.outcome;
+  return details;
 }
 }  // namespace ExifMetadata

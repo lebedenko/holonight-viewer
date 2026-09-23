@@ -82,7 +82,8 @@ TEST(ExifMetadata, OmitsRepeatedMakeInvalidGpsAndZeroDenominators) {
 }
 
 TEST(ExifMetadata, ExtractsJpegPngAndWebPBlocks) {
-  const auto expected = ExifMetadata::parse(sonyPayload());
+  auto expected = ExifMetadata::parse(sonyPayload());
+  expected.outcome = HolonightImages::Outcome::Success;
   ASSERT_TRUE(expected.hasCamera() && expected.hasLocation());
   EXPECT_EQ(readBytes(jpegWithApp1(sonyPayload())), expected);
 
@@ -105,7 +106,8 @@ TEST(ExifMetadata, ExtractsJpegPngAndWebPBlocks) {
 
 TEST(ExifMetadata, ReadsTiffCameraExposureAndLocation) {
   // A TIFF file is itself the EXIF block: the bytes after the "Exif" signature of a payload are a valid TIFF.
-  const auto expected = ExifMetadata::parse(sonyPayload());
+  auto expected = ExifMetadata::parse(sonyPayload());
+  expected.outcome = HolonightImages::Outcome::Success;
   ASSERT_TRUE(expected.hasCamera() && expected.hasLocation());
   EXPECT_EQ(readBytes(sonyPayload().sliced(6)), expected);
 
@@ -133,32 +135,32 @@ TEST(ExifMetadata, SkipsTiffOverSizeLimit) {
 
   // One byte over the limit skips EXIF, but the image still opens without an error.
   const auto oversized = paddedTiff(directory, limit + 1);
-  EXPECT_EQ(readFile(oversized, cancelled), ExifDetails{});
+  EXPECT_EQ(readFile(oversized, cancelled).outcome, HolonightImages::Outcome::ResourceLimit);
   const auto decoded = decodeImage(QUrl::fromLocalFile(oversized), cancelled);
   EXPECT_FALSE(decoded.image.isNull()) << decoded.error.toStdString();
   EXPECT_TRUE(decoded.error.isEmpty());
-  EXPECT_EQ(decoded.information.exif, ExifDetails{});
+  EXPECT_EQ(decoded.information.exif.outcome, HolonightImages::Outcome::ResourceLimit);
 
   // BigTIFF is not matched, and a cancelled read returns nothing.
-  EXPECT_EQ(readFile(fixturePath("tiff-be-bigtiff.tif"), cancelled), ExifDetails{});
+  EXPECT_EQ(readFile(fixturePath("tiff-be-bigtiff.tif"), cancelled).outcome, HolonightImages::Outcome::Success);
   const std::atomic_bool stopped{true};
-  EXPECT_EQ(readFile(fixturePath("tiff-exif.tif"), stopped), ExifDetails{});
+  EXPECT_EQ(readFile(fixturePath("tiff-exif.tif"), stopped).outcome, HolonightImages::Outcome::Cancelled);
 }
 
 TEST(ExifMetadata, IgnoresMissingOversizedAndDamagedBlocks) {
-  EXPECT_EQ(readBytes("not an image"), ExifDetails{});
+  EXPECT_EQ(readBytes("not an image").outcome, HolonightImages::Outcome::Success);
   EXPECT_EQ(ExifMetadata::parse(QByteArray("Exif\0\0II*\0\xff\xff\xff\xff", 14)), ExifDetails{});
   EXPECT_EQ(ExifMetadata::parse(sonyPayload().first(40)).location, QString{});
 
   QByteArray png("\x89PNG\r\n\x1a\n", 8);
   png += QByteArray("\0\x20\0\0eXIf", 8) + QByteArray(2 * 1024 * 1024, 'a') + QByteArray(4, '\0');
-  EXPECT_EQ(readBytes(png), ExifDetails{});
+  EXPECT_EQ(readBytes(png).outcome, HolonightImages::Outcome::ResourceLimit);
 
   auto cancelledBytes = jpegWithApp1(sonyPayload());
   QBuffer buffer(&cancelledBytes);
   buffer.open(QIODevice::ReadOnly);
   const std::atomic_bool cancelled{true};
-  EXPECT_EQ(ExifMetadata::read(buffer, cancelled), ExifDetails{});
+  EXPECT_EQ(ExifMetadata::read(buffer, cancelled).outcome, HolonightImages::Outcome::Cancelled);
 }
 
 TEST(ImageInformationFormat, JoinsOnlyNonEmptyParts) {
@@ -247,7 +249,9 @@ TEST(ImageInformationProperties, ExifRichJpegHasCameraLocationAndFileSections) {
   ImageDocument document;
   ASSERT_TRUE(openAndSettle(document, QUrl::fromLocalFile(path)));
   ASSERT_EQ(document.state(), ImageDocument::Ready);
-  EXPECT_EQ(document.information().exif, ExifMetadata::parse(sonyPayload()));
+  auto expectedExif = ExifMetadata::parse(sonyPayload());
+  expectedExif.outcome = HolonightImages::Outcome::Success;
+  EXPECT_EQ(document.information().exif, expectedExif);
 
   EXPECT_EQ(document.summaryLine(), formatSummaryLine("JPEG", {4, 3}, QFileInfo(path).size()));
   EXPECT_EQ(document.transformedLine(), QString{});
@@ -328,4 +332,29 @@ TEST(ImageInformationProperties, NonLocalDocumentHasNoDetailsOrSections) {
   EXPECT_EQ(document.modifiedText(), QString{});
   EXPECT_EQ(document.displayPath(), QString{});
   EXPECT_TRUE(document.informationSections().isEmpty());
+}
+
+namespace {
+class FailedMetadataDevice : public QBuffer {
+ protected:
+  qint64 readData([[maybe_unused]] char* data, [[maybe_unused]] qint64 maxSize) override { return -1; }
+};
+}  // namespace
+
+TEST(ExifMetadata, PreservesDeviceIoFailure) {
+  FailedMetadataDevice device;
+  device.setData(QByteArray(64, 'x'));
+  ASSERT_TRUE(device.open(QIODevice::ReadOnly | QIODevice::Unbuffered));
+  const std::atomic_bool running{false};
+  const auto result = ExifMetadata::read(device, running);
+  EXPECT_EQ(result.outcome, HolonightImages::Outcome::IoFailure);
+}
+
+TEST(ExifMetadata, OptionalMalformedTagsCompleteSuccessfullyWithoutInventingAFailure) {
+  const QByteArray payload("Exif\0\0bad optional tags", 23);
+  EXPECT_FALSE(ExifMetadata::parse(payload).outcome);
+  const auto details = readBytes(jpegWithApp1(payload));
+  EXPECT_EQ(details.outcome, HolonightImages::Outcome::Success);
+  EXPECT_FALSE(details.hasCamera());
+  EXPECT_FALSE(details.hasLocation());
 }

@@ -5,9 +5,12 @@
 #include <QString>
 
 #include <atomic>
+#include <holonight_images/image.h>
+#include <optional>
 
 // Display-ready EXIF facts. Missing or malformed tags leave their field empty.
 struct ExifDetails {
+  std::optional<HolonightImages::Outcome> outcome;
   QString camera;
   QString lens;
   QString aperture;

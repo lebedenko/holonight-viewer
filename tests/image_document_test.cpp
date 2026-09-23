@@ -23,6 +23,10 @@
 #include <atomic>
 #include <gtest/gtest.h>
 
+struct ImageDocumentTestAccess {
+  static bool busy(const ImageDocument& document) { return document.busy_; }
+};
+
 namespace {
 QString fixturePath(const QString& name) {
   QDir().mkpath(QStringLiteral(VIEWER_FIXTURE_DIR));
@@ -364,7 +368,8 @@ TEST(Document, SuccessfulTransformsAndPrefetchFailuresDoNotReportOpeningFailures
           return solidResult();
         }
         prefetched.store(true);
-        return DecodeResult{.image = {}, .error = "prefetch failure", .information = {}, .svgData = {}};
+        return DecodeResult{
+            .image = {}, .error = {}, .information = {}, .svgData = {}, .outcome = HolonightImages::Outcome::IoFailure};
       },
       [&](const QUrl&, const std::atomic_bool&) { return DirectoryResult{.urls = {selected, neighbor}, .error = {}}; });
   QSignalSpy failures(&document, &ImageDocument::openingFailed);
@@ -676,4 +681,96 @@ TEST(Document, ConstructionPreservesApplicationAllocationPolicy) {
   const auto frameSource = makeQtGifFrameSource();
   EXPECT_EQ(QImageReader::allocationLimit(), effectiveLimit);
   EXPECT_EQ(qgetenv("QT_IMAGEIO_MAXALLOC"), "64");
+}
+
+TEST(Document, ProviderOutcomesArePresentedDistinctlyAndCancellationDrainsSilently) {
+  using HolonightImages::Outcome;
+  QStringList messages;
+  const auto url = writeFixture("outcome.png", encodedImage("PNG"));
+  for (const auto outcome : {Outcome::Success, Outcome::Unsupported, Outcome::Damaged, Outcome::ResourceLimit,
+                             Outcome::IoFailure, Outcome::Cancelled}) {
+    ImageDocument document([&](const QUrl&, const std::atomic_bool&) {
+      auto result = solidResult();
+      if (outcome != Outcome::Success) {
+        result.image = {};
+      }
+      result.outcome = outcome;
+      return result;
+    });
+    QSignalSpy failures(&document, &ImageDocument::openingFailed);
+    document.open({url});
+    if (outcome == Outcome::Cancelled) {
+      ASSERT_TRUE(QTest::qWaitFor([&] { return !ImageDocumentTestAccess::busy(document); }));
+      EXPECT_EQ(document.state(), ImageDocument::Loading);
+      QSignalSpy finished(&document, &ImageDocument::shutdownFinished);
+      document.shutdown();
+      ASSERT_TRUE(QTest::qWaitFor([&] { return !finished.isEmpty(); }));
+      EXPECT_TRUE(failures.isEmpty());
+      EXPECT_TRUE(document.error().isEmpty());
+      continue;
+    }
+    ASSERT_TRUE(settled(document));
+    if (outcome == Outcome::Success) {
+      EXPECT_EQ(document.state(), ImageDocument::Ready);
+      EXPECT_TRUE(document.error().isEmpty());
+      EXPECT_TRUE(failures.isEmpty());
+    } else {
+      EXPECT_EQ(document.state(), ImageDocument::Error);
+      EXPECT_EQ(failures.size(), 1);
+      EXPECT_FALSE(document.error().isEmpty());
+      EXPECT_FALSE(messages.contains(document.error()));
+      messages.append(document.error());
+    }
+  }
+}
+
+TEST(Document, RasterAdapterPreservesProviderFailuresBeforePresentation) {
+  using HolonightImages::Outcome;
+  const std::atomic_bool running{false};
+  const auto valid = decodeImage(writeFixture("adapter-valid.png", encodedImage("PNG")), running);
+  EXPECT_EQ(valid.outcome, Outcome::Success);
+  EXPECT_EQ(valid.information.exif.outcome, Outcome::Success);
+  EXPECT_EQ(decodeImage(writeFixture("adapter-unsupported.png", "not an image"), running).outcome,
+            Outcome::Unsupported);
+  const auto damaged = decodeImage(writeFixture("adapter-damaged.png", encodedImage("PNG").first(45)), running);
+  EXPECT_EQ(damaged.outcome, Outcome::Damaged);
+  EXPECT_TRUE(damaged.error.isEmpty());
+}
+
+TEST(Document, QuietMetadataFailuresSurviveCacheReuseAndResetOnSelection) {
+  using HolonightImages::Outcome;
+  const auto first = writeFixture("metadata-a.png", encodedImage("PNG"));
+  const auto second = writeFixture("metadata-b.png", encodedImage("PNG"));
+  std::atomic_int firstReads{0};
+  ImageDocument document(
+      [&](const QUrl& url, const std::atomic_bool&) {
+        auto result = solidResult();
+        result.outcome = Outcome::Success;
+        result.information.exif.outcome = url == first ? Outcome::IoFailure : Outcome::ResourceLimit;
+        result.information.exif.camera = "Available camera fact";
+        if (url == first) {
+          ++firstReads;
+        }
+        return result;
+      },
+      [&](const QUrl&, const std::atomic_bool&) { return DirectoryResult{.urls = {first, second}, .error = {}}; });
+  QSignalSpy failures(&document, &ImageDocument::openingFailed);
+  document.open({first});
+  EXPECT_FALSE(document.information().exif.outcome);
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(document.state(), ImageDocument::Ready);
+  EXPECT_EQ(document.information().exif.outcome, Outcome::IoFailure);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !document.scanning(); }));
+  document.next();
+  EXPECT_FALSE(document.information().exif.outcome);
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(document.information().exif.outcome, Outcome::ResourceLimit);
+  document.previous();
+  EXPECT_FALSE(document.information().exif.outcome);
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(document.information().exif.outcome, Outcome::IoFailure);
+  EXPECT_EQ(document.information().exif.camera, "Available camera fact");
+  EXPECT_EQ(firstReads.load(), 1);
+  EXPECT_TRUE(document.error().isEmpty());
+  EXPECT_TRUE(failures.isEmpty());
 }

@@ -1,5 +1,9 @@
 # Backlog
 
+The [shared image outcomes cycle](sdd/shared-image-outcomes/SPEC.md) preserves raster categories
+and quiet metadata status. Local automated verification is recorded in its
+[verification report](sdd/shared-image-outcomes/VERIFICATION.md); publication/pinning are tracked by the umbrella ledger; native gates remain open.
+
 The developer-only [task screenshot cycle](sdd/task-screenshot/SPEC.md) adds a
 Hyprland window capture command with an optional interaction delay; its
 [verification record](sdd/task-screenshot/VERIFICATION.md) tracks local checks.

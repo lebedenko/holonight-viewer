@@ -38,29 +38,28 @@ DecodeResult decodeSvg(QFile& file, const std::atomic_bool& cancelled, ImageInfo
 QString limitError() {
   return ImageDocument::tr("This image exceeds the viewing limit (32 million pixels or 128 MiB decoded).");
 }
-QString decoderError(bool readable, QSize dimensions) {
-  if (!readable) {
-    return ImageDocument::tr("The image format is unsupported or its header is damaged.");
+QString rasterError(HolonightImages::Outcome outcome) {
+  using HolonightImages::Outcome;
+  switch (outcome) {
+    case Outcome::Success:
+    case Outcome::Cancelled:
+      return {};
+    case Outcome::Unsupported:
+      return ImageDocument::tr("The image format is not recognized.");
+    case Outcome::Damaged:
+      return ImageDocument::tr("The image is damaged or could not be decoded.");
+    case Outcome::ResourceLimit:
+      return limitError();
+    case Outcome::IoFailure:
+      return ImageDocument::tr("The image could not be read.");
   }
-  if (!dimensions.isValid()) {
-    return ImageDocument::tr("The image dimensions could not be read by the installed decoder.");
-  }
-  return ImageDocument::tr("The image is damaged, unreadable, or exceeds the decode memory limit.");
+  Q_UNREACHABLE();
 }
 DecodeResult readImage(QFile& file, const std::atomic_bool& cancelled, ImageInformation facts) {
   auto result = HolonightImages::decode(file, {.limits = kRasterLimits, .bound = {}}, cancelled);
   facts.format = QString::fromLatin1(result.inspection.format).toUpper();
-  if (result.outcome == HolonightImages::Outcome::Cancelled) {
-    return {};
-  }
-  if (result.outcome != HolonightImages::Outcome::Success) {
-    const auto error =
-        result.outcome == HolonightImages::Outcome::ResourceLimit
-            ? limitError()
-            : decoderError(result.outcome != HolonightImages::Outcome::Unsupported, result.inspection.sourceSize);
-    return {.image = {}, .error = error, .information = facts, .svgData = {}};
-  }
-  return {.image = std::move(result.image), .error = {}, .information = facts, .svgData = {}};
+  return {
+      .image = std::move(result.image), .error = {}, .information = facts, .svgData = {}, .outcome = result.outcome};
 }
 }  // namespace
 
@@ -135,7 +134,11 @@ DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
   }
   image.setDevicePixelRatio(1);
   facts.decodedSize = image.size();
-  return {.image = std::move(image), .error = {}, .information = facts, .svgData = {}};
+  return {.image = std::move(image),
+          .error = {},
+          .information = facts,
+          .svgData = {},
+          .outcome = HolonightImages::Outcome::Success};
 }
 
 QUrl commandLineUrl(const QString& argument) {
@@ -349,6 +352,7 @@ void ImageDocument::startPending() {
         }
         DecodeResult result;
         if (entry) {
+          result.outcome = HolonightImages::Outcome::Success;
           result.image = entry->image;
           result.information = entry->information;
         } else {
@@ -387,11 +391,11 @@ void ImageDocument::complete(const Request& request, DecodeResult result) {
     thread_.quit();
     return;
   }
-  if (!request.prefetch && request.requestId == request_id_) {
+  if (!request.prefetch && request.requestId == request_id_ && result.outcome != HolonightImages::Outcome::Cancelled) {
     information_ = std::move(result.information);
     image_ = std::move(result.image);
     svg_data_ = std::move(result.svgData);
-    error_ = std::move(result.error);
+    error_ = result.outcome ? rasterError(*result.outcome) : std::move(result.error);
     if (error_.isEmpty() && information_.format == QLatin1String("SVG") &&
         !svg_renderer_.load(request.url.toLocalFile())) {
       svg_data_.clear();

@@ -25,6 +25,7 @@ struct DecodeResult {
   QString error;
   ImageInformation information;
   QByteArray svgData;  // Non-empty only for a successfully validated SVG.
+  std::optional<HolonightImages::Outcome> outcome = std::nullopt;
 };
 
 DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled);
@@ -149,6 +150,7 @@ class ImageDocument : public QObject {
   void shutdownFinished();
 
  private:
+  friend struct ImageDocumentTestAccess;
   struct Request {
     quint64 requestId;
     QUrl url;
