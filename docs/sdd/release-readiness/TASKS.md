@@ -102,9 +102,26 @@ Implementation and release acceptance are separate; unchecked current-release ga
   move Viewer between them and verify image rendering, controls, focus and dialogs,
   including resize/fullscreen transitions. Record compositor, monitor layout/scales
   and captures. The user currently has one monitor; simulated scaling is not a pass.
-- [ ] N3 (former T6b/F4c service costs): With a desktop persistence service in a
-  future authorized session, repeat copy/exit/receive and verify dimensions,
+- [x] N3 (former T6b/F4c service costs): With a desktop persistence service in a
+  authorized follow-up, repeat copy/exit/receive and verify dimensions,
   orientation/alpha and paths after Viewer exits. Record service/version/configuration,
   receiver and service transport/storage latency and separate memory costs. Retain
   the existing no-service Viewer → GIMP post-exit loss as expected session behavior.
-  No persistence service is launched for current qualification; costs are deferred.
+  No persistence service was launched for that historical qualification; costs
+  remained deferred until the accepted follow-up below.
+
+### N3 acceptance continuation — 2026-09-23
+
+The user authorized the personal service follow-up. Package and XDG autostart are
+installed; [local acceptance](../clipboard-persistence/ACCEPTANCE.md) records the
+manual protocol and passive cost tooling. At setup, N3 remained unchecked pending
+fresh-login, post-exit correctness and five-trial explicit cost acceptance. Earlier
+no-service results and unrelated deferred release gates remain historical/intact.
+
+### N3 closure — 2026-09-23
+
+[Clipboard-service acceptance passed](../clipboard-persistence/VERIFICATION.md):
+fresh-login singleton autostart, eight orientations/alpha/dimensions, exact paths,
+post-exit GIMP checks and five identical measurements. User explicitly accepted
+costs. The earlier future/deferred wording above records the historical gate;
+N3 is now closed. N1/N2 and other unrelated release gates remain deferred.

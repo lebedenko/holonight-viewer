@@ -36,6 +36,7 @@ bool markCompletion(const QString& name) {
 }
 
 bool receiveClipboard(const QString& format, const QString& outputFile) {
+  QTextStream(stdout) << "receive_begin\n" << Qt::flush;
   auto* clipboard = QGuiApplication::clipboard();
   QElapsedTimer readTimer;
   readTimer.start();
@@ -121,7 +122,7 @@ int main(int argc, char* argv[]) {
     }
   });
   window.show();
-  window.requestActivate();
+  // Activation belongs to the user, including native automatic-read diagnostics.
 
   const auto receive = [&] {
     const bool success = receiveClipboard(args.at(1), args.at(2));

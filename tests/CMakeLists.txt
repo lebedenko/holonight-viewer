@@ -76,3 +76,6 @@ add_test(NAME viewer-fusion-controls COMMAND ${viewer_bus_runner} $<TARGET_FILE:
   --gtest_filter=Viewer.EmbeddedStyleSelection:Viewer.WindowAndKeyboard:MenuLayout.OrderLabelsShortcutsAndDisabledColors:ShortcutHelpPopup.*:ImageInformationPopup.*)
 set_tests_properties(viewer-fusion-controls PROPERTIES TIMEOUT 60 ENVIRONMENT
   "QT_QPA_PLATFORM=offscreen;QSG_RHI_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Fusion;QML_IMPORT_PATH=${VIEWER_RUNTIME_QML_PATH}")
+
+add_test(NAME viewer-clipboard-persistence-runner COMMAND ${Python3_EXECUTABLE}
+  "${CMAKE_SOURCE_DIR}/scripts/check-clipboard-persistence.py")
