@@ -3,6 +3,11 @@
 Companion to `docs/sdd/footer-key-hints/SPEC.md`. Line refs are to
 `apps/viewer/Main.qml` on the pre-change tree unless noted.
 
+The component extraction below records the original implementation. The
+current footer uses an `Item` with a centered `Row`: it stays on one line,
+hides a suffix of hints as width decreases, and always shows Help. The
+current layout and its tests are described by REQ-F-005 in the companion spec.
+
 ## 1. Components
 
 ### Where the footer lives

@@ -480,7 +480,8 @@ HnApplicationWindow {
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 0
-        spacing: HnMetrics.internalSpacing(HnControlSize.Normal)
+        // The canvas sits flush against the header and footer; status labels carry their own margins.
+        spacing: 0
 
         HnHeaderBar {
             Layout.fillWidth: true
@@ -668,6 +669,7 @@ HnApplicationWindow {
         HnLabel {
             objectName: "folderError"
             Layout.fillWidth: true
+            Layout.topMargin: 6
             visible: window.document.scanning || window.document.folderError.length > 0
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
@@ -748,7 +750,8 @@ HnApplicationWindow {
             ViewerButton {
                 id: previousButton
                 objectName: "previousButton"
-                readonly property bool shown: window.arrowsShown
+                // Browsing needs at least two images; the shared arrow reveal also drives the play/pause button.
+                readonly property bool shown: window.arrowsShown && window.document.count > 1
                 floating: true
                 implicitHeight: 48
                 anchors.left: parent.left
@@ -800,7 +803,8 @@ HnApplicationWindow {
             ViewerButton {
                 id: nextButton
                 objectName: "nextButton"
-                readonly property bool shown: window.arrowsShown
+                // Browsing needs at least two images; the shared arrow reveal also drives the play/pause button.
+                readonly property bool shown: window.arrowsShown && window.document.count > 1
                 floating: true
                 implicitHeight: 48
                 anchors.right: parent.right
@@ -972,6 +976,8 @@ HnApplicationWindow {
 
         HnLabel {
             Layout.fillWidth: true
+            Layout.topMargin: 6
+            Layout.bottomMargin: 6
             visible: window.document.clipboard.feedback.length > 0
             rawText: window.document.clipboard.feedback
             textFormat: Text.PlainText
@@ -979,12 +985,19 @@ HnApplicationWindow {
             Accessible.name: rawText
         }
 
+        HnSeparator {
+            objectName: "footerSeparator"
+            Layout.fillWidth: true
+            fadeMode: HnSeparator.Solid
+        }
+
         FooterKeyHints {
             animated: window.document.animation.canToggle
             Layout.fillWidth: true
-            Layout.leftMargin: 12
-            Layout.rightMargin: 12
-            Layout.bottomMargin: 6
+            Layout.leftMargin: 24
+            Layout.rightMargin: 24
+            Layout.topMargin: 8
+            Layout.bottomMargin: 8
         }
     }
 

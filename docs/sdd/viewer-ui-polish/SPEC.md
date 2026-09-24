@@ -281,11 +281,13 @@ The navigation arrows shall fade in and out over approximately 150 milliseconds 
 - Clicking the former position of "nextButton" 300 ms after the hide began does not change the image position.
 - While `visible` is false, every accessibility node named "Next image" or "Previous image" reports the invisible state (Qt keeps hidden items in the tree flagged invisible, which assistive technology skips).
 
-**REQ-F-022 (Ubiquitous — Arrow Availability Unchanged)**
+**REQ-F-022 (State-driven — Arrow Availability)**
 
-The navigation arrows' enablement (canPrevious / canNext, not modal) and their eligibility to appear in any document state shall remain as today; only timing, hover and fade behaviour change.
+The navigation arrows shall be eligible to appear only while the document's folder listing holds at least two images (`document.count > 1`); with no image open, or with a single image, a pointer move shall not show "previousButton" or "nextButton". Eligibility does not depend on the document state otherwise, so an image in the Error state within a folder of two or more still shows them. Each arrow's enablement (not modal, plus canPrevious for "previousButton" and canNext for "nextButton") is unchanged, so "previousButton" is disabled on the first image and "nextButton" on the last. The play/pause button shares the pointer-move reveal but is not gated by the image count.
 
 **Acceptance Criteria:**
+- With no image open, a pointer move leaves both arrows at shown = false.
+- With a folder holding a single image, a pointer move leaves both arrows at shown = false and not visible.
 - With a folder open and the current file in the Error state, a pointer move shows the arrows and clicking "nextButton" moves to the next image.
 
 ---
@@ -362,12 +364,12 @@ Flip actions (X, Shift+X) shall only execute while an image is Ready and no moda
 
 **REQ-F-030 (Ubiquitous — No Footer Listing)**
 
-The footer (FooterKeyHints.qml) shall NOT list flip shortcuts; it continues to show the seven existing hints (Navigate, Zoom, Fit, 100%, Rotate, Fullscreen, Help) unchanged.
+The footer (FooterKeyHints.qml) shall NOT list flip shortcuts. It shall retain the seven existing hints (Navigate, Zoom, Fit, 100%, Rotate, Fullscreen, Help) in that order. To preserve canvas height in narrow windows, the hints shall stay on one line; rightmost hints are hidden as needed while Help remains visible. The Zoom hint shall show Ctrl++ / Ctrl+-, matching the menu, Help popup, and active shortcuts.
 
 **Acceptance Criteria:**
-- An automated test asserts the footer contains exactly seven hints.
+- An automated test asserts the footer contains exactly seven hints and verifies that narrow widths hide whole hints from the right while keeping Help visible.
 - The footer content does not mention X, Shift+X, H, or V.
-- FooterKeyHints.qml is not modified (existing test suite still passes).
+- An automated test asserts the Zoom hint names Ctrl++ and Ctrl+-.
 
 ---
 

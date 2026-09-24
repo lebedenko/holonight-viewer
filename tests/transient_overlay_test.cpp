@@ -359,7 +359,7 @@ TEST(TransientOverlay, EmptyAndErrorStates) {
   ASSERT_TRUE(fixture.load());
   fixture.pointerOverCanvas();
   EXPECT_FALSE(fixture.hudShown());
-  EXPECT_TRUE(fixture.arrowsShown());
+  EXPECT_TRUE(fixture.arrowsHidden());
 
   QImage image(64, 48, QImage::Format_RGB32);
   image.fill(Qt::darkCyan);
@@ -381,4 +381,22 @@ TEST(TransientOverlay, EmptyAndErrorStates) {
   const auto position = fixture.document.position();
   QTest::mouseClick(fixture.window, Qt::LeftButton, Qt::NoModifier, OverlayFixture::centre(fixture.next));
   EXPECT_TRUE(QTest::qWaitFor([&] { return fixture.document.position() == position + 1; }));
+}
+
+// Browsing arrows need at least two images; a single image has nothing to switch to.
+TEST(TransientOverlay, SingleImageNeverShowsBrowseArrows) {
+  OverlayFixture fixture;
+  ASSERT_TRUE(fixture.load());
+  QImage image(64, 48, QImage::Format_RGB32);
+  image.fill(Qt::darkCyan);
+  ASSERT_TRUE(image.save(fixture.dir.filePath("only.png")));
+  fixture.document.open({QUrl::fromLocalFile(fixture.dir.filePath("only.png"))});
+  ASSERT_TRUE(QTest::qWaitFor(
+      [&] { return fixture.document.state() == ImageDocument::Ready && !fixture.document.scanning(); }));
+  ASSERT_EQ(fixture.document.count(), 1);
+  fixture.pointerOverCanvas();
+  fixture.pointerOverCanvas(12);
+  EXPECT_TRUE(fixture.arrowsHidden());
+  EXPECT_FALSE(fixture.previous->isVisible());
+  EXPECT_FALSE(fixture.next->isVisible());
 }

@@ -121,8 +121,9 @@ and Ctrl+R clear them; returning to a file does not restore them.
 
 ### Overlays
 
-The header shows the centered filename and scalable, theme-tinted icons; a wrapping
-shortcut footer stays visible below the canvas.
+The header shows the centered filename and scalable, theme-tinted icons. The
+shortcut footer stays on one line below the canvas; as the window narrows, hints
+hide from the right while the Help shortcut remains visible.
 
 - **Navigation arrows** appear on mouse movement for two seconds (held while the
   pointer rests on an arrow). Any keyboard input hides them immediately.

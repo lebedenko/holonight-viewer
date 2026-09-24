@@ -31,14 +31,20 @@ constexpr std::array<Hint, 7> kHints{{{.name = "Navigate", .key = "[ or ]", .lab
                                       {.name = "Fullscreen", .key = "F", .label = "Fullscreen"},
                                       {.name = "Help", .key = "?", .label = "Help"}}};
 
-// Direct footer children created by the Repeater, in layout order.
+// Hint rows created by the Repeater inside the footer row, in layout order.
 QList<QQuickItem*> hintRows(QQuickItem* footer) {
   QList<QQuickItem*> rows;
-  for (auto* child : footer->childItems()) {
-    if (child->objectName().startsWith(QStringLiteral("footerHint"))) {
-      rows.append(child);
+  const std::function<void(QQuickItem*)> walk = [&](QQuickItem* item) {
+    for (auto* child : item->childItems()) {
+      const auto name = child->objectName();
+      if (name.startsWith(QStringLiteral("footerHint"))) {
+        rows.append(child);
+      } else {
+        walk(child);
+      }
     }
-  }
+  };
+  walk(footer);
   return rows;
 }
 
@@ -176,23 +182,62 @@ TEST(FooterKeyHints, KeycapLabelPairingAndSpacing) {
   viewer.window->close();
 }
 
-// REQ-F-005: a 400 px footer wraps whole hints without splitting keycap from label.
-TEST(FooterKeyHints, NarrowWidthWraps) {
+// Narrow footer stays on one line, hides whole hints from the right, and always keeps Help.
+TEST(FooterKeyHints, NarrowWidthHidesRightmostWholeHints) {
   StandaloneFooter standalone;
-  ASSERT_TRUE(standalone.load(400));
-  const auto rows = hintRows(standalone.footer.get());
-  ASSERT_EQ(rows.size(), static_cast<qsizetype>(kHints.size()));
-  std::set<int> lines;
-  for (auto* row : rows) {
-    EXPECT_LE(row->x() + row->width(), 400.0) << row->objectName().toStdString();
-    lines.insert(qRound(row->y()));
-    auto* keycap = part(row, "Keycap");
-    auto* label = part(row, "Label");
-    ASSERT_NE(keycap, nullptr);
-    ASSERT_NE(label, nullptr);
-    EXPECT_LE(std::abs(sceneCenterY(keycap) - sceneCenterY(label)), 1.0) << row->objectName().toStdString();
+  ASSERT_TRUE(standalone.load(1000));
+  auto* footer = standalone.footer.get();
+  const auto visibleNames = [&] {
+    QStringList names;
+    for (auto* row : hintRows(footer)) {
+      if (row->isVisible()) {
+        names.append(row->objectName());
+      }
+    }
+    return names;
+  };
+  EXPECT_EQ(visibleNames().size(), static_cast<qsizetype>(kHints.size()));
+  qsizetype previous = kHints.size();
+  for (int width = 1000; width >= 60; width -= 20) {
+    footer->setWidth(width);
+    QTest::qWait(50);
+    const auto names = visibleNames();
+    EXPECT_TRUE(names.contains(QStringLiteral("footerHintHelp"))) << width;
+    EXPECT_LE(names.size(), previous) << width;
+    previous = names.size();
+    std::set<int> lines;
+    for (auto* row : hintRows(footer)) {
+      if (!row->isVisible()) {
+        continue;
+      }
+      lines.insert(qRound(row->y()));
+      if (width >= 180) {
+        EXPECT_LE(row->mapToItem(footer, QPointF(row->width(), 0)).x(), width) << row->objectName().toStdString();
+      }
+    }
+    EXPECT_EQ(lines.size(), 1U) << width;
+    // Hidden hints form a suffix (before Help): visible names keep layout order.
+    const QStringList expected{"footerHintNavigate",   "footerHintZoom",   "footerHintFit",
+                               "footerHintActualSize", "footerHintRotate", "footerHintFullscreen"};
+    QStringList withoutHelp = names;
+    withoutHelp.removeAll(QStringLiteral("footerHintHelp"));
+    EXPECT_EQ(withoutHelp, expected.mid(0, withoutHelp.size())) << width;
   }
-  EXPECT_GE(lines.size(), 2U);
+  EXPECT_LT(previous, static_cast<qsizetype>(kHints.size()));
+  footer->setWidth(1000);
+  QTest::qWait(10);
+  EXPECT_EQ(visibleNames().size(), static_cast<qsizetype>(kHints.size()));
+}
+
+// The footer content is centred horizontally.
+TEST(FooterKeyHints, ContentIsCentred) {
+  StandaloneFooter standalone;
+  ASSERT_TRUE(standalone.load(1000));
+  const auto rows = hintRows(standalone.footer.get());
+  ASSERT_FALSE(rows.isEmpty());
+  const auto left = rows.first()->mapToItem(standalone.footer.get(), QPointF(0, 0)).x();
+  const auto right = rows.last()->mapToItem(standalone.footer.get(), QPointF(rows.last()->width(), 0)).x();
+  EXPECT_NEAR(left, 1000 - right, 1.0);
 }
 
 // REQ-NF-001: the footer stays visible in empty, loaded, and idle-after-pointer states.

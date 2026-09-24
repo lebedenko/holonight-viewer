@@ -1,5 +1,10 @@
 # SDD Tasks — footer-key-hints
 
+This is the original component implementation record. T-005's wrapping
+behavior was later replaced by a single row that hides rightmost hints while
+keeping Help visible; see REQ-F-005 in [SPEC.md](SPEC.md) and
+`FooterKeyHints.NarrowWidthHidesRightmostWholeHints`.
+
 - [x] T-001: Create FooterKeyHints.qml component with hints model and delegates
   - REQs: F-001, F-002, F-003, F-004, F-006, NF-001, NF-002, NF-003, C-003
   - Check: FooterKeyHints.qml created with Flow root (objectName "footer"), JS array of 7 hints in spec order, Repeater with Row delegates containing HnKeyHint + HnLabel, Accessible.role/name overrides on Row and Accessible.ignored on children, 4px intra-hint spacing, no color/font literals.

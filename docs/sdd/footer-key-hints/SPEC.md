@@ -21,7 +21,7 @@ This specification defines the restyle and content update of the shortcut footer
 
 ## Functional Requirements
 
-**REQ-F-001:** The footer shall display exactly seven keyboard hints in this order: Navigate, Zoom, Fit, 100%, Rotate, Fullscreen, Help.
+**REQ-F-001:** The footer shall contain exactly seven keyboard hints in this order: Navigate, Zoom, Fit, 100%, Rotate, Fullscreen, Help. Narrow layouts may hide hints as specified in REQ-F-005.
 
 - **Acceptance:** Automated test verifies element count, text content, and order match the specification list; no Quit or Information hints present.
 
@@ -29,7 +29,7 @@ This specification defines the restyle and content update of the shortcut footer
 
 - **Acceptance:** Automated test finds, per hint, exactly one keycap whose text is the key string and one label whose text is the label string, with label x > keycap x, and |keycap vertical centre − label vertical centre| ≤ 1 px; the footer's inter-hint spacing is greater than the intra-hint spacing.
 
-**REQ-F-003:** Keycap text shall match the actual keyboard shortcuts: "[ / ]", "Ctrl++/−", "Ctrl+0", "1", "R", "F", "?".
+**REQ-F-003:** Keycap text shall match the actual keyboard shortcuts: "[ / ]", "Ctrl++ / Ctrl+-", "Ctrl+0", "1", "R", "F", "?".
 
 - **Acceptance:** Automated test compares keycap text to the authoritative list; no deviation detected.
 
@@ -37,9 +37,9 @@ This specification defines the restyle and content update of the shortcut footer
 
 - **Acceptance:** Every key and label string in the footer model is wrapped in `qsTr()`.
 
-**REQ-F-005:** While the window is narrower than a single row of hints, the footer shall wrap hints onto multiple rows, never splitting a keycap from its label.
+**REQ-F-005:** The footer shall stay on one line so it does not consume more canvas height in a narrow window. When all hints do not fit, it shall hide whole hints from the right, excluding Help, until the visible hints fit. Help shall remain visible at every supported window width. Widening the window shall restore hidden hints in their original order.
 
-- **Acceptance:** At a 400 px window width, an automated check finds every hint's right edge ≤ footer width, at least two distinct hint y positions, and each keycap on the same row as its label; screenshots at default and 400 px widths show clean reflow.
+- **Acceptance:** A standalone footer narrowed from 1000 px to 400 px stays on one line, keeps Help visible, and hides a suffix of the other hints without splitting keycaps from labels. Visible hints fit within the footer width. Widening it to 1000 px restores all seven hints.
 
 **REQ-F-006:** All colours and fonts shall be sourced from the shared theme (`HoloniightPalette`, `HnTypographyRole`, HnKeyHint defaults), never hard-coded.
 
@@ -51,9 +51,9 @@ This specification defines the restyle and content update of the shortcut footer
 
 - **Acceptance:** Automated test asserts the footer is visible in the empty state, after an image loads, and after mouse movement plus a 6 s wait; no timer or opacity animation is bound to it.
 
-**REQ-NF-002:** Each hint shall be exposed to accessibility tree as a single StaticText node; its accessible name shall be "<key> <label>" (e.g. "Ctrl+0 Fit").
+**REQ-NF-002:** Each visible hint shall be exposed to the accessibility tree as a single StaticText node; its accessible name shall be "<key> <label>" (e.g. "Ctrl+0 Fit"). Hidden hints shall not be announced.
 
-- **Acceptance:** Automated test via QAccessible finds seven footer StaticText nodes named "[ / ] Navigate" … "? Help"; no accessible node named just a key string (e.g. "Ctrl+0") or just a label (e.g. "Fit") exists under the footer.
+- **Acceptance:** At a width that fits all hints, an automated test via QAccessible finds seven footer StaticText nodes named "[ / ] Navigate" … "? Help"; no accessible node named just a key string (e.g. "Ctrl+0") or just a label (e.g. "Fit") exists under the footer. At narrow widths, only visible hints are announced and Help remains available.
 
 **REQ-NF-003:** Hints shall never be keyboard-focusable; Tab and Shift+Tab shall continue to cycle only header buttons.
 
