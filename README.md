@@ -543,3 +543,27 @@ The provider owns raster decoding and structured EXIF extraction; presentation a
 See [migration SDD](docs/sdd/shared-image-architecture/DESIGN.md).
 Raster outcomes retain distinct translated errors, while metadata status remains internal and quiet.
 See the [shared image outcomes cycle](docs/sdd/shared-image-outcomes/SPEC.md).
+
+### Comparing fresh measurement datasets
+
+The offscreen runner also writes versioned `report.json` metadata and raw process
+exit/RSS evidence. Collect baseline and candidate with the same instrumentation,
+fixtures, scenarios, Release settings and installed providers. Each scenario must
+have exactly five successful fresh processes. Keep output directories distinct;
+the tools refuse to overwrite evidence.
+
+```sh
+python3 scripts/compare-performance.py build/measurement-baseline \
+  build/measurement-candidate build/measurement-comparison
+```
+
+The comparison writes JSON and Markdown with raw-trial median/min/max, absolute
+and percentage differences (`not applicable` for a zero baseline). It validates
+raw XML, process exits, RSS records and evidence hashes; cached summaries are
+ignored. Workload, fixture, instrumentation and rendering changes are rejected.
+Checkout/build/prefix paths are normalized for compatibility and original
+provenance is retained. Intentional provenance differences require one exact
+`--allow FIELD=REASON` per changed field; the rejection lists the field names.
+No timing gate or statistical significance is inferred. Old datasets without the
+versioned contract must be recollected. See the
+[maintenance SDD](docs/sdd/shared-image-maintenance/SPEC.md).

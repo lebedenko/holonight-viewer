@@ -12,6 +12,8 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 
+import performance_report
+
 ROOT = Path(__file__).resolve().parent.parent
 SCENARIOS = {
     'large': 'ReleasePerformance.LargeWorkflow',
@@ -63,6 +65,7 @@ def run_trial(binary, directory, scenario, run, env, timeout=300):
     log = directory / f'run-{run}.log'
     samples = []
     started = time.monotonic()
+    usage = None
     with log.open('w') as output:
         process = subprocess.Popen([str(binary), f'--gtest_filter={scenario}',
                                     f'--gtest_output=xml:{xml}'],
@@ -89,6 +92,9 @@ def run_trial(binary, directory, scenario, run, env, timeout=300):
             if process.returncode is None:
                 process.kill()
                 process.wait()
+            (directory / f'run-{run}-process.json').write_text(json.dumps({
+                'returncode': process.returncode,
+                'peak_rss_kib': usage.ru_maxrss if usage else None}, indent=2) + '\n')
             (directory / f'run-{run}-rss.json').write_text(json.dumps(samples, indent=2) + '\n')
     if process.returncode != 0:
         raise RuntimeError(f'Benchmark failed ({process.returncode}): {log}')
@@ -128,8 +134,9 @@ def provenance(binary, prefix):
         raise RuntimeError('Binary build must belong to this instrumented source checkout')
     if str(prefix) not in values.get('CMAKE_PREFIX_PATH', '').split(';'):
         raise RuntimeError('Provider prefix differs from the configured build')
-    files = ['scripts/measure-release.py', 'tests/release_performance_test.cpp',
-             'tests/folder_browsing_test.cpp', 'tests/fixtures/dbus-session.conf']
+    files = ['scripts/performance_report.py', 'tests/fixtures/dbus-session.conf',
+             'scripts/measure-release.py', 'tests/release_performance_test.cpp',
+             'tests/folder_browsing_test.cpp', 'tests/gif_fixture.h', 'tests/smoke.cpp', 'tests/CMakeLists.txt']
     providers = {}
     for name in ('holonight-config', 'holonight-qt', 'holonight-images'):
         repo = ROOT.parent / name
@@ -140,6 +147,8 @@ def provenance(binary, prefix):
     return {'revision': command('git', 'rev-parse', 'HEAD'),
             'source_diff_sha256': hashlib.sha256(command('git', 'diff', 'HEAD').encode()).hexdigest(),
             'instrumentation_sha256': {name: digest(ROOT / name) for name in files},
+            'production_sha256': {str(path.relative_to(ROOT)): digest(path)
+                                  for path in sorted((ROOT / 'apps').rglob('*')) if path.is_file()},
             'binary_sha256': digest(binary), 'cmake_cache_sha256': digest(cache),
             'compiler': command(values['CMAKE_CXX_COMPILER'], '--version'),
             'qt': command('pkg-config', '--modversion', 'Qt6Core'),
@@ -174,11 +183,27 @@ def main():
         raise RuntimeError('Use an empty output directory to preserve earlier evidence')
     (output / 'environment.json').write_text(json.dumps(metadata, indent=2) + '\n')
     env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QSG_RHI_BACKEND='software',
+               QT_QUICK_BACKEND='software', QT_SCALE_FACTOR='1',
                QML_IMPORT_PATH=str(prefix / 'lib/qt6/qml'), LD_LIBRARY_PATH=str(prefix / 'lib'),
                VIEWER_PERFORMANCE='1', VIEWER_BROWSE_BENCHMARK='1')
     for name in ('VIEWER_COPY_TRANSFER', 'VIEWER_NATIVE_PERFORMANCE', 'VIEWER_CAPTURE_PREFIX'):
         env.pop(name, None)
+    def isolated_env(directory):
+        isolated = dict(env)
+        for variable, child in (('HOME', 'home'), ('XDG_CACHE_HOME', 'cache'),
+                                ('XDG_CONFIG_HOME', 'config'), ('XDG_DATA_HOME', 'data'),
+                                ('XDG_STATE_HOME', 'state'), ('XDG_RUNTIME_DIR', 'runtime')):
+            path = directory / child
+            path.mkdir(parents=True, mode=0o700)
+            isolated[variable] = str(path)
+        isolated['VIEWER_PERFORMANCE_FIXTURE_MANIFEST'] = str(directory / 'fixtures.json')
+        return isolated
+
     scenarios = SCENARIOS if args.scenario == 'all' else {args.scenario: SCENARIOS[args.scenario]}
+    report = performance_report.metadata(
+        ROOT, binary, prefix, metadata, scenarios, REQUIRED,
+        {name: {'generator_sha256': metadata['instrumentation_sha256'], 'scenario': scenario}
+         for name, scenario in scenarios.items()})
     summaries = {}
     for name, scenario in scenarios.items():
         directory = output / name if args.scenario == 'all' else output
@@ -186,10 +211,17 @@ def main():
         results = []
         for run in range(5):
             print(f'{name}: trial {run + 1}/5', flush=True)
-            results.append(run_trial(binary, directory, scenario, run, env))
+            results.append(run_trial(binary, directory, scenario, run, isolated_env(directory / f'trial-{run}')))
             (directory / 'results.json').write_text(json.dumps(results, indent=2) + '\n')
         summaries[name] = summary(results)
+        if name in ('large', 'navigation'):
+            manifests = [performance_report.read_json(directory / f'trial-{run}' / 'fixtures.json')
+                         for run in range(5)]
+            if any(item != manifests[0] for item in manifests):
+                raise RuntimeError('Fixture identities differ between trials')
+            report['fixtures'][name] = manifests[0]
     (output / 'summary.json').write_text(json.dumps(summaries, indent=2) + '\n')
+    performance_report.finish(output, report, scenarios, sys.modules[__name__])
     print(json.dumps(summaries, indent=2))
     return 0
 

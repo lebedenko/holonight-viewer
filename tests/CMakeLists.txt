@@ -79,3 +79,5 @@ set_tests_properties(viewer-fusion-controls PROPERTIES TIMEOUT 60 ENVIRONMENT
 
 add_test(NAME viewer-clipboard-persistence-runner COMMAND ${Python3_EXECUTABLE}
   "${CMAKE_SOURCE_DIR}/scripts/check-clipboard-persistence.py")
+
+add_test(NAME viewer-performance-comparison COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-compare-performance.py")

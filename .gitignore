@@ -78,3 +78,6 @@ assets/dont-commit/
 .codex/
 .claude/
 CLAUDE.md
+
+# Python tooling bytecode
+__pycache__/

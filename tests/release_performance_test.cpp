@@ -4,11 +4,14 @@
 
 #include <QBuffer>
 #include <QClipboard>
+#include <QCryptographicHash>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QGuiApplication>
 #include <QImage>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMimeData>
 #include <QProcess>
 #include <QQmlApplicationEngine>
@@ -26,6 +29,26 @@
 #include <gtest/gtest.h>
 
 namespace {
+// Capture fixture identity before timing starts; retain no image pixels in memory.
+void recordFixtures(const QDir& directory) {
+  const auto destination = qEnvironmentVariable("VIEWER_PERFORMANCE_FIXTURE_MANIFEST");
+  if (destination.isEmpty()) {
+    return;
+  }
+  QJsonObject manifest;
+  for (const auto& name : directory.entryList(QDir::Files, QDir::Name)) {
+    QFile file(directory.filePath(name));
+    ASSERT_TRUE(file.open(QIODevice::ReadOnly));
+    QCryptographicHash hash(QCryptographicHash::Sha256);
+    ASSERT_TRUE(hash.addData(&file));
+    manifest.insert(name, QJsonObject{{"sha256", QString::fromLatin1(hash.result().toHex())}, {"bytes", file.size()}});
+  }
+  QSaveFile output(destination);
+  ASSERT_TRUE(output.open(QIODevice::WriteOnly));
+  const auto bytes = QJsonDocument(manifest).toJson();
+  ASSERT_EQ(output.write(bytes), bytes.size());
+  ASSERT_TRUE(output.commit());
+}
 void writeMarker(const QString& markerPath, const QString& content = QString{}) {
   QSaveFile marker(markerPath);
   ASSERT_TRUE(marker.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate));
@@ -50,6 +73,7 @@ TEST(ReleasePerformance, LargeWorkflow) {
   source.fill(QColor(50, 100, 200, 128));
   ASSERT_TRUE(source.save(dir.filePath("2.png")));
   source = {};
+  recordFixtures(QDir(dir.path()));
   ImageDocument document;
   QElapsedTimer clock;
   clock.start();
@@ -384,6 +408,7 @@ TEST(ReleasePerformance, RepeatedNavigation) {
     source.fill(color(index));
     ASSERT_TRUE(source.save(path(index)));
   }
+  recordFixtures(QDir(dir.path()));
   ImageDocument document;
   QElapsedTimer clock;
   clock.start();
