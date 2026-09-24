@@ -5,7 +5,7 @@
 // All points are source pixels or canvas-local logical pixels; magnification is physical.
 class ViewGeometry {
  public:
-  void setImage(QSize image);
+  void setImage(QSizeF image);
   void setViewport(QSizeF canvas, qreal pixelRatio);
   void fit();
   void actualSize();
@@ -22,7 +22,7 @@ class ViewGeometry {
  private:
   [[nodiscard]] qreal fitMagnification() const;
   void constrain();
-  QSize image_;
+  QSizeF image_;
   QSizeF canvas_;
   qreal pixel_ratio_ = 1;
   qreal magnification_ = 1;

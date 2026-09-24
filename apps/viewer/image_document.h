@@ -26,12 +26,14 @@ struct DecodeResult {
   ImageInformation information;
   QByteArray svgData;  // Non-empty only for a successfully validated SVG.
   std::optional<HolonightImages::Outcome> outcome = std::nullopt;
+  QSizeF svgSize = {};
+  bool svgLocalImages = false;
 };
 
 DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled);
 QUrl commandLineUrl(const QString& argument);
-// viewBox is authoritative when present; otherwise Qt's own width/height-or-300x150 resolution.
-QSize svgIntrinsicSize(const QSvgRenderer& renderer);
+// Shared default-size-first layout rule for consumer-owned linked-image renderers.
+QSizeF svgIntrinsicSize(const QSvgRenderer& renderer);
 
 // Exposes QSvgRenderer as a property type to QML/qmllint without making it constructible there.
 struct QSvgRendererForeign {
@@ -73,6 +75,7 @@ class ImageDocument : public QObject {
   Q_PROPERTY(QString error READ error NOTIFY changed)
   Q_PROPERTY(QImage image READ image NOTIFY changed)
   Q_PROPERTY(QSvgRenderer* svgRenderer READ svgRenderer NOTIFY changed)
+  Q_PROPERTY(QSizeF svgSize READ svgSize NOTIFY changed)
   Q_PROPERTY(QImage previewImage READ previewImage NOTIFY changed)
   Q_PROPERTY(int position READ position NOTIFY changed)
   Q_PROPERTY(int count READ count NOTIFY changed)
@@ -125,6 +128,7 @@ class ImageDocument : public QObject {
   }
   // Always a raster QImage: the decoded image for raster formats, or an on-demand bounded rasterization for SVG.
   [[nodiscard]] QImage previewImage();
+  [[nodiscard]] QSizeF svgSize() const { return svg_size_; }
   [[nodiscard]] int position() const { return selected_index_ + 1; }
   [[nodiscard]] int count() const { return directory_.rowCount(); }
   [[nodiscard]] bool scanning() const { return directory_.scanning(); }
@@ -191,5 +195,7 @@ class ImageDocument : public QObject {
   QString error_;
   QImage image_;
   QByteArray svg_data_;
+  QSizeF svg_size_;
+  bool svg_local_images_ = false;
   QSvgRenderer svg_renderer_;
 };

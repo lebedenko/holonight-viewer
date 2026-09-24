@@ -37,7 +37,7 @@ void ImageCanvas::setImage(const QImage& image) {
   image_ = image;
   svg_renderer_ = nullptr;
   content_size_ = image.size();
-  view_.setImage(ImageOrientation::dimensions(orientation_, content_size_));
+  view_.setImage((orientation_ & 1) != 0 ? content_size_.transposed() : content_size_);
   refresh();
   emit imageChanged();
 }
@@ -48,9 +48,24 @@ void ImageCanvas::setSvgRenderer(QSvgRenderer* renderer) {
   ++generation_;
   svg_renderer_ = renderer;
   image_ = {};
-  content_size_ = renderer != nullptr && renderer->isValid() ? svgIntrinsicSize(*renderer) : QSize{};
-  view_.setImage(ImageOrientation::dimensions(orientation_, content_size_));
+  content_size_ = {};
+  if (renderer != nullptr && renderer->isValid()) {
+    content_size_ = svg_size_.isEmpty() ? svgIntrinsicSize(*renderer) : svg_size_;
+  }
+  view_.setImage((orientation_ & 1) != 0 ? content_size_.transposed() : content_size_);
   refresh();
+  emit imageChanged();
+}
+void ImageCanvas::setSvgSize(QSizeF size) {
+  if (svg_size_ == size) {
+    return;
+  }
+  svg_size_ = size;
+  if (svg_renderer_ != nullptr && svg_renderer_->isValid()) {
+    content_size_ = size.isEmpty() ? svgIntrinsicSize(*svg_renderer_) : size;
+    view_.setImage((orientation_ & 1) != 0 ? content_size_.transposed() : content_size_);
+    refresh();
+  }
   emit imageChanged();
 }
 void ImageCanvas::replaceFrame(const QImage& frame) {
@@ -66,7 +81,7 @@ void ImageCanvas::setOrientation(int orientation) {
     return;
   }
   orientation_ = orientation;
-  view_.setImage(ImageOrientation::dimensions(orientation_, content_size_));
+  view_.setImage((orientation_ & 1) != 0 ? content_size_.transposed() : content_size_);
   view_.fit();
   refresh();
   emit orientationChanged();
@@ -124,7 +139,9 @@ void ImageCanvas::paint(QPainter* painter) {
   const QRectF source((visible.topLeft() - destination.topLeft()) / view_.scale(), visible.size() / view_.scale());
   painter->setClipRect(boundingRect());
   painter->setRenderHint(QPainter::SmoothPixmapTransform, view_.magnification() < 1);
-  const auto mapping = ImageOrientation::mapping(orientation_, content_size_);
+  const auto transform = ImageOrientation::matrix(orientation_);
+  const auto bounds = transform.mapRect(QRectF(QPointF{}, content_size_));
+  const auto mapping = transform * QTransform::fromTranslate(-bounds.x(), -bounds.y());
   painter->translate(destination.topLeft());
   painter->scale(view_.scale(), view_.scale());
   painter->setTransform(mapping, true);

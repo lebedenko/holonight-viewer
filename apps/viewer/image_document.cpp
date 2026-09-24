@@ -12,28 +12,54 @@
 #include <QVariantMap>
 
 #include <array>
+#include <holonight_images/svg.h>
 #include <utility>
 
 namespace {
 constexpr qint64 kDisplayAndCacheBytes = 2 * kImageLimitBytes;
-// Validation-only: constructed on the worker thread, discarded before this function returns. ImageDocument builds
-// its own persistent QSvgRenderer once, on the GUI thread, from the source path while retaining these bytes.
+// Worker-owned validation; persistent GUI renderers stay in ImageDocument.
 DecodeResult decodeSvg(QFile& file, const std::atomic_bool& cancelled, ImageInformation facts) {
-  const auto bytes = file.readAll();
+  const auto source = HolonightImages::loadSvg(file, kSvgFileLimitBytes, cancelled);
+  DecodeResult result;
+  result.information = std::move(facts);
+  if (source.outcome != HolonightImages::Outcome::Success) {
+    if (source.outcome == HolonightImages::Outcome::ResourceLimit) {
+      result.error = ImageDocument::tr("The SVG file exceeds the 10 MiB size limit.");
+    } else {
+      result.outcome = source.outcome;
+    }
+    return result;
+  }
+  const auto inspection = HolonightImages::inspectSvg(source.bytes, cancelled, HolonightImages::SvgAnimation::Enabled);
+  if (inspection.outcome == HolonightImages::Outcome::Unsupported &&
+      inspection.resourceReason == HolonightImages::SvgResourceReason::LocalImageReference) {
+    // The application retains the document directory for its existing local-image path.
+    QSvgRenderer renderer;
+    renderer.setOptions(QtSvg::NoOption);
+    if (renderer.load(file.fileName())) {
+      result.svgSize = svgIntrinsicSize(renderer);
+      result.svgLocalImages = true;
+    }
+  } else if (inspection.outcome == HolonightImages::Outcome::Success) {
+    result.svgSize = inspection.facts.documentSize;
+  } else if (inspection.outcome == HolonightImages::Outcome::Cancelled) {
+    result.outcome = inspection.outcome;
+    return result;
+  }
   if (cancelled.load()) {
-    return {};
+    result.outcome = HolonightImages::Outcome::Cancelled;
+    return result;
   }
-  // Loading by filename retains the document directory as the base for trusted local references.
-  QSvgRenderer renderer;
-  if (!renderer.load(file.fileName())) {
-    return {.image = {},
-            .error = ImageDocument::tr("The SVG file is damaged or could not be parsed."),
-            .information = facts,
-            .svgData = {}};
+  if (result.svgSize.isEmpty()) {
+    result.error = inspection.outcome == HolonightImages::Outcome::Unsupported
+                       ? ImageDocument::tr("The SVG contains unsupported resource references.")
+                       : ImageDocument::tr("The SVG file is damaged or could not be parsed.");
+    return result;
   }
-  facts.format = QStringLiteral("SVG");
-  facts.decodedSize = svgIntrinsicSize(renderer);
-  return {.image = {}, .error = {}, .information = facts, .svgData = bytes};
+  result.information.format = QStringLiteral("SVG");
+  result.information.decodedSize = result.svgSize.toSize().expandedTo(QSize(1, 1));
+  result.svgData = source.bytes;
+  return result;
 }
 QString limitError() {
   return ImageDocument::tr("This image exceeds the viewing limit (32 million pixels or 128 MiB decoded).");
@@ -63,9 +89,8 @@ DecodeResult readImage(QFile& file, const std::atomic_bool& cancelled, ImageInfo
 }
 }  // namespace
 
-QSize svgIntrinsicSize(const QSvgRenderer& renderer) {
-  const auto viewBox = renderer.viewBoxF();
-  return viewBox.isValid() ? viewBox.size().toSize() : renderer.defaultSize();
+QSizeF svgIntrinsicSize(const QSvgRenderer& renderer) {
+  return HolonightImages::svgDocumentSize(renderer.defaultSize(), renderer.viewBoxF());
 }
 
 DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
@@ -98,12 +123,6 @@ DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
   // same signal REQ-F-001..003 already use for format registration and directory scanning. It skips EXIF entirely
   // (XML has none) and the raster kFileLimitBytes/kImageLimitBytes checks, which do not apply to it.
   if (info.suffix().compare(QLatin1String("svg"), Qt::CaseInsensitive) == 0) {
-    if (file.size() > kSvgFileLimitBytes) {
-      return {.image = {},
-              .error = ImageDocument::tr("The SVG file exceeds the 10 MiB size limit."),
-              .information = facts,
-              .svgData = {}};
-    }
     return decodeSvg(file, cancelled, facts);
   }
   if (file.size() > kFileLimitBytes) {
@@ -278,6 +297,7 @@ void ImageDocument::open(const QList<QUrl>& urls) {
     selected_url_ = QUrl{};
     image_ = {};
     svg_data_.clear();
+    svg_size_ = {};
     file_name_.clear();
     state_ = Error;
     error_ = tr("Open exactly one local image file. Remote URLs are not supported.");
@@ -303,6 +323,7 @@ void ImageDocument::select(const QUrl& url) {
   selected_index_ = directory_.indexOf(url);
   image_ = {};
   svg_data_.clear();
+  svg_size_ = {};
   error_.clear();
   file_name_ = url.fileName();
   state_ = Loading;
@@ -395,10 +416,14 @@ void ImageDocument::complete(const Request& request, DecodeResult result) {
     information_ = std::move(result.information);
     image_ = std::move(result.image);
     svg_data_ = std::move(result.svgData);
+    svg_size_ = result.svgSize;
+    svg_local_images_ = result.svgLocalImages;
+    svg_renderer_.setOptions(QtSvg::NoOption);
     error_ = result.outcome ? rasterError(*result.outcome) : std::move(result.error);
     if (error_.isEmpty() && information_.format == QLatin1String("SVG") &&
-        !svg_renderer_.load(request.url.toLocalFile())) {
+        !(svg_local_images_ ? svg_renderer_.load(request.url.toLocalFile()) : svg_renderer_.load(svg_data_))) {
       svg_data_.clear();
+      svg_size_ = {};
       error_ = tr("The SVG file is damaged or could not be parsed.");
     }
     state_ = (image_.isNull() && svg_data_.isEmpty()) ? Error : Ready;
@@ -525,12 +550,23 @@ QImage ImageDocument::previewImage() {
     return {};
   }
   constexpr int kPreviewMaxDimension = 256;  // Comfortably above the 96x96 popup box at any DPR this app targets.
-  const auto raster =
-      svgIntrinsicSize(svg_renderer_).scaled(kPreviewMaxDimension, kPreviewMaxDimension, Qt::KeepAspectRatio);
+  if (!svg_local_images_) {
+    const std::atomic_bool cancelled{false};
+    return HolonightImages::rasterizeSvg(svg_data_,
+                                         {.bound = {kPreviewMaxDimension, kPreviewMaxDimension},
+                                          .outputBytes = kImageLimitBytes,
+                                          .animation = HolonightImages::SvgAnimation::Enabled},
+                                         cancelled)
+        .image;
+  }
+  const auto raster = HolonightImages::svgPixelSize(svg_size_, {kPreviewMaxDimension, kPreviewMaxDimension});
   if (raster.isEmpty()) {
     return {};
   }
   QImage preview(raster, QImage::Format_ARGB32_Premultiplied);
+  if (preview.isNull()) {
+    return {};
+  }
   preview.fill(Qt::transparent);
   QPainter painter(&preview);
   svg_renderer_.render(&painter, preview.rect());

@@ -774,3 +774,48 @@ TEST(Document, QuietMetadataFailuresSurviveCacheReuseAndResetOnSelection) {
   EXPECT_TRUE(document.error().isEmpty());
   EXPECT_TRUE(failures.isEmpty());
 }
+
+TEST(Document, SvgUsesDefaultSizeForInformationAndPreview) {
+  ImageDocument document;
+  document.open({writeFixture("different-viewport.svg",
+                              "<svg xmlns='http://www.w3.org/2000/svg' width='80' height='40' viewBox='0 0 10 30'>"
+                              "<rect width='10' height='30' fill='red'/></svg>")});
+  ASSERT_TRUE(settled(document));
+  ASSERT_EQ(document.state(), ImageDocument::Ready);
+  EXPECT_EQ(document.information().decodedSize, QSize(80, 40));
+  EXPECT_EQ(document.svgSize(), QSizeF(80, 40));
+  EXPECT_EQ(document.previewImage().size(), QSize(256, 128));
+}
+TEST(Document, SelfContainedSvgRendererUsesRetainedBytesAfterPathReplacement) {
+  ImageDocument document([](const QUrl& url, const std::atomic_bool& cancelled) {
+    auto result = decodeImage(url, cancelled);
+    QFile replacement(url.toLocalFile());
+    if (replacement.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+      replacement.write(
+          "<svg xmlns='http://www.w3.org/2000/svg' width='2' height='2'>"
+          "<rect width='2' height='2' fill='blue'/></svg>");
+    }
+    return result;
+  });
+  document.open({writeFixture("retained-svg.svg", svgWithViewBox())});
+  ASSERT_TRUE(settled(document));
+  ASSERT_EQ(document.state(), ImageDocument::Ready);
+  EXPECT_EQ(document.svgSize(), QSizeF(100, 200));
+  QImage pixels(100, 200, QImage::Format_ARGB32_Premultiplied);
+  pixels.fill(Qt::transparent);
+  QPainter painter(&pixels);
+  document.svgRenderer()->render(&painter, pixels.rect());
+  painter.end();
+  EXPECT_EQ(pixels.pixelColor(50, 100), QColor(Qt::red));
+  EXPECT_EQ(document.previewImage().pixelColor(20, 20), QColor(Qt::red));
+}
+TEST(Document, SvgRejectsExternalResourcesWithoutSelectingLocalFallback) {
+  ImageDocument document;
+  document.open({writeFixture("external-svg.svg",
+                              "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'>"
+                              "<image href='relative.png'/><image href='https://example.com/image.png'/></svg>")});
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(document.state(), ImageDocument::Error);
+  EXPECT_TRUE(document.error().contains("resource"));
+  EXPECT_EQ(document.svgRenderer(), nullptr);
+}

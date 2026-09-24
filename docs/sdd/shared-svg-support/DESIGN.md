@@ -7,4 +7,9 @@ for their previews. Keep the linked-image path local, with renderer geometry pas
 Use fractional document geometry for canvas layout; round only information pixel labels or raster output as needed.
 Update image_canvas geometry and tests while preserving persistent renderer ownership and navigation cancellation.
 
-Implementation may begin only after SVG-001 is published and pinned. No consumer implementation has started.
+Implementation uses published/pinned provider 3da5f4e51fe2eed9a1bd9f72c0ab523aa57a5ceb.
+
+## Implementation files
+
+`image_document.{h,cpp}`, `image_canvas.{h,cpp}`, `view_geometry.{h,cpp}` and `qml/Main.qml`;
+regressions in `image_document_test.cpp` and `view_geometry_test.cpp`.

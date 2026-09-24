@@ -11,7 +11,7 @@ bool ViewGeometry::valid() const { return !image_.isEmpty() && !canvas_.isEmpty(
 qreal ViewGeometry::fitMagnification() const {
   return std::min(canvas_.width() / image_.width(), canvas_.height() / image_.height()) * pixel_ratio_;
 }
-void ViewGeometry::setImage(QSize image) {
+void ViewGeometry::setImage(QSizeF image) {
   image_ = image;
   fit();
 }
@@ -48,7 +48,7 @@ QRectF ViewGeometry::rect() const {
   if (!valid()) {
     return {};
   }
-  return {QPointF(canvas_.width() / 2, canvas_.height() / 2) - center_ * scale(), QSizeF(image_) * scale()};
+  return {QPointF(canvas_.width() / 2, canvas_.height() / 2) - center_ * scale(), image_ * scale()};
 }
 void ViewGeometry::constrain() {
   const auto half_width = canvas_.width() / (2 * scale());

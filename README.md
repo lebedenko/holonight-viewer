@@ -215,8 +215,11 @@ startup.
 SVG renders as true vector graphics, staying crisp at any zoom level instead of being
 decoded to a fixed-resolution raster; it is not subject to the pixel/decoded-image
 limits below or the decode cache, and it carries no EXIF. SVG files are capped at
-10 MiB, checked before parsing; larger or malformed files report the same
-damaged/unreadable error as other formats. `.svgz` (gzip-compressed) and animated
+10 MiB, checked against both reported size and actual bytes by HoloNight Images. Self-contained SVGs
+load retained bytes into the GUI renderer; documents with local linked images retain filename-relative loading.
+Other resource-policy violations report an unsupported-resource error. Layout, information and bounded previews
+prefer the document's default size over its viewBox; vector layout retains fractional dimensions.
+See [shared SVG support](docs/sdd/shared-svg-support/SPEC.md). `.svgz` (gzip-compressed) and animated
 (SMIL/CSS) SVG are not supported — only the static markup renders.
 
 Qt is the primary decoder. A private libwebp fallback handles simple static RIFF

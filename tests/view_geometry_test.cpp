@@ -161,3 +161,16 @@ TEST(ImageCanvas, DualModeSvgPaintTakesTheVectorBranch) {
   canvas.setSvgRenderer(&renderer);
   EXPECT_TRUE(canvas.image().isNull());
 }
+
+TEST(ImageCanvas, SvgDefaultViewportAndFractionalDocumentSizeDriveLayout) {
+  QSvgRenderer renderer(
+      QByteArray("<svg xmlns='http://www.w3.org/2000/svg' width='80' height='40' viewBox='0 0 10 30'/>"));
+  ImageCanvas canvas;
+  canvas.setSize({240, 240});
+  canvas.setSvgRenderer(&renderer);
+  EXPECT_EQ(canvas.imageRect().size(), QSizeF(240, 120));
+  canvas.setSvgSize({0.25, 0.5});
+  EXPECT_EQ(canvas.imageRect().size(), QSizeF(120, 240));
+  canvas.setOrientation(1);
+  EXPECT_EQ(canvas.imageRect().size(), QSizeF(240, 120));
+}

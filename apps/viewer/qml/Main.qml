@@ -686,6 +686,7 @@ HnApplicationWindow {
                 anchors.fill: parent
                 image: window.document.image
                 svgRenderer: window.document.svgRenderer
+                svgSize: window.document.svgSize
                 orientation: window.document.orientation
                 onOrientationChanged: ++window.inputEpoch
                 displayPixelRatio: window.devicePixelRatio
