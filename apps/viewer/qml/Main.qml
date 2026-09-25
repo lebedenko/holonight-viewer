@@ -926,6 +926,7 @@ HnApplicationWindow {
                     anchors.horizontalCenter: parent.horizontalCenter
                     visible: side >= emptyStateGroup.minimumGlyphSide
                     source: side > 0 ? Qt.resolvedUrl("icons/empty-viewer.svg") : ""
+                    rendering: HnIcon.Semantic
                     // Qt scales sourceSize by DPR; hnicons accepts at most 1024 physical pixels.
                     size: Math.min(side, rasterLimit)
                     width: side
