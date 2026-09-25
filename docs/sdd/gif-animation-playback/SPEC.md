@@ -28,7 +28,7 @@ The playback system shall:
 - Frame streaming via QImageReader with one-frame look-ahead decoding off-thread.
 - Autoplay on open with frame delay clamping (≤10 ms → 100 ms) and loop count preservation (infinite stays infinite).
 - Manual play/pause via Space key; Space binding in shortcut help popup and footer key hints via shared semantic key hints.
-- Transient 48 px play/pause button (circle, glyphs) sharing arrowsShown state and 2000 ms arrow timer (hover-hold behavior).
+- Transient 48 px play/pause button (circle, glyphs) sharing arrowsShown state and 3000 ms arrow timer (hover-hold behavior).
 - Frame-fade behavior (150 ms opacity animation, faded button non-clickable and invisible to accessibility).
 - Transient information overlay showing "Animated", frame count (lazy), and playing/paused state.
 - Pause/resume without re-decoding current frame; resume continues with remaining delay.
@@ -67,7 +67,7 @@ The playback system shall:
 | Frame Delay | Millisecond duration a frame is displayed before advancing to the next; ≤10 ms is clamped to 100 ms. |
 | Look-Ahead Decoding | Background off-thread decoding of the next frame while the current frame is displayed; improves playback smoothness. |
 | Loop Policy | How many times the sequence plays, derived from the file's loop field as reported by Qt: infinite, or a finite number of total plays (a GIF without a loop field plays once). The raw Qt convention is pinned by a characterisation test and confined to one adapter (DESIGN §9). |
-| Play/Pause Button | A 48 px circular button showing a play glyph (paused) or pause glyph (playing); shares arrowsShown state and 2000 ms timer with navigation arrows. |
+| Play/Pause Button | A 48 px circular button showing a play glyph (paused) or pause glyph (playing); shares arrowsShown state and 3000 ms timer with navigation arrows. |
 | arrowsShown | A boolean property reflecting visibility state of transient UI elements (arrows, play/pause button); independent of fade progress. |
 | Playback Stopped Notice | A non-modal message in the details strip ("Playback stopped: damaged frame") when playback halts due to truncated or corrupted frames. |
 | Reader | QImageReader instance for streaming GIF frames; one open handle per document. |
@@ -133,12 +133,12 @@ When the user clicks the play/pause button while an animated image is loaded and
 
 **REQ-F-006 (State-driven — Play/Pause Button Visibility)**
 
-The play/pause button shall appear and disappear with the navigation arrows (previousButton, nextButton). The button's objectName shall be "playPauseButton". It shall use the same arrowsShown state and 2000 ms arrow timer (pointer movement, hover-hold) as the arrows; it shall fade over 150 ms (opacity animation); while faded (opacity ≈ 0), it shall not be clickable or exposed to accessibility.
+The play/pause button shall appear and disappear with the navigation arrows (previousButton, nextButton). The button's objectName shall be "playPauseButton". It shall use the same arrowsShown state and 3000 ms arrow timer (pointer movement, hover-hold) as the arrows; it shall fade over 150 ms (opacity animation); while faded (opacity ≈ 0), it shall not be clickable or exposed to accessibility.
 
 **Acceptance Criteria:**
 - An automated test opens a GIF, asserts playPauseButton exists with objectName "playPauseButton".
 - After pointer movement over the canvas, arrowsShown becomes true within one frame and playPauseButton's opacity is 1.
-- After 2 seconds without pointer movement, arrowsShown becomes false and playPauseButton's opacity animates to 0 over ~150 ms.
+- After 3 seconds without pointer movement, arrowsShown becomes false and playPauseButton's opacity animates to 0 over ~150 ms.
 - The button's visibility is driven by the same arrowsShown flag and the same 150 ms opacity behavior as the arrows, so they fade in and out together.
 - Clicking the button's former position 300 ms after the fade began (opacity ≈ 0) does not toggle playback.
 - While faded, the accessibility tree does not expose a play/pause action node.
@@ -191,7 +191,7 @@ Play and pause glyphs shall come from one provider chosen in the design stage: t
 
 **REQ-F-011 (State-driven — Overlay Content)**
 
-While an animated image is loaded, the details strip shall include an "Animated" label, the playing/paused state, and, once known, the frame count as "N frames". The strip keeps its existing reveal and 3-second conceal rules and its 150 ms fade.
+While an animated image is loaded, the details strip shall include an "Animated" label, the playing/paused state, and, once known, the frame count as "N frames". The strip keeps its existing reveal and 4-second conceal rules and its 150 ms fade.
 
 **Acceptance Criteria:**
 - An automated test opens a multi-frame GIF and reveals the strip; asserts it contains "Animated" and "Playing".

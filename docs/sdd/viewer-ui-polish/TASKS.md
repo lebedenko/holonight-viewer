@@ -48,7 +48,7 @@ Each task includes the test updates its change forces, so the build and the full
 
 - [x] T-012: Add tests/transient_overlay_test.cpp
   - REQs: REQ-F-018, REQ-F-019, REQ-F-020, REQ-F-021, REQ-F-022, REQ-F-023, REQ-F-024, REQ-F-025, REQ-F-026, REQ-NF-003
-  - Check: transient_overlay_test is registered and passes, covering the 1.8 s/2.2 s and 2.8 s/3.2 s bounds, restart on a second trigger, hover pause, keyboard hide, mid-fade opacity, no click/accessibility node after the fade, every REQ-F-023 key trigger, no reveal on resize or in Empty/Error, no arrows for the Empty state or a single-image folder, and a drag during the fade still panning.
+  - Check: transient_overlay_test is registered and passes, covering the 2.8 s/3.2 s and 3.8 s/4.2 s bounds, restart on a second trigger, hover pause, keyboard hide, mid-fade opacity, no click/accessibility node after the fade, every REQ-F-023 key trigger, no reveal on resize or in Empty/Error, no arrows for the Empty state or a single-image folder, and a drag during the fade still panning.
 
 - [x] T-013: Final audit and full verification
   - REQs: REQ-NF-001, REQ-NF-002, REQ-NF-004, REQ-NF-005, REQ-C-001, REQ-C-005, REQ-C-006, REQ-C-007, REQ-F-030

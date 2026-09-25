@@ -27,6 +27,10 @@ struct OverlayFixture {
   QQuickItem* previous = nullptr;
   QQuickItem* next = nullptr;
   QQuickItem* strip = nullptr;
+  QQuickItem* header = nullptr;
+  QQuickItem* footer = nullptr;
+  QQuickItem* headerBackground = nullptr;
+  QQuickItem* footerBackground = nullptr;
   QObject* arrowTimer = nullptr;
   QObject* detailsTimer = nullptr;
 
@@ -51,9 +55,14 @@ struct OverlayFixture {
     previous = window->findChild<QQuickItem*>("previousButton");
     next = window->findChild<QQuickItem*>("nextButton");
     strip = window->findChild<QQuickItem*>("detailsStrip");
+    header = window->findChild<QQuickItem*>("viewerHeader");
+    footer = window->findChild<QQuickItem*>("viewerFooter");
+    headerBackground = window->findChild<QQuickItem*>("fullscreenHeaderBackground");
+    footerBackground = window->findChild<QQuickItem*>("fullscreenFooterBackground");
     arrowTimer = window->findChild<QObject*>("arrowTimer");
     detailsTimer = window->findChild<QObject*>("detailsTimer");
-    if (canvas == nullptr || previous == nullptr || next == nullptr || strip == nullptr || arrowTimer == nullptr ||
+    if (canvas == nullptr || previous == nullptr || next == nullptr || strip == nullptr || header == nullptr ||
+        footer == nullptr || headerBackground == nullptr || footerBackground == nullptr || arrowTimer == nullptr ||
         detailsTimer == nullptr) {
       return ::testing::AssertionFailure() << "overlay items not found";
     }
@@ -135,25 +144,139 @@ bool hasPerceivableNode(QAccessibleInterface* node, const QString& name) {
 TEST(TransientOverlay, ProductionCountdownBounds) {
   OverlayFixture fixture;
   ASSERT_TRUE(fixture.load());
-  EXPECT_EQ(fixture.arrowTimer->property("interval").toInt(), 2000);
-  EXPECT_EQ(fixture.detailsTimer->property("interval").toInt(), 3000);
+  EXPECT_EQ(fixture.arrowTimer->property("interval").toInt(), 3000);
+  EXPECT_EQ(fixture.detailsTimer->property("interval").toInt(), 4000);
   ASSERT_TRUE(fixture.openFolder());
   EXPECT_TRUE(fixture.hudShown());
   EXPECT_TRUE(fixture.arrowsHidden());
 
   QElapsedTimer clock;
   fixture.pointerOverCanvas();
+  EXPECT_TRUE(fixture.arrowTimer->property("running").toBool());
   clock.start();
   EXPECT_TRUE(fixture.arrowsShown());
   EXPECT_TRUE(fixture.hudShown());
-  waitUntil(clock, 1750);
-  EXPECT_TRUE(fixture.arrowsShown());
-  waitUntil(clock, 2250);
-  EXPECT_TRUE(fixture.arrowsHidden());
   waitUntil(clock, 2750);
-  EXPECT_TRUE(fixture.hudShown());
+  EXPECT_TRUE(fixture.arrowsShown());
+  EXPECT_TRUE(fixture.arrowTimer->property("running").toBool());
   waitUntil(clock, 3250);
+  EXPECT_TRUE(fixture.arrowsHidden());
+  waitUntil(clock, 3750);
+  EXPECT_TRUE(fixture.hudShown());
+  waitUntil(clock, 4250);
   EXPECT_FALSE(fixture.hudShown());
+}
+
+TEST(TransientOverlay, FullscreenCanvasAndBarsKeepTheirGeometry) {
+  OverlayFixture fixture;
+  ASSERT_TRUE(fixture.load());
+  const auto headerHeight = fixture.header->height();
+  const auto footerHeight = fixture.footer->height();
+  EXPECT_GT(headerHeight, 0);
+  EXPECT_GT(footerHeight, 0);
+  EXPECT_FALSE(fixture.headerBackground->isVisible());
+  EXPECT_FALSE(fixture.footerBackground->isVisible());
+  EXPECT_FALSE(fixture.previous->isVisible());
+  EXPECT_FALSE(fixture.next->isVisible());
+  EXPECT_EQ(fixture.canvas->mapToScene({0, 0}).y(), headerHeight);
+  EXPECT_EQ(fixture.canvas->height(), fixture.window->contentItem()->height() - headerHeight - footerHeight);
+
+  fixture.window->showFullScreen();
+  ASSERT_TRUE(QTest::qWaitFor([&] { return fixture.window->visibility() == QWindow::FullScreen; }));
+  for (const auto size : {QSize(900, 600), QSize(740, 510)}) {
+    fixture.window->resize(size);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return fixture.canvas->size() == fixture.window->contentItem()->size(); }));
+    EXPECT_EQ(fixture.canvas->mapToScene({0, 0}), QPointF(0, 0));
+    EXPECT_EQ(fixture.header->height(), headerHeight);
+    EXPECT_EQ(fixture.footer->height(), footerHeight);
+    EXPECT_TRUE(fixture.header->isVisible());
+    EXPECT_TRUE(fixture.footer->isVisible());
+    EXPECT_TRUE(fixture.headerBackground->isVisible());
+    EXPECT_TRUE(fixture.footerBackground->isVisible());
+    EXPECT_EQ(fixture.headerBackground->size(), fixture.header->size());
+    EXPECT_EQ(fixture.footerBackground->size(), fixture.footer->size());
+    EXPECT_EQ(fixture.headerBackground->property("color").value<QColor>().alpha(), 255);
+    EXPECT_EQ(fixture.footerBackground->property("color").value<QColor>().alpha(), 255);
+    EXPECT_FALSE(fixture.previous->isVisible());
+    EXPECT_FALSE(fixture.next->isVisible());
+  }
+  fixture.window->showNormal();
+  ASSERT_TRUE(QTest::qWaitFor([&] { return fixture.window->visibility() != QWindow::FullScreen; }));
+  EXPECT_EQ(fixture.header->height(), headerHeight);
+  EXPECT_EQ(fixture.footer->height(), footerHeight);
+  EXPECT_EQ(fixture.canvas->height(), fixture.window->contentItem()->height() - headerHeight - footerHeight);
+  EXPECT_TRUE(fixture.header->isVisible());
+  EXPECT_TRUE(fixture.footer->isVisible());
+  EXPECT_FALSE(fixture.headerBackground->isVisible());
+  EXPECT_FALSE(fixture.footerBackground->isVisible());
+}
+
+TEST(TransientOverlay, FullscreenControlsShareRevealAndHoverPause) {
+  OverlayFixture fixture;
+  ASSERT_TRUE(fixture.load());
+  ASSERT_TRUE(fixture.openFolder());
+  fixture.arrowTimer->setProperty("interval", 400);
+  fixture.window->showFullScreen();
+  ASSERT_TRUE(QTest::qWaitFor([&] { return fixture.window->visibility() == QWindow::FullScreen; }));
+  EXPECT_EQ(fixture.canvas->size(), fixture.window->contentItem()->size());
+  ASSERT_TRUE(fixture.arrowsShown());
+  EXPECT_TRUE(fixture.header->isVisible());
+  EXPECT_TRUE(fixture.footer->isVisible());
+  const auto capture = fixture.window->grabWindow();
+  ASSERT_FALSE(capture.isNull());
+  const auto ratio = capture.devicePixelRatio();
+  EXPECT_EQ(capture.pixelColor(qRound(2 * ratio), qRound(fixture.header->height() * ratio / 2)),
+            fixture.headerBackground->property("color").value<QColor>());
+  EXPECT_EQ(
+      capture.pixelColor(qRound(2 * ratio),
+                         qRound((fixture.window->contentItem()->height() - (fixture.footer->height() / 2)) * ratio)),
+      fixture.footerBackground->property("color").value<QColor>());
+  EXPECT_LE(fixture.strip->mapToScene({0, fixture.strip->height()}).y(), fixture.footer->mapToScene({0, 0}).y());
+  fixture.pointerOverCanvas(1);
+  ASSERT_TRUE(fixture.arrowTimer->property("running").toBool());
+  EXPECT_TRUE(QTest::qWaitFor([&] { return fixture.arrowsHidden(); }, 1000));
+  EXPECT_FALSE(fixture.header->isVisible());
+  EXPECT_FALSE(fixture.footer->isVisible());
+  EXPECT_FALSE(fixture.headerBackground->isVisible());
+  EXPECT_FALSE(fixture.footerBackground->isVisible());
+
+  fixture.pointerOverCanvas();
+  ASSERT_TRUE(fixture.arrowsShown());
+  EXPECT_TRUE(fixture.header->isVisible());
+  EXPECT_TRUE(fixture.footer->isVisible());
+  QTest::mouseMove(fixture.window, OverlayFixture::centre(fixture.header));
+  QTest::qWait(700);
+  EXPECT_TRUE(fixture.arrowsShown());
+  QTest::mouseMove(fixture.window, OverlayFixture::centre(fixture.footer));
+  QTest::qWait(700);
+  EXPECT_TRUE(fixture.arrowsShown());
+  fixture.pointerOverCanvas(20);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return fixture.arrowsHidden(); }, 1000));
+
+  fixture.pointerOverCanvas(30);
+  ASSERT_TRUE(fixture.arrowsShown());
+  QTest::qWait(250);
+  QTest::keyClick(fixture.window, Qt::Key_Left);
+  EXPECT_TRUE(fixture.arrowsHidden());
+  EXPECT_FALSE(fixture.header->isVisible());
+  EXPECT_FALSE(fixture.footer->isVisible());
+  EXPECT_TRUE(fixture.arrowTimer->property("running").toBool());
+  QTest::qWait(220);
+  EXPECT_FALSE(fixture.arrowTimer->property("running").toBool());
+
+  fixture.pointerOverCanvas(40);
+  auto* menu = fixture.window->findChild<QObject*>("actionsMenu");
+  auto* actions = fixture.window->findChild<QQuickItem*>("actionsButton");
+  ASSERT_TRUE(menu && actions);
+  QTest::mouseClick(fixture.window, Qt::LeftButton, Qt::NoModifier, OverlayFixture::centre(actions));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return menu->property("opened").toBool(); }));
+  QTest::qWait(700);
+  EXPECT_TRUE(fixture.header->isVisible());
+  EXPECT_FALSE(fixture.arrowTimer->property("running").toBool());
+  QMetaObject::invokeMethod(menu, "close");
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !menu->property("opened").toBool(); }));
+  fixture.pointerOverCanvas(50);
+  EXPECT_TRUE(QTest::qWaitFor([&] { return fixture.arrowsHidden(); }, 1000));
 }
 
 // REQ-F-018/023: a second trigger restarts the countdown (scaled intervals, same proportions).

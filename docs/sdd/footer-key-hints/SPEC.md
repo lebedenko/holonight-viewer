@@ -47,9 +47,9 @@ This specification defines the restyle and content update of the shortcut footer
 
 ## Non-Functional Requirements
 
-**REQ-NF-001:** The footer shall remain persistently visible (not transient or auto-hidden).
+**REQ-NF-001:** Outside fullscreen, the footer shall remain persistently visible. In fullscreen, it shall overlay the canvas and share the navigation controls' transient visibility.
 
-- **Acceptance:** Automated test asserts the footer is visible in the empty state, after an image loads, and after mouse movement plus a 6 s wait; no timer or opacity animation is bound to it.
+- **Acceptance:** In windowed mode, an automated test asserts the footer is visible in the empty state, after an image loads, and after the navigation controls hide. In fullscreen, it hides and reappears with those controls.
 
 **REQ-NF-002:** Each visible hint shall be exposed to the accessibility tree as a single StaticText node; its accessible name shall be "<key> <label>" (e.g. "Ctrl+0 Fit"). Hidden hints shall not be announced.
 

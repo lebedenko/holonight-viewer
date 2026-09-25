@@ -17,8 +17,8 @@ HoloNight Viewer is a Qt6/QML image viewer (apps/viewer: Main.qml, FooterKeyHint
 1. **Empty State Hint** — A centered two-line hint text below the "No image open" glyph, guiding users to open an image via Ctrl+O or drag-and-drop.
 2. **Menu Reorganization** — The hamburger menu regrouped with separators, shortcut labels right-aligned, and improved keyboard navigation.
 3. **Shortcut Help Redesign** — A new styled modal popup replacing the basic dialog, with grouped sections and a keyboard toggle (? key).
-4. **Transient Navigation Arrows** — Previous/Next buttons that appear on pointer movement and fade after 2 seconds of inactivity, staying visible on hover.
-5. **Transient Metadata HUD** — The metadata display (detailsStrip) triggered by navigation, zoom, and transforms, fading after 3 seconds; observable via a `shown` property.
+4. **Transient Navigation Arrows** — Previous/Next buttons that appear on pointer movement and fade after 3 seconds of inactivity, staying visible on hover.
+5. **Transient Metadata HUD** — The metadata display (detailsStrip) triggered by navigation, zoom, and transforms, fading after 4 seconds; observable via a `shown` property.
 6. **Flip Key Remapping** — Keyboard shortcuts X and Shift+X for horizontal and vertical flip (replacing H and V), consistently reflected in menu and help.
 
 ---
@@ -31,6 +31,7 @@ HoloNight Viewer is a Qt6/QML image viewer (apps/viewer: Main.qml, FooterKeyHint
 - Menu order, separators, shortcut labels, and keyboard navigation
 - New ShortcutHelpPopup QML component with styled content and sections
 - Transient visibility and fade behavior for navigation arrows (previousButton, nextButton)
+- Fullscreen canvas bounds and synchronized header, footer, and navigation visibility
 - Transient visibility and observable state for metadata HUD (detailsStrip)
 - Keyboard shortcut reassignment (X / Shift+X for flip; H / V removal)
 - Integration of new QML files into CMake, format scripts, and Taskfile
@@ -40,7 +41,6 @@ HoloNight Viewer is a Qt6/QML image viewer (apps/viewer: Main.qml, FooterKeyHint
 ### Out of Scope
 
 - Header height reduction (handled in holonight-qt)
-- Auto-hiding header/footer chrome or fullscreen-specific chrome hiding
 - Thumbnail strip or multi-image carousel
 - GPS map links or external navigation services
 - Image Information popup redesign (already completed in a prior cycle)
@@ -249,20 +249,20 @@ The Shortcut Help popup shall expose its content as a Popup with Accessible.role
 
 **REQ-F-018 (Event-driven — Pointer Movement Visibility)**
 
-When the user moves the pointer over the canvas, the navigation arrow buttons (objectNames "previousButton", "nextButton") shall become visible and start a 2-second countdown timer. When 2 seconds elapse without pointer movement, the arrows shall fade out (over ~150 ms) and become invisible/non-clickable.
+When the user moves the pointer over the canvas, the navigation arrow buttons (objectNames "previousButton", "nextButton") shall become visible and start a 3-second countdown timer. When 3 seconds elapse without pointer movement, the arrows shall fade out (over ~150 ms) and become invisible/non-clickable.
 
 **Acceptance Criteria:**
 - After a pointer move over the canvas, both arrows report shown = true within one frame.
-- With no further pointer movement, the arrows still report shown = true at 1.8 s and shown = false by 2.2 s after the move.
-- A second pointer move at 1.5 s keeps them shown until at least 3.3 s after the first move.
+- With no further pointer movement, the arrows still report shown = true at 2.8 s and shown = false by 3.2 s after the move.
+- A second pointer move at 1.5 s keeps them shown until at least 4.3 s after the first move.
 
 **REQ-F-019 (State-driven — Hover Pause)**
 
-While the pointer hovers over either navigation arrow button, the timer shall be paused (the countdown does not elapse). On hover exit, the 2-second countdown shall restart.
+While the pointer hovers over either navigation arrow button, the timer shall be paused (the countdown does not elapse). On hover exit, the 3-second countdown shall restart.
 
 **Acceptance Criteria:**
-- After moving the pointer onto "nextButton" and holding it there for 3 s, both arrows still report shown = true.
-- After moving the pointer off the button (without further canvas movement), the arrows report shown = true at 1.8 s and shown = false by 2.2 s after leaving.
+- After moving the pointer onto "nextButton" and holding it there for 4 s, both arrows still report shown = true.
+- After moving the pointer off the button (without further canvas movement), the arrows report shown = true at 2.8 s and shown = false by 3.2 s after leaving.
 
 **REQ-F-020 (Event-driven — Keyboard Hides Arrows)**
 
@@ -290,23 +290,25 @@ The navigation arrows shall be eligible to appear only while the document's fold
 - With a folder holding a single image, a pointer move leaves both arrows at shown = false and not visible.
 - With a folder open and the current file in the Error state, a pointer move shows the arrows and clicking "nextButton" moves to the next image.
 
+**Fullscreen controls:** In fullscreen, the canvas shall fill the window while the header and footer retain their normal heights and overlay the image. Both bars shall appear with navigation controls on entry and pointer movement, and hide with them after the 3-second countdown. Hovering either bar or a navigation button shall pause the countdown; leaving shall restart it. The header shall remain visible while its menu is open. Keyboard input shall hide the synchronized controls immediately without restarting or stopping an already-running countdown. Outside fullscreen, the bars shall remain visible and reserve space above and below the canvas. These rules apply with no image open; browsing buttons remain unavailable without a browsable image.
+
 ---
 
 ### F.5 Transient Metadata HUD
 
 **REQ-F-023 (Event-driven — HUD Visibility Triggers)**
 
-The metadata HUD (detailsStrip, objectName) shall appear only while an image is Ready. It shall be shown on first render, on pointer movement over the canvas, and on navigation, zoom (Ctrl++, Ctrl+−), fit (Ctrl+0), actual size (1), rotate (R, Shift+R), and flip (X, Shift+X) actions, whether triggered by mouse, menu, or keyboard. The HUD shall hide 3 seconds after the last trigger.
+The metadata HUD (detailsStrip, objectName) shall appear only while an image is Ready. It shall be shown on first render, on pointer movement over the canvas, and on navigation, zoom (Ctrl++, Ctrl+−), fit (Ctrl+0), actual size (1), rotate (R, Shift+R), and flip (X, Shift+X) actions, whether triggered by mouse, menu, or keyboard. The HUD shall hide 4 seconds after the last trigger.
 
 **Acceptance Criteria:**
-- After an image's first render, the HUD reports shown = true, still true at 2.8 s, and false by 3.2 s.
+- After an image's first render, the HUD reports shown = true, still true at 3.8 s, and false by 4.2 s.
 - With the HUD hidden, each of these (no pointer movement) sets shown = true within one frame of the command taking effect: Ctrl++, Ctrl+−, Ctrl+0, 1, R, Shift+R, X, Shift+X, and the menu's Zoom In item.
 - With the HUD hidden, pressing ] shows the HUD once the next image reaches Ready (first render).
-- A trigger at 2 s after a previous trigger keeps the HUD shown until at least 4.8 s after the first trigger.
+- A trigger at 2 s after a previous trigger keeps the HUD shown until at least 5.8 s after the first trigger.
 
 **REQ-F-024 (State-driven — HUD Fade and Visibility)**
 
-When 3 seconds elapse without a trigger, the metadata HUD shall fade out over approximately 150 milliseconds. While fully faded (opacity ≈ 0), the HUD shall not be visible. The HUD shall not respond to pointer events or screen reader inspection while faded.
+When 4 seconds elapse without a trigger, the metadata HUD shall fade out over approximately 150 milliseconds. While fully faded (opacity ≈ 0), the HUD shall not be visible. The HUD shall not respond to pointer events or screen reader inspection while faded.
 
 **Acceptance Criteria:**
 - About 75 ms after shown becomes false, the HUD opacity is strictly between 0 and 1; by 300 ms it is 0 and `visible` is false.
