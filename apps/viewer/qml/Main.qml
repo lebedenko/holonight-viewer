@@ -85,37 +85,46 @@ HnApplicationWindow {
     }
     property bool rendered: false
     property bool actionsMenuOpen: false
+    readonly property bool fullscreen: visibility === Window.FullScreen
+    readonly property bool controlsHovered: previousButton.hovered || nextButton.hovered || playPauseButton.hovered || headerHover.hovered || footerHover.hovered
     // Transient overlays: the flags are the display target, the timers only end a reveal.
     property bool arrowsShown: false
+    property bool countdownActive: false
     property bool detailsShown: false
     Timer {
         id: arrowTimer
         objectName: "arrowTimer"
-        interval: 2000
-        onTriggered: window.arrowsShown = false
+        interval: 3000
+        running: window.countdownActive && !window.controlsHovered && !window.actionsMenuOpen
+        onTriggered: {
+            window.arrowsShown = false;
+            window.countdownActive = false;
+        }
     }
     Timer {
         id: detailsTimer
         objectName: "detailsTimer"
-        interval: 3000
+        interval: 4000
         onTriggered: window.detailsShown = false
     }
     function showArrows(): void {
         window.arrowsShown = true;
-        // A hovered arrow holds the countdown until the pointer leaves it.
-        if (!previousButton.hovered && !nextButton.hovered && !playPauseButton.hovered)
+        window.countdownActive = true;
+        if (arrowTimer.running)
             arrowTimer.restart();
     }
     function hideArrows(): void {
         window.arrowsShown = false;
-        arrowTimer.stop();
+        if (!window.fullscreen)
+            window.countdownActive = false;
     }
-    function pauseArrows(): void {
-        arrowTimer.stop();
-    }
-    function resumeArrows(): void {
-        if (window.arrowsShown)
-            arrowTimer.restart();
+    onFullscreenChanged: {
+        if (fullscreen)
+            showArrows();
+        else {
+            arrowsShown = false;
+            countdownActive = false;
+        }
     }
     function togglePlayback(): void {
         window.document.animation.toggle();
@@ -477,14 +486,28 @@ HnApplicationWindow {
         }
     }
 
-    ColumnLayout {
+    Item {
         anchors.fill: parent
-        anchors.margins: 0
-        // The canvas sits flush against the header and footer; status labels carry their own margins.
-        spacing: 0
 
+        Rectangle {
+            objectName: "fullscreenHeaderBackground"
+            anchors.fill: viewerHeader
+            color: HoloniightPalette.surface
+            visible: window.fullscreen && viewerHeader.visible
+            z: 1
+            Accessible.ignored: true
+        }
         HnHeaderBar {
-            Layout.fillWidth: true
+            id: viewerHeader
+            objectName: "viewerHeader"
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            visible: !window.fullscreen || window.arrowsShown || window.actionsMenuOpen
+            z: 2
+            HoverHandler {
+                id: headerHover
+            }
             content: Item {
                 HnLabel {
                     anchors.centerIn: parent
@@ -667,9 +690,12 @@ HnApplicationWindow {
             }
         }
         HnLabel {
+            id: folderError
             objectName: "folderError"
-            Layout.fillWidth: true
-            Layout.topMargin: 6
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: viewerHeader.bottom
+            anchors.topMargin: 6
             visible: window.document.scanning || window.document.folderError.length > 0
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
@@ -679,8 +705,10 @@ HnApplicationWindow {
 
         Item {
             id: canvasArea
-            Layout.fillWidth: true
-            Layout.fillHeight: true
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: window.fullscreen ? parent.top : folderError.visible ? folderError.bottom : viewerHeader.bottom
+            anchors.bottom: window.fullscreen ? parent.bottom : viewerFooter.top
 
             ImageCanvas {
                 id: canvas
@@ -767,7 +795,6 @@ HnApplicationWindow {
                         duration: 150
                     }
                 }
-                onHoveredChanged: hovered ? window.pauseArrows() : window.resumeArrows()
                 enabled: !window.modalActive && window.document.canPrevious
                 onClicked: window.browse(-1)
             }
@@ -797,7 +824,6 @@ HnApplicationWindow {
                         duration: 150
                     }
                 }
-                onHoveredChanged: hovered ? window.pauseArrows() : window.resumeArrows()
                 onClicked: window.togglePlayback()
             }
             ViewerButton {
@@ -820,7 +846,6 @@ HnApplicationWindow {
                         duration: 150
                     }
                 }
-                onHoveredChanged: hovered ? window.pauseArrows() : window.resumeArrows()
                 enabled: !window.modalActive && window.document.canNext
                 onClicked: window.browse(1)
             }
@@ -828,7 +853,7 @@ HnApplicationWindow {
                 objectName: "detailsStrip"
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 12
+                anchors.bottomMargin: window.fullscreen && viewerFooter.visible ? viewerFooter.height + 12 : 12
                 width: Math.min(parent.width - 24, stripFilename.implicitWidth + metadata.naturalWidth + 36)
                 height: detailsFlow.height + 16
                 radius: HnMetrics.internalSpacing(HnControlSize.Compact)
@@ -975,30 +1000,50 @@ HnApplicationWindow {
             }
         }
 
-        HnLabel {
-            Layout.fillWidth: true
-            Layout.topMargin: 6
-            Layout.bottomMargin: 6
-            visible: window.document.clipboard.feedback.length > 0
-            rawText: window.document.clipboard.feedback
-            textFormat: Text.PlainText
-            elide: Text.ElideMiddle
-            Accessible.name: rawText
+        Rectangle {
+            objectName: "fullscreenFooterBackground"
+            anchors.fill: viewerFooter
+            color: HoloniightPalette.surface
+            visible: window.fullscreen && viewerFooter.visible
+            z: 1
+            Accessible.ignored: true
         }
-
-        HnSeparator {
-            objectName: "footerSeparator"
-            Layout.fillWidth: true
-            fadeMode: HnSeparator.Solid
-        }
-
-        FooterKeyHints {
-            animated: window.document.animation.canToggle
-            Layout.fillWidth: true
-            Layout.leftMargin: 24
-            Layout.rightMargin: 24
-            Layout.topMargin: 8
-            Layout.bottomMargin: 8
+        ColumnLayout {
+            id: viewerFooter
+            objectName: "viewerFooter"
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: implicitHeight
+            spacing: 0
+            visible: !window.fullscreen || window.arrowsShown
+            z: 2
+            HoverHandler {
+                id: footerHover
+            }
+            HnLabel {
+                Layout.fillWidth: true
+                Layout.topMargin: 6
+                Layout.bottomMargin: 6
+                visible: window.document.clipboard.feedback.length > 0
+                rawText: window.document.clipboard.feedback
+                textFormat: Text.PlainText
+                elide: Text.ElideMiddle
+                Accessible.name: rawText
+            }
+            HnSeparator {
+                objectName: "footerSeparator"
+                Layout.fillWidth: true
+                fadeMode: HnSeparator.Solid
+            }
+            FooterKeyHints {
+                animated: window.document.animation.canToggle
+                Layout.fillWidth: true
+                Layout.leftMargin: 24
+                Layout.rightMargin: 24
+                Layout.topMargin: 8
+                Layout.bottomMargin: 8
+            }
         }
     }
 

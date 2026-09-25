@@ -123,11 +123,16 @@ and Ctrl+R clear them; returning to a file does not restore them.
 
 The header shows the centered filename and scalable, theme-tinted icons. The
 shortcut footer stays on one line below the canvas; as the window narrows, hints
-hide from the right while the Help shortcut remains visible.
+hide from the right while the Help shortcut remains visible. In fullscreen, the
+canvas fills the window and the header and footer overlay it. They appear with
+the navigation controls on entry or mouse movement, then hide together after
+three seconds. Hovering a control or either bar holds them; an open menu keeps
+the header visible.
 
-- **Navigation arrows** appear on mouse movement for two seconds (held while the
-  pointer rests on an arrow). Any keyboard input hides them immediately.
-- **Details strip** appears for three seconds after a new or refreshed image first
+- **Navigation arrows** appear on mouse movement for three seconds (held while the
+  pointer rests on an arrow). Keyboard input hides them immediately; in fullscreen
+  it also hides the header and footer without resetting the countdown.
+- **Details strip** appears for four seconds after a new or refreshed image first
   renders and after zoom, Fit, Actual Size, rotate, flip or mouse movement; resizing
   does not reveal it. It shows transformed dimensions, decimal file size,
   physical-pixel scale (including Fit) and folder position, wrapping at narrow widths

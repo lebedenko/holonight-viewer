@@ -293,8 +293,8 @@ TEST(Viewer, IndependentOverlayTimers) {
   ASSERT_NE(next, nullptr);
   const auto arrowsShown = [&] { return next->property("shown").toBool(); };
   const auto stripShown = [&] { return strip->property("shown").toBool(); };
-  EXPECT_EQ(arrows->property("interval").toInt(), 2000);
-  EXPECT_EQ(details->property("interval").toInt(), 3000);
+  EXPECT_EQ(arrows->property("interval").toInt(), 3000);
+  EXPECT_EQ(details->property("interval").toInt(), 4000);
   EXPECT_FALSE(strip->isVisible());
   // Shorter intervals exercise the production timer wiring without a long suite delay.
   arrows->setProperty("interval", 300);
@@ -303,10 +303,11 @@ TEST(Viewer, IndependentOverlayTimers) {
   ASSERT_TRUE(QTest::qWaitFor([&] { return stripShown(); }));
   EXPECT_FALSE(arrowsShown());
   const auto geometry = canvas->imageRect();
-  QTest::mouseMove(window, QPoint(10, 10));
+  const auto canvasPoint = canvas->mapToScene({10, 10}).toPoint();
+  QTest::mouseMove(window, canvasPoint);
   EXPECT_TRUE(arrowsShown());
   QTest::qWait(200);
-  QTest::mouseMove(window, QPoint(20, 10));
+  QTest::mouseMove(window, canvasPoint + QPoint(10, 0));
   QTest::qWait(200);
   EXPECT_TRUE(arrowsShown());
   QTest::keyClick(window, Qt::Key_Tab);

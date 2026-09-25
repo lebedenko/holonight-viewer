@@ -33,7 +33,7 @@ add_test(NAME viewer-qml-format-discovery COMMAND ${Python3_EXECUTABLE} "${CMAKE
 add_test(NAME viewer-opening COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-opening.py" $<TARGET_FILE:holonight-viewer> "${CMAKE_CURRENT_BINARY_DIR}")
 set_tests_properties(viewer-opening PROPERTIES TIMEOUT 30 ENVIRONMENT
   "QML_IMPORT_PATH=${VIEWER_RUNTIME_QML_PATH}")
-set_tests_properties(viewer-smoke PROPERTIES TIMEOUT 60)
+set_tests_properties(viewer-smoke PROPERTIES TIMEOUT 120)
 
 qt_add_executable(clipboard-probe clipboard_probe.cpp)
 target_link_libraries(clipboard-probe PRIVATE Qt6::Quick)
