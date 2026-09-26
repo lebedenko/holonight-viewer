@@ -35,10 +35,12 @@ HnApplicationWindow {
     }
     component ViewerHeaderButton: ViewerButton {
         display: Controls.AbstractButton.IconOnly
-        icon.width: HnMetrics.iconSize(HnControlSize.Hero)
-        icon.height: HnMetrics.iconSize(HnControlSize.Hero)
-        implicitWidth: HnMetrics.controlHeight(HnControlSize.Large)
-        implicitHeight: HnMetrics.controlHeight(HnControlSize.Large)
+        padding: 2
+        horizontalPadding: 2
+        icon.width: 24
+        icon.height: 24
+        implicitWidth: HnMetrics.controlHeight(HnControlSize.Compact)
+        implicitHeight: HnMetrics.controlHeight(HnControlSize.Compact)
     }
     component ViewerMenuItem: Controls.MenuItem {
         id: control
@@ -503,6 +505,7 @@ HnApplicationWindow {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
+            sizeRole: HnControlSize.Xs
             visible: !window.fullscreen || window.arrowsShown || window.actionsMenuOpen
             z: 2
             HoverHandler {
@@ -521,6 +524,7 @@ HnApplicationWindow {
                     id: headerActions
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
+                    spacing: HnMetrics.internalSpacing(HnControlSize.Normal)
                     ViewerHeaderButton {
                         id: informationButton
                         objectName: "informationButton"
