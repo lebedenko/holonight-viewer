@@ -138,7 +138,7 @@ def provenance(binary, prefix):
              'scripts/measure-release.py', 'tests/release_performance_test.cpp',
              'tests/folder_browsing_test.cpp', 'tests/gif_fixture.h', 'tests/smoke.cpp', 'tests/CMakeLists.txt']
     providers = {}
-    for name in ('holonight-config', 'holonight-qt', 'holonight-images'):
+    for name in ('holonight-config', 'holonight-qt', 'holonight-images', 'holonight-thumbnails'):
         repo = ROOT.parent / name
         providers[name] = {'revision': command('git', '-C', str(repo), 'rev-parse', 'HEAD'),
                            'status': command('git', '-C', str(repo), 'status', '--porcelain')}
