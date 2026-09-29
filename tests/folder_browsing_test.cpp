@@ -1,5 +1,6 @@
 #include "decoded_image_cache.h"
 #include "directory_model.h"
+#include "folder_grid_model.h"
 #include "image_canvas.h"
 #include "image_document.h"
 
@@ -430,4 +431,140 @@ TEST(Browsing, LargeFolderAndImages) {
   document.refresh();
   document.shutdown();
   ASSERT_TRUE(QTest::qWaitFor([&] { return done.count() == 1; }));
+}
+
+TEST(Directory, RecordsAnExplicitFileThatIsNotOnDisk) {
+  QTemporaryDir dir(temporaryPattern());
+  ASSERT_TRUE(dir.isValid());
+  ASSERT_FALSE(writeFile(dir, "a.png", true).isEmpty());
+  ASSERT_FALSE(writeFile(dir, ".hidden.png", true).isEmpty());
+  const std::atomic_bool cancel{false};
+  const auto gone = QUrl::fromLocalFile(dir.filePath("gone.png"));
+  const auto missing = scanDirectory(gone, cancel);
+  EXPECT_EQ(missing.missing, gone);
+  EXPECT_TRUE(missing.urls.contains(gone));
+  // A listed file, and a hidden file that exists but is only injected, are not missing.
+  EXPECT_TRUE(scanDirectory(QUrl::fromLocalFile(dir.filePath("a.png")), cancel).missing.isEmpty());
+  EXPECT_TRUE(scanDirectory(QUrl::fromLocalFile(dir.filePath(".hidden.png")), cancel).missing.isEmpty());
+
+  DirectoryModel model;
+  model.scan(gone);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !model.scanning(); }));
+  EXPECT_EQ(model.missingUrl(), gone);
+  model.scan(QUrl::fromLocalFile(dir.filePath("a.png")));
+  EXPECT_TRUE(model.missingUrl().isEmpty());
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !model.scanning(); }));
+  EXPECT_TRUE(model.missingUrl().isEmpty());
+}
+
+TEST(FolderGrid, HidesOnlyTheMissingEntryAndKeepsSourceOrder) {
+  const QList<QUrl> urls{QUrl("file:///p/a.png"), QUrl("file:///p/b.png"), QUrl("file:///p/c.png")};
+  DirectoryModel directory([&](const QUrl&, const std::atomic_bool&) {
+    return DirectoryResult{.urls = urls, .error = {}, .missing = urls[1]};
+  });
+  FolderGridModel grid(&directory);
+  QAbstractItemModelTester tester(&grid, QAbstractItemModelTester::FailureReportingMode::Fatal);
+  directory.scan(urls[1]);
+  // The interim row is the explicit file itself, which is already known to be unlisted.
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !directory.scanning(); }));
+  EXPECT_EQ(directory.rowCount(), 3);
+  ASSERT_EQ(grid.rowCount(), 2);
+  EXPECT_EQ(grid.urlAt(0), urls[0]);
+  EXPECT_EQ(grid.urlAt(1), urls[2]);
+  EXPECT_EQ(grid.urlAt(2), QUrl());
+  EXPECT_EQ(grid.indexOfUrl(urls[0]), 0);
+  EXPECT_EQ(grid.indexOfUrl(urls[1]), -1);
+  EXPECT_EQ(grid.indexOfUrl(urls[2]), 1);
+  EXPECT_EQ(grid.indexOfUrl(QUrl("file:///p/other.png")), -1);
+  EXPECT_EQ(grid.data(grid.index(1, 0), DirectoryModel::FileNameRole).toString(), "c.png");
+}
+
+TEST(FolderGrid, DeletedCurrentFileLeavesSingleViewBrowsingUntouched) {
+  QTemporaryDir dir(temporaryPattern());
+  ASSERT_TRUE(dir.isValid());
+  const auto first = writeFile(dir, "image1.png", true);
+  const auto middle = writeFile(dir, "image2.png", true);
+  const auto last = writeFile(dir, "image3.png", true);
+  ImageDocument document;
+  document.open({middle});
+  ASSERT_TRUE(settled(document));
+  ASSERT_EQ(document.folder()->rowCount(), 3);
+  ASSERT_TRUE(QFile::remove(middle.toLocalFile()));
+  document.refresh();
+  ASSERT_TRUE(settled(document));
+  // Browsing still counts the vanished current file, so its neighbours stay reachable...
+  EXPECT_EQ(document.count(), 3);
+  EXPECT_EQ(document.position(), 2);
+  EXPECT_TRUE(document.canPrevious());
+  EXPECT_TRUE(document.canNext());
+  // ...while the grid lists only what exists.
+  ASSERT_EQ(document.folder()->rowCount(), 2);
+  EXPECT_EQ(document.folder()->urlAt(0), first);
+  EXPECT_EQ(document.folder()->urlAt(1), last);
+  EXPECT_EQ(document.folder()->indexOfUrl(middle), -1);
+}
+
+TEST(FolderGrid, SelectionCanBeRestoredByUrlAfterRescan) {
+  QTemporaryDir dir(temporaryPattern());
+  ASSERT_TRUE(dir.isValid());
+  for (int i = 1; i <= 12; ++i) {
+    ASSERT_FALSE(writeFile(dir, QString("photo_%1.png").arg(i, 3, 10, QChar('0')), true).isEmpty());
+  }
+  const auto selected = QUrl::fromLocalFile(dir.filePath("photo_010.png"));
+  ImageDocument document;
+  document.open({selected});
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(document.folder()->indexOfUrl(selected), 9);
+  ASSERT_FALSE(writeFile(dir, "photo_000.png", true).isEmpty());
+  document.refresh();
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(document.folder()->indexOfUrl(selected), 10);
+  ASSERT_TRUE(QFile::remove(selected.toLocalFile()));
+  document.refresh();
+  ASSERT_TRUE(settled(document));
+  // The URL is gone from the grid, so a caller falls back to the old index.
+  EXPECT_EQ(document.folder()->indexOfUrl(selected), -1);
+  EXPECT_EQ(document.folder()->rowCount(), 12);
+}
+
+TEST(FolderGrid, OpenFromFolderSelectsWithoutRescanning) {
+  QList<QUrl> urls;
+  for (int i = 1; i <= 10; ++i) {
+    urls.append(QUrl::fromLocalFile(QString("/photos/photo_%1.png").arg(i, 2, 10, QChar('0'))));
+  }
+  std::atomic_int scans{0};
+  ImageDocument document([](const QUrl&, const std::atomic_bool&) { return solid(); },
+                         [&](const QUrl&, const std::atomic_bool&) {
+                           ++scans;
+                           return DirectoryResult{.urls = urls, .error = {}};
+                         });
+  document.open({urls[2]});
+  ASSERT_TRUE(settled(document));
+  ASSERT_EQ(scans.load(), 1);
+  EXPECT_EQ(document.url(), urls[2]);
+  EXPECT_EQ(document.folderName(), "photos");
+  EXPECT_EQ(document.position(), 3);
+
+  document.openFromFolder(urls[6]);
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(document.url(), urls[6]);
+  EXPECT_EQ(document.position(), 7);
+  EXPECT_EQ(document.fileName(), "photo_07.png");
+  EXPECT_EQ(scans.load(), 1);
+
+  QSignalSpy changed(&document, &ImageDocument::changed);
+  document.openFromFolder(urls[6]);
+  document.openFromFolder(QUrl::fromLocalFile("/photos/unlisted.png"));
+  EXPECT_EQ(changed.count(), 0);
+  EXPECT_EQ(document.url(), urls[6]);
+}
+
+TEST(FolderGrid, FolderNameHandlesTheRootAndNoDocument) {
+  ImageDocument document(
+      [](const QUrl&, const std::atomic_bool&) { return solid(); },
+      [](const QUrl& url, const std::atomic_bool&) { return DirectoryResult{.urls = {url}, .error = {}}; });
+  EXPECT_TRUE(document.folderName().isEmpty());
+  document.open({QUrl::fromLocalFile("/root-level.png")});
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(document.folderName(), "/");
 }

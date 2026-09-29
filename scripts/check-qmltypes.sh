@@ -13,7 +13,7 @@ if [[ ! -s "${qmltypes_file}" ]]; then
   exit 1
 fi
 
-for type_name in ImageDocument ImageCanvas ClipboardController PortalFileChooser WindowState WindowKeyRouter; do
+for type_name in ImageDocument ImageCanvas ClipboardController PortalFileChooser WindowState WindowKeyRouter GridNavigation ThumbnailMetrics FolderGridModel; do
   grep -q "name: \"${type_name}\"" "${qmltypes_file}" || {
     echo "Missing QML type metadata for ${type_name}" >&2
     exit 1

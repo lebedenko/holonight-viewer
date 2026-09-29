@@ -64,7 +64,38 @@ Controls.Popup {
                 },
                 {
                     keyGroups: [[Qt.Key_Escape]],
-                    description: qsTr("Close dialog or leave fullscreen"),
+                    description: qsTr("Close dialog, grid or leave fullscreen"),
+                    keycap: true
+                }
+            ]
+        },
+        {
+            key: "Grid",
+            label: qsTr("Grid"),
+            rows: [
+                {
+                    keyGroups: [[Qt.Key_Control, Qt.Key_G]],
+                    description: qsTr("Toggle grid view"),
+                    keycap: true
+                },
+                {
+                    keyGroups: [[Qt.Key_H], [Qt.Key_J], [Qt.Key_K], [Qt.Key_L]],
+                    description: qsTr("Move selection"),
+                    keycap: true
+                },
+                {
+                    keyGroups: [[Qt.Key_Control, Qt.Key_U]],
+                    description: qsTr("Half page up"),
+                    keycap: true
+                },
+                {
+                    keyGroups: [[Qt.Key_Control, Qt.Key_D]],
+                    description: qsTr("Half page down"),
+                    keycap: true
+                },
+                {
+                    keyGroups: [[Qt.Key_Enter]],
+                    description: qsTr("Open selected image"),
                     keycap: true
                 }
             ]

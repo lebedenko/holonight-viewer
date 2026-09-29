@@ -44,7 +44,14 @@ const std::vector<Section>& expectedSections() {
                        Row{.key = "1", .description = "Actual size", .keycap = true},
                        Row{.key = "Ctrl plus + or Ctrl plus -", .description = "Zoom", .keycap = true},
                        Row{.key = "F", .description = "Fullscreen", .keycap = true},
-                       Row{.key = "Esc", .description = "Close dialog or leave fullscreen", .keycap = true}}},
+                       Row{.key = "Esc", .description = "Close dialog, grid or leave fullscreen", .keycap = true}}},
+      Section{.key = "Grid",
+              .label = "Grid",
+              .rows = {Row{.key = "Ctrl plus G", .description = "Toggle grid view", .keycap = true},
+                       Row{.key = "H or J or K or L", .description = "Move selection", .keycap = true},
+                       Row{.key = "Ctrl plus U", .description = "Half page up", .keycap = true},
+                       Row{.key = "Ctrl plus D", .description = "Half page down", .keycap = true},
+                       Row{.key = "Enter", .description = "Open selected image", .keycap = true}}},
       Section{
           .key = "Transform",
           .label = "Transform",
@@ -242,8 +249,10 @@ TEST(ShortcutHelpPopup, SectionsRowsAndRendering) {
       EXPECT_EQ(description, QString::fromUtf8(want.description));
       EXPECT_EQ(row.value("keycap").toBool(), want.keycap) << want.key;
       // REQ-F-014: no widget navigation in the help.
-      EXPECT_FALSE(key.contains("Tab") || key.split(QRegularExpression("[^A-Za-z]+")).contains("J") ||
-                   key.split(QRegularExpression("[^A-Za-z]+")).contains("K"))
+      // The Grid section documents J and K as selection keys; elsewhere they would mean menu navigation.
+      const bool gridKeys = QString::fromLatin1(expected[sectionIndex].key) == QLatin1String("Grid");
+      EXPECT_FALSE(key.contains("Tab") || (!gridKeys && (key.split(QRegularExpression("[^A-Za-z]+")).contains("J") ||
+                                                         key.split(QRegularExpression("[^A-Za-z]+")).contains("K"))))
           << want.key;
       EXPECT_FALSE(description.contains("header", Qt::CaseInsensitive) ||
                    description.contains("menu", Qt::CaseInsensitive))
@@ -256,7 +265,7 @@ TEST(ShortcutHelpPopup, SectionsRowsAndRendering) {
       ++rowCount;
     }
   }
-  EXPECT_EQ(rowCount, 20);
+  EXPECT_EQ(rowCount, 25);
 
   auto* title = fixture.item("shortcutHelpTitle");
   ASSERT_NE(title, nullptr);

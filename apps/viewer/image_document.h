@@ -4,6 +4,7 @@
 #include "clipboard_controller.h"
 #include "decoded_image_cache.h"
 #include "directory_model.h"
+#include "folder_grid_model.h"
 #include "image_orientation.h"
 
 #include <QDir>
@@ -62,6 +63,9 @@ class ImageDocument : public QObject {
   Q_PROPERTY(int orientation READ orientation NOTIFY orientationChanged)
   Q_PROPERTY(QSize transformedDimensions READ transformedDimensions NOTIFY changed)
   Q_PROPERTY(QString localPath READ localPath NOTIFY changed)
+  Q_PROPERTY(QUrl url READ url NOTIFY changed)
+  Q_PROPERTY(QString folderName READ folderName NOTIFY changed)
+  Q_PROPERTY(FolderGridModel* folder READ folder CONSTANT)
   Q_PROPERTY(QString formattedFileSize READ formattedFileSize NOTIFY changed)
   Q_PROPERTY(QString summaryLine READ summaryLine NOTIFY changed)
   Q_PROPERTY(QString transformedLine READ transformedLine NOTIFY changed)
@@ -100,6 +104,10 @@ class ImageDocument : public QObject {
     return ImageOrientation::dimensions(orientation_, information_.decodedSize);
   }
   [[nodiscard]] QString localPath() const { return selected_url_.toLocalFile(); }
+  [[nodiscard]] QUrl url() const { return selected_url_; }
+  // The containing folder's name, or "/" for the root; empty without a document.
+  [[nodiscard]] QString folderName() const;
+  FolderGridModel* folder() { return &grid_model_; }
   [[nodiscard]] QString summaryLine() const {
     return formatSummaryLine(information_.format, information_.decodedSize, information_.encodedSize);
   }
@@ -140,6 +148,8 @@ class ImageDocument : public QObject {
   Q_INVOKABLE void previous();
   Q_INVOKABLE void next();
   Q_INVOKABLE void refresh();
+  // Selects a file of the current listing without rescanning; ignored when it is unlisted or already selected.
+  Q_INVOKABLE void openFromFolder(const QUrl& url);
   static QStringList nameFilters();
   static bool isLocalUrl(const QUrl& url);
   Q_INVOKABLE void open(const QList<QUrl>& urls);
@@ -172,6 +182,7 @@ class ImageDocument : public QObject {
   int orientation_ = 0;
   ImageInformation information_;
   DirectoryModel directory_;
+  FolderGridModel grid_model_{&directory_};
   QUrl selected_url_;
   int selected_index_ = -1;
   int direction_ = 1;

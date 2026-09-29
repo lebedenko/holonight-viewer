@@ -78,11 +78,11 @@ TEST(Accessibility, NamesRolesEnabledFocusAndDialogs) {
   QTest::keyClick(window, Qt::Key_J);
   EXPECT_EQ(menu->property("currentIndex").toInt(), 0);
   QTest::keyClick(window, Qt::Key_J);
-  EXPECT_EQ(menu->property("currentIndex").toInt(), 21);
+  EXPECT_EQ(menu->property("currentIndex").toInt(), 22);
   QTest::keyClick(window, Qt::Key_K);
   EXPECT_EQ(menu->property("currentIndex").toInt(), 0);
   QTest::keyClick(window, Qt::Key_Down);
-  EXPECT_EQ(menu->property("currentIndex").toInt(), 21);
+  EXPECT_EQ(menu->property("currentIndex").toInt(), 22);
   QTest::keyClick(window, Qt::Key_Up);
   EXPECT_EQ(menu->property("currentIndex").toInt(), 0);
   QTest::keyClick(window, Qt::Key_Escape);

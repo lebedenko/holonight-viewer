@@ -374,3 +374,94 @@ TEST(FooterKeyHints, TracksDescriptionPointAndPixelSizesWithMonospaceFamily) {
     }
   }
 }
+
+namespace {
+// Repeater delegates are not QObject children of the footer, so findChild cannot see them.
+QQuickItem* rowNamed(QQuickItem* footer, const char* name) {
+  for (auto* row : hintRows(footer)) {
+    if (row->objectName() == QLatin1String(name)) {
+      return row;
+    }
+  }
+  return nullptr;
+}
+
+QStringList hintNames(QQuickItem* footer) {
+  QStringList names;
+  for (auto* row : hintRows(footer)) {
+    names.append(row->objectName());
+  }
+  return names;
+}
+}  // namespace
+
+// REQ-F-025: grid mode swaps the picture hints for navigation hints.
+TEST(FooterKeyHints, GridModeShowsNavigationHintsOnly) {
+  ViewerFixture viewer;
+  ASSERT_TRUE(viewer.load());
+  ASSERT_TRUE(viewer.window->setProperty("gridMode", true));
+  QTest::qWait(50);
+  EXPECT_EQ(hintNames(viewer.footer), (QStringList{"footerHintGridNavigate", "footerHintGridPage", "footerHintGridOpen",
+                                                   "footerHintGridToggle", "footerHintFullscreen", "footerHintHelp"}));
+  const auto keycapText = [&](const char* name) {
+    auto* row = rowNamed(viewer.footer, name);
+    return row == nullptr ? QString() : part(row, "Keycap")->property("accessibleText").toString();
+  };
+  EXPECT_EQ(keycapText("footerHintGridNavigate"), "H or J or K or L");
+  EXPECT_EQ(keycapText("footerHintGridPage"), "Ctrl plus U or Ctrl plus D");
+  EXPECT_EQ(keycapText("footerHintGridOpen"), "Enter");
+  // The toggle reads Ctrl+G, with no Shift keycap.
+  EXPECT_EQ(keycapText("footerHintGridToggle"), "Ctrl plus G");
+  const auto labels = [&](const char* name) {
+    auto* row = rowNamed(viewer.footer, name);
+    return row == nullptr ? QString() : part(row, "Label")->property("text").toString();
+  };
+  EXPECT_EQ(labels("footerHintGridNavigate"), "Move");
+  EXPECT_EQ(labels("footerHintGridPage"), "Page");
+  EXPECT_EQ(labels("footerHintGridOpen"), "Open");
+  EXPECT_EQ(labels("footerHintGridToggle"), "Grid");
+  viewer.window->close();
+}
+
+TEST(FooterKeyHints, LeavingGridRestoresTheSingleViewHints) {
+  ViewerFixture viewer;
+  ASSERT_TRUE(viewer.load());
+  const auto before = hintNames(viewer.footer);
+  ASSERT_TRUE(viewer.window->setProperty("gridMode", true));
+  QTest::qWait(50);
+  ASSERT_NE(hintNames(viewer.footer), before);
+  ASSERT_TRUE(viewer.window->setProperty("gridMode", false));
+  QTest::qWait(50);
+  EXPECT_EQ(hintNames(viewer.footer), before);
+  const auto rows = hintRows(viewer.footer);
+  ASSERT_EQ(rows.size(), static_cast<qsizetype>(kHints.size()));
+  for (std::size_t index = 0; index < kHints.size(); ++index) {
+    const auto& hint = kHints.at(index);
+    EXPECT_EQ(rows.at(static_cast<qsizetype>(index))->objectName(),
+              QStringLiteral("footerHint") + QLatin1String(hint.name));
+    EXPECT_EQ(part(rows.at(static_cast<qsizetype>(index)), "Keycap")->property("accessibleText").toString(), hint.key);
+  }
+  viewer.window->close();
+}
+
+TEST(FooterKeyHints, GridModeNeverOffersPlayPauseAndKeepsHelpWhenNarrow) {
+  StandaloneFooter standalone;
+  ASSERT_TRUE(standalone.load(1000));
+  auto* footer = standalone.footer.get();
+  ASSERT_TRUE(footer->setProperty("animated", true));
+  ASSERT_TRUE(footer->setProperty("gridMode", true));
+  QTest::qWait(50);
+  EXPECT_FALSE(hintNames(footer).contains(QStringLiteral("footerHintPlayPause")));
+  EXPECT_EQ(hintNames(footer).size(), 6);
+  for (int width = 1000; width >= 100; width -= 100) {
+    footer->setWidth(width);
+    QTest::qWait(30);
+    QStringList visible;
+    for (auto* row : hintRows(footer)) {
+      if (row->isVisible()) {
+        visible.append(row->objectName());
+      }
+    }
+    EXPECT_TRUE(visible.contains(QStringLiteral("footerHintHelp"))) << width;
+  }
+}

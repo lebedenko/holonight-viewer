@@ -28,6 +28,7 @@ struct Entry {
 constexpr std::array kMenu = {
     Entry{.label = "Open…", .shortcut = "Ctrl plus O"},
     Entry{.label = "Refresh", .shortcut = "Ctrl plus R"},
+    Entry{.label = "Grid View", .shortcut = "Ctrl plus G"},
     Entry{},
     Entry{.label = "Previous", .shortcut = "["},
     Entry{.label = "Next", .shortcut = "]"},
@@ -164,7 +165,7 @@ TEST(MenuLayout, OrderLabelsShortcutsAndDisabledColors) {
     EXPECT_EQ(shortcut->property("accessibleText").toString(), text(expected.shortcut)) << index;
     EXPECT_EQ(shortcut->isVisible(), !expected.shortcut.empty()) << index;
   }
-  EXPECT_EQ(commands, 19);
+  EXPECT_EQ(commands, 20);
   EXPECT_EQ(separators, 6);
   EXPECT_FALSE(isSeparator(fixture.entry(0)));
   EXPECT_FALSE(isSeparator(fixture.entry(kEntries - 1)));
@@ -260,14 +261,14 @@ TEST(MenuLayout, KeyboardNavigationSkipsSeparators) {
     fixture.menu->setProperty("currentIndex", 1);
     ASSERT_EQ(labelAt(fixture.current()), "Refresh");
     QTest::keyClick(fixture.window, down);
-    EXPECT_EQ(labelAt(fixture.current()), "Previous");
+    EXPECT_EQ(labelAt(fixture.current()), "Grid View");
     QTest::keyClick(fixture.window, upward);
     EXPECT_EQ(labelAt(fixture.current()), "Refresh");
   }
 
   fixture.menu->setProperty("currentIndex", 0);
   QStringList visited{labelAt(0)};
-  for (int step = 0; step < 18; ++step) {
+  for (int step = 0; step < 19; ++step) {
     QTest::keyClick(fixture.window, Qt::Key_Down);
     ASSERT_FALSE(isSeparator(fixture.entry(fixture.current()))) << step;
     visited.append(labelAt(fixture.current()));
@@ -326,7 +327,7 @@ TEST(MenuLayout, SeparatorsRenderAsPhysicalHairlines) {
         SCOPED_TRACE(::testing::Message()
                      << "separator=" << index << " dpr=" << dpr << " offset=" << offset << " scroll=" << scroll);
         ASSERT_NO_FATAL_FAILURE(expectHairline(capture, content, dpr, color));
-        if (!capturePrefix.isEmpty() && offset == 0.5 && (!scroll || index == 16)) {
+        if (!capturePrefix.isEmpty() && offset == 0.5 && (!scroll || index == 17)) {
           ASSERT_TRUE(capture.save(capturePrefix + (scroll ? "-menu-scrolled.png" : "-menu.png")));
         }
         ++checked;
@@ -344,7 +345,7 @@ TEST(MenuLayout, FramelessSequencesFollowLabelTypographyAndState) {
   ASSERT_TRUE(fixture.openMenu());
   auto* palette = fixture.engine.singletonInstance<QObject*>("Holonight.Core", "HoloniightPalette");
   ASSERT_NE(palette, nullptr);
-  for (int index : {0, 6, 12, 18}) {
+  for (int index : {0, 7, 13, 19}) {
     auto* item = fixture.entry(index);
     ASSERT_NE(item, nullptr);
     auto* label = item->findChild<QQuickItem*>("menuItemLabel");

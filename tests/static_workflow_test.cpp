@@ -306,10 +306,10 @@ TEST(Viewer, StaticWorkflowControls) {
   EXPECT_EQ(firstMenu->property("currentIndex").toInt(), 0);
   QTest::keyClick(window, Qt::Key_Up);
   EXPECT_EQ(firstMenu->property("currentIndex").toInt(), 0);
-  for (int step = 0; step < 30 && firstMenu->property("currentIndex").toInt() != 11; ++step) {
+  for (int step = 0; step < 30 && firstMenu->property("currentIndex").toInt() != 12; ++step) {
     QTest::keyClick(window, Qt::Key_Down);
   }
-  ASSERT_EQ(firstMenu->property("currentIndex").toInt(), 11);
+  ASSERT_EQ(firstMenu->property("currentIndex").toInt(), 12);
   QTest::keyClick(window, Qt::Key_Return);
   QTest::qWait(100);
   EXPECT_EQ(document.orientation(), 1);
@@ -317,10 +317,10 @@ TEST(Viewer, StaticWorkflowControls) {
   ASSERT_TRUE(openMenu());
   auto* resetItem = window->findChild<QQuickItem*>("resetTransformMenuItem");
   ASSERT_NE(resetItem, nullptr);
-  for (int step = 0; step < 30 && firstMenu->property("currentIndex").toInt() != 15; ++step) {
+  for (int step = 0; step < 30 && firstMenu->property("currentIndex").toInt() != 16; ++step) {
     QTest::keyClick(window, Qt::Key_Down);
   }
-  ASSERT_EQ(firstMenu->property("currentIndex").toInt(), 15);
+  ASSERT_EQ(firstMenu->property("currentIndex").toInt(), 16);
   QTest::keyClick(window, Qt::Key_Return);
   QTest::qWait(100);
   EXPECT_EQ(document.orientation(), 0);
@@ -328,10 +328,10 @@ TEST(Viewer, StaticWorkflowControls) {
   ASSERT_TRUE(openMenu());
   auto* infoItem = window->findChild<QQuickItem*>("informationMenuItem");
   ASSERT_NE(infoItem, nullptr);
-  for (int step = 0; step < 30 && firstMenu->property("currentIndex").toInt() != 20; ++step) {
+  for (int step = 0; step < 30 && firstMenu->property("currentIndex").toInt() != 21; ++step) {
     QTest::keyClick(window, Qt::Key_Down);
   }
-  ASSERT_EQ(firstMenu->property("currentIndex").toInt(), 20);
+  ASSERT_EQ(firstMenu->property("currentIndex").toInt(), 21);
   QTest::keyClick(window, Qt::Key_Return);
   ASSERT_TRUE(QTest::qWaitFor([&] { return window->property("modalActive").toBool(); }));
   QTest::keyClick(window, Qt::Key_Escape);
@@ -400,15 +400,18 @@ TEST(Viewer, StaticWorkflowControls) {
   ASSERT_TRUE(openMenu());
   auto* menu = window->findChild<QObject*>("actionsMenu");
   ASSERT_NE(menu, nullptr);
+  // Pointer opening may leave no item current; establish a keyboard selection first.
+  QTest::keyClick(window, Qt::Key_Down);
   const auto finalMenuStart = menu->property("currentIndex").toInt();
+  ASSERT_GE(finalMenuStart, 0);
   QTest::keyClick(window, Qt::Key_J);
   EXPECT_NE(menu->property("currentIndex").toInt(), finalMenuStart);
   QTest::keyClick(window, Qt::Key_K);
   EXPECT_EQ(menu->property("currentIndex").toInt(), finalMenuStart);
-  for (int step = 0; step < 30 && menu->property("currentIndex").toInt() != 21; ++step) {
+  for (int step = 0; step < 30 && menu->property("currentIndex").toInt() != 22; ++step) {
     QTest::keyClick(window, Qt::Key_Down);
   }
-  EXPECT_EQ(menu->property("currentIndex").toInt(), 21);
+  EXPECT_EQ(menu->property("currentIndex").toInt(), 22);
   QTest::keyClick(window, Qt::Key_Return);
   ASSERT_TRUE(QTest::qWaitFor([&] { return window->property("helpOpen").toBool(); }));
   QTest::keyClick(window, Qt::Key_Escape);

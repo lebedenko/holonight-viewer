@@ -80,7 +80,7 @@ These are facts about the existing code, and several of them differ from the SPE
 - **Chosen: `QQuickAsyncImageProvider`.**
   - `Image.status` (`Loading`/`Ready`/`Error`) maps directly onto REQ-F-035 and REQ-F-036, with no per-delegate plumbing.
   - Source change or delegate destruction already calls `QQuickImageResponse::cancel()` on the pending request. That is exactly the REQ-F-033 cancel path with no extra QML glue.
-  - The response is a QObject on the GUI thread, so cache hits and inserts need no locking.
+  - ~~The response is a QObject on the GUI thread, so cache hits and inserts need no locking.~~ **Corrected in T-018:** Qt calls `requestImageResponse` and `cancel` on its image-loading (pixmap reader) thread, so each response lives there. The provider guards its cache with a mutex, and the decode task is a `QObject` + `QRunnable` that reports by a queued `decoded` signal connected to the response, which makes destroying a response at any moment safe (no raw or `QPointer` dereference from the worker or the GUI thread).
   - The decoder seam is one `std::function`, in the same style as `ImageDocument::Decoder`.
 - **Rejected: a `QObject` service** (`ThumbnailLoader` with `Q_INVOKABLE request(url)` and per-delegate `QImage` properties). It would have to reimplement status tracking, cancellation on destroy and texture upload. QML cannot hold a `QImage` cheaply per cell without `QQuickImageProvider` anyway. It would also add a required object to `Main`. Adding a second `required property` would break every existing test that sets only the `document` initial property.
 - **Rejected: a synchronous `QQuickImageProvider`** (`requestImage`). Qt runs it on its own reader thread with no cancellation and no pool control (REQ-F-030/031/033).
@@ -117,7 +117,7 @@ Add `import "grid"`.
 
 - **State:** `property bool gridMode: false`, and readonly helpers
   ```
-  canEnterGrid   = document.localPath.length > 0 && document.count > 0 && !modalActive
+  canEnterGrid   = document.localPath.length > 0 && (document.scanning || document.folder.count > 0) && !modalActive
   canToggleGrid  = gridMode || canEnterGrid
   canInspect     = Ready && !modalActive && !gridMode        // edited
   canShowInformation = hasPath && !gridMode                   // new
@@ -150,10 +150,10 @@ Add `import "grid"`.
 - **Header title (REQ-F-024):** the `HnLabel` `rawText` becomes
   ```
   window.gridMode ? (document.scanning ? document.folderName
-                     : qsTr("%1 — %n image(s)", "", document.count).arg(document.folderName))
+                     : qsTr("%1 — %n images", "", document.folder.count).arg(document.folderName))
                   : document.fileName || qsTr("HoloNight Viewer")
   ```
-  `%n` gives plural-aware translation. While scanning, `count` is the transient 1 (§0.9), so only the folder name is shown. The window `title` property is unchanged.
+  `%n` gives plural-aware translation. The implementation uses singular and plural English source strings, both with the numerus argument, so the fallback is grammatical without a translation catalog. While scanning, `count` is the transient 1 (§0.9), so only the folder name is shown. The window `title` property is unchanged.
 - **Footer:** `FooterKeyHints { gridMode: window.gridMode; animated: ... }` (§1.7).
 - **Menu (REQ-F-028):** add after "Refresh":
   ```
@@ -279,11 +279,11 @@ ThumbnailCell.Image.source = "image://thumbnail/<box>/<gen>/<base64url(path)>"
 - **Scrolled out but not destroyed:** not possible for `reuseItems: false`. Delegates outside `cacheBuffer` are destroyed.
 - **`ThumbnailResponse::cancel()`:**
   1. Set the shared `std::atomic_bool`.
-  2. Call `pool.tryTake(task)`. If it succeeds, the task never ran; delete it (`autoDelete` is off; ownership is explicit). This is "dropped before decoding" (REQ-F-033).
+  2. Leave runnable ownership with the pool. When a queued task runs, it checks the shared cancellation flag and returns without invoking the decoder. No task pointer is retained by the response, avoiding `tryTake` races with auto-deletion (REQ-F-033).
   3. If the task already runs, the decoder sees `cancelled` at its next check (`HolonightImages::decode` checks between stages) and the result is discarded and never cached.
   4. Emit `finished` (queued) with a null factory so the pixmap reader releases the response.
-- The worker holds only `shared_ptr` state (flag and result slot) and posts back through a `QPointer<ThumbnailResponse>`. A destroyed response is safe, and a late completion is dropped.
-- The pool is FIFO (default priority). Stale requests were already cancelled by the destroy path, so what remains queued is relevant. LIFO would decode the lookahead before the visible rows.
+- The worker holds shared cancellation state and delivers its result through a queued signal to the response. Destruction disconnects the response; late results are ignored.
+- The pool is FIFO (default priority). Stale requests are marked by the destroy path and skipped before decoding. LIFO would decode the lookahead before the visible rows.
 - Lookahead is `cacheBuffer` (REQ-F-033): with `cacheBuffer` equal to the viewport height, delegates exist for the visible cells plus roughly one page each side, and only existing delegates request thumbnails. A jump to the end destroys the old delegates, which cancels or drops their requests.
 
 ### 2.5 Enter opens a file
@@ -341,7 +341,7 @@ class ThumbnailProvider : public QQuickAsyncImageProvider {
 class ThumbnailResponse : public QQuickImageResponse {            // internal
   QQuickTextureFactory* textureFactory() const override;          // textureFactoryForImage(image)
   QString errorString() const override;
-  void cancel() override;                                         // tryTake + flag + queued finished
+  void cancel() override;                                         // shared flag + queued finished
 };
 
 // grid_navigation.h: see §1.7          thumbnail_metrics.h: QML_SINGLETON
@@ -417,6 +417,7 @@ signal doubleClicked()
 ```
 
 Layout, in `ThumbnailGrid`:
+- **T-010 implementation notes.** `columns = max(1, floor(width / cellWidth))` with no scroll-bar reserve, because REQ-F-008 requires exactly 2 columns at width 2W. The spacing is part of the cell (`ThumbnailCell.spacing` insets the tinted tile by half on each side), so `view.leftMargin = rightMargin = floor((width - columns * cellWidth) / 2)`: `GridView` derives its own column count from `width - margins`, and margins that also removed the spacing would make it lay out one column fewer than `columns`.
 - `view.anchors.fill: parent`. `view.leftMargin = view.rightMargin = Math.floor((width - columns * cellWidth) / 2)`, so the content is centred (REQ-F-008, ±1 px) and the vertical scroll bar stays at the window edge.
 - `cellWidth`/`cellHeight` are set on the `GridView`. `columns` is computed from the grid's own parent-assigned `width` and `scrollBarReserve`, never from `view.width`, to avoid a recursive layout (memory: "Layout self-width recursive rearrange"). The grid is not inside a `Layout`.
 - The `GridView` uses `keyNavigationEnabled: false`, `activeFocusOnTab: false`, `reuseItems: false`, `cacheBuffer: height`, `Controls.ScrollBar.vertical: Controls.ScrollBar {}`, `Accessible.role: Accessible.List` and `Accessible.name: qsTr("Images")`.
@@ -450,7 +451,8 @@ Layout, in `ThumbnailGrid`:
 - **R-5 Modal blocking.** Help, information and dialog are modal, so `Shortcut`s (including Ctrl+G and Escape) and the router are blocked. No grid key needs to work inside them.
 - **R-6 Clamping before the page size is known.** The first layout can have `width` or `height` 0. `visibleRows` returns 1 when `height <= 0`, `columns` is at least 1, and `GridNavigation::target` treats `columns < 1` as 1 and `visibleRows < 0` as 0 (page moves then use one row). Scroll-into-view on entry is deferred through `Qt.callLater` and re-run when `height` or `columns` first become valid.
 - **R-7 Escape with the actions menu open.** `Shortcut`s act while the menu is open. The Escape branch checks `!actionsMenuOpen` before leaving grid. Covered by a test.
-- **R-8 Transient scan states.** `document.count` is 1 during a scan; the title omits the count and the view is hidden while `scanning`. The restore is deferred so Ctrl+R during a scan cannot restore against an empty list.
+- **R-8 Transient scan states.** `document.count` is 1 during a scan; the title omits the count and the view is hidden while `scanning`. The restore is deferred so Ctrl+R during a scan cannot restore against an empty list. Navigation and activation are disabled until scanning completes, preserving the saved URL and index.
+- **R-13 Threading (found in T-018).** `requestImageResponse` and `QQuickImageResponse::cancel()` run on the QML image-loading thread, not the GUI thread; `ThumbnailCache` is therefore used behind `ThumbnailProvider::cacheMutex_`, and the provider test `ConcurrentRequestsAndCancellationFinishOnTheirOwnThread` exercises that path.
 - **R-9 Qt behaviour to verify in the first spike before building the rest:**
   1. `Image.implicitWidth` for a provider image divides by the returned `QImage`'s `devicePixelRatio`.
   2. `QQuickImageResponse::cancel()` is called when the delegate is destroyed and when `source` is cleared, and `finished` must still be emitted after it (we emit it queued).
@@ -459,6 +461,13 @@ Layout, in `ThumbnailGrid`:
   5. `QGifHandler` ignores `setScaledSize`, so the library's final `scaled()` fallback applies (it does).
 
   Each has a fallback noted above, and none changes the component split.
+
+  **T-001 spike outcome** (Qt 6.11.2, offscreen platform, standalone program with an async `QQuickImageProvider`, also run with `QT_SCALE_FACTOR=2`):
+  1. **Does not hold.** A provider `QImage` of 200×100 px tagged `devicePixelRatio = 2` gives `Image.implicitWidth/Height = 200×100` and `sourceSize = 200×100`, with or without a scale factor. The image's DPR is not applied. **Use the fallback:** the cell sizes the `Image` explicitly from the logical size, not from `implicitWidth`. `ThumbnailProvider` therefore cannot rely on the DPR tag alone; the logical size (`decodedWidth / dpr`) must reach QML separately, e.g. encoded in the request id's response or exposed by a status-only helper. The DPR tag on the `QImage` is still set (harmless), but `PreserveAspectFit` inside an explicitly sized box is what maps device pixels to logical size. T-005, T-006 and T-009 must not assume `implicitWidth` is logical. **Resolved in T-006 without a side channel:** `ThumbnailResponse::textureFactory()` returns a `QQuickTextureFactory` subclass whose `textureSize()` is the logical size while `createTexture` uses the device-pixel image. Verified in a spike and in `ImageItemShowsLoadingThenReadyOrError`: a 320×240 image with a 4000×3000 source gives `Image.implicitWidth/Height = 256×192`. The logical size is derived as the `sourceSize` fitted into the logical box without enlargement (SVG `sourceSize` is already the enlarged rendering) and travels in the cached `QImage`'s `devicePixelRatio`. Cells can therefore keep `width: Math.min(implicitWidth, box)`.
+  2. **Holds.** `cancel()` is called when the delegate is destroyed (Loader deactivated) and when `source` is cleared during loading. `finished` emitted (queued) after `cancel()` is accepted with no warnings, and the response is destroyed afterwards.
+  3. **Holds, with one extra row.** A 3×2 viewport with 100 px cells and `cacheBuffer: 200` (two rows) at the top of the model instantiated 15 delegates: 6 visible plus 9 below (three rows, one more than the buffer). The S-7 bound `(visibleRows + 1) * columns + visibleRows * columns` still covers it.
+  4. **Holds.** `Controls.MenuItem` with `checkable: true` exposes `checkable`, `checked` and a non-null `indicator` under the Basic style (checked visually in the Basic style only; the embedded HoloNight style is checked in T-015).
+  5. **Holds.** For a 1×1 GIF, `QImageReader::setScaledSize(4×4)` returns a 4×4 image, so the scale is applied by the reader's own fallback path and the first frame comes out at the requested size.
 - **R-10 SVG with local linked images** shows the broken glyph in the grid, although single view renders it. Accepted; documented.
 - **R-11 Duplicate in-flight requests** for one key (a delegate destroyed and recreated while the first decode runs) decode twice. The first is cancelled at the next check. In-flight coalescing is deferred until measured.
 - **R-12 Existing tests that move.** `menu_layout_test` (an item is added), `shortcut_help_popup_test` (Esc text, new section), `footer_key_hints_test` (unchanged for single view, extended for grid) and any test that counts header behaviour need updates. Called out in TASKS.
@@ -471,7 +480,7 @@ Layout, in `ThumbnailGrid`:
 - **S-4** REQ-F-009 and REQ-F-011 conflict for sources smaller than the box at DPR > 1. A 100x100 source at DPR 2 decodes to 100x100 px; "displayed at its logical fitted size" is either 100x100 logical (2x upscaled in device pixels) or 50x50 logical (1:1). **Resolved:** the user chose logical size (100×100 logical); D-5 was updated and the SPEC is unchanged.
 - **S-5** REQ-F-026 lists "the arrow keys" as unchanged, but REQ-F-015/016 make them move the selection in grid mode. Interpret it as "the arrow keys do not pan".
 - **S-6** Unspecified: Ctrl+O or drop while in grid (decision D-13); the Previous/Next menu items in grid (routed to selection movement); Ctrl+G while a scan is in progress (allowed, shows busy).
-- **S-7** REQ-F-033 "visible plus about one page" should be stated in terms of instantiated delegates (partial rows included). The test bound is `(visibleRows + 1) * columns + visibleRows * columns`.
+- **S-7** REQ-F-033 "visible plus about one page" should be stated in terms of instantiated delegates (partial rows included). The test bound is `2 * (visibleRows + 1) * columns` (a partial row at each of the viewport and the `cacheBuffer`; measured 29 to 30 with 4 visible rows and 3 columns).
 - **S-8** REQ-F-032 (1000 entries) allows about 0.8 GB at DPR 2. A byte cap was added (D-14).
 - **S-9** REQ-F-022 says "Enter or Return". The keypad Enter is also accepted.
 - **S-10** REQ-F-024's example title uses an em dash like the window title. During a scan the count is unreliable (R-8).
@@ -539,7 +548,7 @@ Manual native checks (never automated; ask the user to run them, per project rul
 | F-030 | `ThumbnailProvider` pool + `ThumbnailTask` | thumbnail_provider_test |
 | F-031 | `thumbnailThreadCount` | thumbnail_provider_test |
 | F-032 | `ThumbnailCache`, `Image.cache: false` | thumbnail_cache_test, thumbnail_provider_test |
-| F-033 | `cacheBuffer`, `ThumbnailResponse::cancel` (tryTake) | thumbnail_provider_test, thumbnail_grid_test |
+| F-033 | `cacheBuffer`, `ThumbnailResponse::cancel` and worker cancellation check | thumbnail_provider_test, thumbnail_grid_test |
 | F-034 | `HolonightImages::decode` limits in `decodeThumbnail`, broken glyph | thumbnail_decoder_test, thumbnail_grid_test |
 | F-035 | `Image.status`, placeholder in `ThumbnailCell` | thumbnail_grid_test |
 | F-036 | `ThumbnailResponse::errorString`, broken glyph | thumbnail_decoder_test, thumbnail_grid_test |
@@ -553,7 +562,7 @@ Manual native checks (never automated; ask the user to run them, per project rul
 | F-044 | `ThumbnailCell` `cellFocusRing` (S-2) | thumbnail_grid_test |
 | F-045 | D-13: `gridMode = false` on successful portal/FileDialog/drop open | grid_mode_test |
 | F-046 | mode-aware `browse()` behind the Previous/Next menu items | grid_mode_test |
-| F-047 | `canEnterGrid` ignores `scanning`; `ThumbnailGrid` busy state | thumbnail_grid_test |
+| F-047 | `canEnterGrid` permits entry during `scanning`; `ThumbnailGrid` busy state | thumbnail_grid_test |
 | NF-001 | router, `GridNavigation`, provider (no GUI-thread decode) | grid_mode_test, manual 4 |
 | C-001 | `apps/viewer/qml/grid/ThumbnailGrid.qml`, `ThumbnailCell.qml`; `Main.qml` uses `import "grid"` | file existence plus grep in `thumbnail_grid_test` |
 | C-002 | `thumbnail_size.h`, `ThumbnailMetrics` | `check-thumbnail-constant.py`, thumbnail_grid_test |

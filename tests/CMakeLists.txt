@@ -1,4 +1,4 @@
-add_viewer_application(viewer-smoke smoke.cpp release_formats_test.cpp accessibility_test.cpp release_performance_test.cpp static_workflow_test.cpp folder_browsing_test.cpp image_document_test.cpp frame_source_test.cpp animation_controller_test.cpp animation_ui_test.cpp view_geometry_test.cpp image_inspection_test.cpp exif_metadata_test.cpp footer_key_hints_test.cpp image_information_popup_test.cpp menu_layout_test.cpp shortcut_help_popup_test.cpp empty_state_test.cpp transient_overlay_test.cpp portal_request_builder_test.cpp mock_portal.cpp portal_file_chooser_test.cpp)
+add_viewer_application(viewer-smoke smoke.cpp release_formats_test.cpp accessibility_test.cpp release_performance_test.cpp static_workflow_test.cpp folder_browsing_test.cpp image_document_test.cpp frame_source_test.cpp animation_controller_test.cpp animation_ui_test.cpp view_geometry_test.cpp image_inspection_test.cpp exif_metadata_test.cpp footer_key_hints_test.cpp image_information_popup_test.cpp menu_layout_test.cpp shortcut_help_popup_test.cpp empty_state_test.cpp transient_overlay_test.cpp portal_request_builder_test.cpp mock_portal.cpp portal_file_chooser_test.cpp grid_navigation_test.cpp thumbnail_cache_test.cpp thumbnail_decoder_test.cpp thumbnail_provider_test.cpp thumbnail_grid_test.cpp grid_mode_test.cpp)
 target_link_libraries(viewer-smoke PRIVATE Qt6::Test GTest::gtest)
 # The pixel matrix below exercises hairlines with the production RHI renderer.
 # Every viewer-smoke run gets a private bus with no service directories, so the Open flow can
@@ -30,6 +30,7 @@ add_test(NAME viewer-performance-runner COMMAND ${Python3_EXECUTABLE} "${CMAKE_S
 add_test(NAME viewer-tiff-fixtures-deterministic COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/format-fixtures.py" --self-check)
 add_test(NAME viewer-uninstall-policy COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-uninstall.py")
 add_test(NAME viewer-qml-format-discovery COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-qml-format-discovery.py")
+add_test(NAME viewer-thumbnail-constant COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-thumbnail-constant.py")
 add_test(NAME viewer-opening COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-opening.py" $<TARGET_FILE:holonight-viewer> "${CMAKE_CURRENT_BINARY_DIR}")
 set_tests_properties(viewer-opening PROPERTIES TIMEOUT 30 ENVIRONMENT
   "QML_IMPORT_PATH=${VIEWER_RUNTIME_QML_PATH}")

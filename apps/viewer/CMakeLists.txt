@@ -23,7 +23,7 @@ target_link_libraries(viewer-protocol PRIVATE PkgConfig::WaylandClient)
 set_target_properties(viewer-protocol PROPERTIES AUTOMOC OFF)
 
 add_library(viewer-private STATIC
-  image_orientation.cpp directory_model.cpp decoded_image_cache.cpp exif_metadata.cpp
+  image_orientation.cpp thumbnail_cache.cpp thumbnail_decoder.cpp thumbnail_provider.cpp directory_model.cpp decoded_image_cache.cpp exif_metadata.cpp
   view_geometry.cpp portal_request_builder.cpp wayland_foreign_export.cpp frame_source.cpp frame_streamer.cpp)
 target_link_libraries(viewer-private PUBLIC Qt6::Quick Qt6::DBus HolonightImages::Images PRIVATE
   PkgConfig::WaylandClient Qt6::GuiPrivate viewer-protocol)
@@ -34,7 +34,8 @@ viewer_warnings(viewer-private)
 function(add_viewer_application target)
   set(app_dir "${PROJECT_SOURCE_DIR}/apps/viewer")
   set(qml_files qml/Main.qml qml/footer/FooterKeyHints.qml
-    qml/information/ImageInformationPopup.qml qml/shortcuts/ShortcutHelpPopup.qml)
+    qml/information/ImageInformationPopup.qml qml/shortcuts/ShortcutHelpPopup.qml
+    qml/grid/ThumbnailCell.qml qml/grid/ThumbnailGrid.qml)
   set(module_qml)
   foreach(file IN LISTS qml_files)
     string(REGEX REPLACE "^qml/" "" alias "${file}")
@@ -42,7 +43,7 @@ function(add_viewer_application target)
     list(APPEND module_qml "${app_dir}/${file}")
   endforeach()
   set(module_icons)
-  foreach(icon close empty-viewer information fullscreen menu play pause)
+  foreach(icon broken-image close empty-viewer information fullscreen menu play pause)
     set(file "${app_dir}/icons/${icon}.svg")
     set_source_files_properties("${file}" PROPERTIES QT_RESOURCE_ALIAS "icons/${icon}.svg")
     list(APPEND module_icons "${file}")
@@ -57,7 +58,8 @@ function(add_viewer_application target)
     QML_FILES ${module_qml}
     RESOURCES ${module_icons}
     SOURCES
-      "${app_dir}/window_state.h" "${app_dir}/window_key_router.h"
+      "${app_dir}/window_state.h" "${app_dir}/grid_navigation.h" "${app_dir}/thumbnail_metrics.h"
+      "${app_dir}/folder_grid_model.h" "${app_dir}/folder_grid_model.cpp" "${app_dir}/window_key_router.h"
       "${app_dir}/clipboard_controller.h" "${app_dir}/clipboard_controller.cpp"
       "${app_dir}/animation_controller.h" "${app_dir}/animation_controller.cpp"
       "${app_dir}/image_document.h" "${app_dir}/image_document.cpp"

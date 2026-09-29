@@ -7,6 +7,7 @@ import QtQuick.Controls as Controls
 import Holonight.Core
 import Holonight.Controls
 import "footer"
+import "grid"
 import "information"
 import "shortcuts"
 
@@ -34,6 +35,14 @@ HnApplicationWindow {
         }
     }
     component ViewerHeaderButton: ViewerButton {
+        id: headerButton
+        // A button natively activates on Space only; Enter does the same when it has focus.
+        Keys.onPressed: event => {
+            if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && !event.isAutoRepeat) {
+                headerButton.click();
+                event.accepted = true;
+            }
+        }
         display: Controls.AbstractButton.IconOnly
         padding: 2
         horizontalPadding: 2
@@ -58,6 +67,16 @@ HnApplicationWindow {
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
                 color: control.enabled ? HoloniightPalette.textPrimary : HoloniightPalette.textDisabled
+            }
+            // The style draws no indicator for this custom content, so a checkable item shows its own check mark.
+            HnLabel {
+                objectName: "menuItemCheck"
+                visible: control.checkable
+                opacity: control.checked ? 1 : 0
+                text: "✓"
+                textFormat: Text.PlainText
+                color: control.enabled ? HoloniightPalette.textPrimary : HoloniightPalette.textDisabled
+                Accessible.ignored: true
             }
             HnKeySequenceLabel {
                 objectName: "menuItemShortcut"
@@ -153,8 +172,25 @@ HnApplicationWindow {
     property bool informationOpen: false
     property bool helpOpen: false
     readonly property bool modalActive: dialogRequested || informationOpen || helpOpen
-    readonly property bool canInspect: document.state === ImageDocument.Ready && !modalActive
+    // Grid view replaces the canvas; everything that acts on the picture is gated by canInspect.
+    property bool gridMode: false
+    // Changes on a rescan so thumbnails decode again.
+    property int thumbnailGeneration: 0
+    readonly property bool canEnterGrid: document.localPath.length > 0 && (document.scanning || document.folder.count > 0) && !modalActive
+    readonly property bool canToggleGrid: gridMode || canEnterGrid
+    readonly property bool canInspect: document.state === ImageDocument.Ready && !modalActive && !gridMode
     readonly property bool hasPath: document.localPath.length > 0 && !modalActive
+    readonly property bool canShowInformation: hasPath && !gridMode
+    // While a scan runs the count is the transient one-item listing, so only the folder is named.
+    readonly property string headerTitle: {
+        if (!gridMode)
+            return document.fileName || qsTr("HoloNight Viewer");
+        if (document.scanning)
+            return document.folderName;
+        // Both source forms keep English correct without a catalog; numerus enables all translated plural forms.
+        const count = document.folder.count;
+        return (count === 1 ? qsTr("%1 — %n image", "", count) : qsTr("%1 — %n images", "", count)).arg(document.folderName);
+    }
     property int inputEpoch: 0
     onModalActiveChanged: {
         ++window.inputEpoch;
@@ -175,6 +211,12 @@ HnApplicationWindow {
         modalActive: window.modalActive
         menuOpen: window.actionsMenuOpen
         playbackAvailable: window.document.animation.canToggle && window.canInspect
+        gridActive: window.gridMode
+        onGridMoveRequested: move => {
+            grid.move(move);
+            window.clearImageFocus();
+        }
+        onGridActivateRequested: grid.activateSelection()
         onPlaybackToggleRequested: window.togglePlayback()
         onPanRequested: (horizontal, vertical) => {
             canvas.pan(Qt.point(horizontal, vertical));
@@ -207,7 +249,8 @@ HnApplicationWindow {
     Binding {
         target: window.document.animation
         property: "suspendedByModal"
-        value: window.modalActive
+        // A hidden animated canvas must not keep decoding frames.
+        value: window.modalActive || window.gridMode
     }
     Binding {
         target: window.document.animation
@@ -314,7 +357,7 @@ HnApplicationWindow {
         text: qsTr("Image Information")
         shortcut: "I"
         // While open, the modal popup blocks window shortcuts and handles I itself.
-        enabled: window.hasPath
+        enabled: window.canShowInformation
         onTriggered: window.informationOpen = true
     }
     Controls.Action {
@@ -350,13 +393,19 @@ HnApplicationWindow {
 
     Shortcut {
         sequence: "["
-        enabled: !window.modalActive && window.document.canPrevious
+        enabled: window.canBrowse(-1)
         onActivated: window.browse(-1)
     }
     Shortcut {
         sequence: "]"
-        enabled: !window.modalActive && window.document.canNext
+        enabled: window.canBrowse(1)
         onActivated: window.browse(1)
+    }
+    // A literal sequence, so that Ctrl+Shift+G does not match.
+    Shortcut {
+        sequence: "Ctrl+G"
+        enabled: !window.modalActive && window.canToggleGrid
+        onActivated: window.toggleGrid()
     }
     Shortcut {
         sequence: "Ctrl+R"
@@ -364,15 +413,48 @@ HnApplicationWindow {
         onActivated: window.refreshFolder()
     }
 
+    // In grid mode the neighbours are cells, and the open document is left alone.
+    function canBrowse(direction: int): bool {
+        if (window.modalActive)
+            return false;
+        if (window.gridMode)
+            return grid.canMove(direction < 0 ? GridNavigation.Previous : GridNavigation.Next);
+        return direction < 0 ? window.document.canPrevious : window.document.canNext;
+    }
+
     function browse(direction: int): void {
-        if (direction < 0)
+        if (window.gridMode)
+            grid.move(direction < 0 ? GridNavigation.Previous : GridNavigation.Next);
+        else if (direction < 0)
             window.document.previous();
         else
             window.document.next();
         window.clearImageFocus();
     }
 
+    function enterGrid(): void {
+        if (!window.canEnterGrid)
+            return;
+        window.gridMode = true;
+        grid.enter(window.document.url);
+        window.clearImageFocus();
+    }
+
+    // The document is untouched, so the same image is showing again.
+    function leaveGrid(): void {
+        window.gridMode = false;
+        window.clearImageFocus();
+    }
+
+    function toggleGrid(): void {
+        if (window.gridMode)
+            window.leaveGrid();
+        else
+            window.enterGrid();
+    }
+
     function refreshFolder(): void {
+        ++window.thumbnailGeneration;
         window.document.refresh();
         window.clearImageFocus();
     }
@@ -413,7 +495,15 @@ HnApplicationWindow {
     Shortcut {
         sequence: "Escape"
         enabled: !window.modalActive
-        onActivated: window.leaveFullscreen()
+        onActivated: {
+            // The grid closes first and fullscreen is untouched; a menu-closing Escape must not also close the grid.
+            if (window.gridMode) {
+                if (!window.actionsMenuOpen)
+                    window.leaveGrid();
+            } else {
+                window.leaveFullscreen();
+            }
+        }
     }
     Shortcut {
         sequence: "Q"
@@ -440,6 +530,8 @@ HnApplicationWindow {
         nameFilters: window.document.nameFilters
         currentLocalPath: window.document.localPath
         onFinished: urls => {
+            // A chosen file shows in single view; a cancelled dialog never gets here and leaves the grid.
+            window.gridMode = false;
             window.document.open(urls);
             window.dialogRequested = false;
         }
@@ -506,18 +598,19 @@ HnApplicationWindow {
             anchors.right: parent.right
             anchors.top: parent.top
             sizeRole: HnControlSize.Xs
-            visible: !window.fullscreen || window.arrowsShown || window.actionsMenuOpen
+            visible: !window.fullscreen || window.gridMode || window.arrowsShown || window.actionsMenuOpen
             z: 2
             HoverHandler {
                 id: headerHover
             }
             content: Item {
                 HnLabel {
+                    objectName: "headerTitle"
                     anchors.centerIn: parent
                     width: Math.max(0, parent.width - headerActions.width * 2)
                     horizontalAlignment: Text.AlignHCenter
                     textFormat: Text.PlainText
-                    rawText: window.document.fileName || qsTr("HoloNight Viewer")
+                    rawText: window.headerTitle
                     elide: Text.ElideMiddle
                 }
                 Row {
@@ -532,7 +625,7 @@ HnApplicationWindow {
                         KeyNavigation.backtab: actionsButton
                         icon.source: "icons/information.svg"
                         Accessible.name: qsTr("Image Information")
-                        enabled: window.hasPath
+                        enabled: window.canShowInformation
                         onClicked: window.informationOpen = true
                     }
                     ViewerHeaderButton {
@@ -595,17 +688,34 @@ HnApplicationWindow {
                                 enabled: window.hasPath
                                 onTriggered: window.refreshFolder()
                             }
+                            ViewerMenuItem {
+                                id: gridToggleItem
+                                objectName: "gridToggleItem"
+                                text: qsTr("Grid View")
+                                checkable: true
+                                shortcutKeys: [[Qt.Key_Control, Qt.Key_G]]
+                                enabled: window.canToggleGrid
+                                onTriggered: window.toggleGrid()
+                            }
+                            // Checking the item would otherwise detach a plain `checked` binding.
+                            Binding {
+                                target: gridToggleItem
+                                property: "checked"
+                                value: window.gridMode
+                            }
                             ViewerMenuSeparator {}
                             ViewerMenuItem {
+                                objectName: "previousMenuItem"
                                 text: qsTr("Previous")
                                 shortcutKeys: [[Qt.Key_BracketLeft]]
-                                enabled: !window.modalActive && window.document.canPrevious
+                                enabled: window.canBrowse(-1)
                                 onTriggered: window.browse(-1)
                             }
                             ViewerMenuItem {
+                                objectName: "nextMenuItem"
                                 text: qsTr("Next")
                                 shortcutKeys: [[Qt.Key_BracketRight]]
-                                enabled: !window.modalActive && window.document.canNext
+                                enabled: window.canBrowse(1)
                                 onTriggered: window.browse(1)
                             }
                             ViewerMenuSeparator {}
@@ -711,13 +821,15 @@ HnApplicationWindow {
             id: canvasArea
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.top: window.fullscreen ? parent.top : folderError.visible ? folderError.bottom : viewerHeader.bottom
-            anchors.bottom: window.fullscreen ? parent.bottom : viewerFooter.top
+            // Fullscreen grid keeps the header and footer, since the canvas hover that reveals them is gone.
+            anchors.top: window.fullscreen && !window.gridMode ? parent.top : folderError.visible ? folderError.bottom : viewerHeader.bottom
+            anchors.bottom: window.fullscreen && !window.gridMode ? parent.bottom : viewerFooter.top
 
             ImageCanvas {
                 id: canvas
                 objectName: "imageCanvas"
                 anchors.fill: parent
+                visible: !window.gridMode
                 image: window.document.image
                 svgRenderer: window.document.svgRenderer
                 svgSize: window.document.svgSize
@@ -779,11 +891,25 @@ HnApplicationWindow {
                     }
                 }
             }
+            ThumbnailGrid {
+                id: grid
+                anchors.fill: parent
+                visible: window.gridMode
+                model: window.document.folder
+                scanning: window.document.scanning
+                generation: window.thumbnailGeneration
+                devicePixelRatio: window.devicePixelRatio
+                onSelectionInteraction: window.clearImageFocus()
+                onActivated: fileUrl => {
+                    window.document.openFromFolder(fileUrl);
+                    window.leaveGrid();
+                }
+            }
             ViewerButton {
                 id: previousButton
                 objectName: "previousButton"
                 // Browsing needs at least two images; the shared arrow reveal also drives the play/pause button.
-                readonly property bool shown: window.arrowsShown && window.document.count > 1
+                readonly property bool shown: window.arrowsShown && window.document.count > 1 && !window.gridMode
                 floating: true
                 implicitHeight: 48
                 anchors.left: parent.left
@@ -799,13 +925,13 @@ HnApplicationWindow {
                         duration: 150
                     }
                 }
-                enabled: !window.modalActive && window.document.canPrevious
+                enabled: window.canBrowse(-1)
                 onClicked: window.browse(-1)
             }
             ViewerButton {
                 id: playPauseButton
                 objectName: "playPauseButton"
-                readonly property bool shown: window.arrowsShown
+                readonly property bool shown: window.arrowsShown && !window.gridMode
                 readonly property bool playing: window.document.animation.playing
                 floating: true
                 display: Controls.AbstractButton.IconOnly
@@ -834,7 +960,7 @@ HnApplicationWindow {
                 id: nextButton
                 objectName: "nextButton"
                 // Browsing needs at least two images; the shared arrow reveal also drives the play/pause button.
-                readonly property bool shown: window.arrowsShown && window.document.count > 1
+                readonly property bool shown: window.arrowsShown && window.document.count > 1 && !window.gridMode
                 floating: true
                 implicitHeight: 48
                 anchors.right: parent.right
@@ -850,7 +976,7 @@ HnApplicationWindow {
                         duration: 150
                     }
                 }
-                enabled: !window.modalActive && window.document.canNext
+                enabled: window.canBrowse(1)
                 onClicked: window.browse(1)
             }
             Rectangle {
@@ -863,7 +989,7 @@ HnApplicationWindow {
                 radius: HnMetrics.internalSpacing(HnControlSize.Compact)
                 color: Qt.alpha(HoloniightPalette.surface, 0.85)
                 border.color: HoloniightPalette.borderPassive
-                readonly property bool shown: window.detailsShown
+                readonly property bool shown: window.detailsShown && !window.gridMode
                 opacity: shown ? 1 : 0
                 visible: shown || opacity > 0
                 Behavior on opacity {
@@ -938,7 +1064,7 @@ HnApplicationWindow {
                 id: emptyStateGroup
                 objectName: "emptyStateGroup"
                 anchors.centerIn: parent
-                visible: window.document.state === ImageDocument.Empty
+                visible: window.document.state === ImageDocument.Empty || (window.gridMode && grid.showsEmpty)
                 spacing: HnMetrics.internalSpacing(HnControlSize.Normal)
                 // Below this the glyph reads as noise, so it hides and only the hint remains.
                 readonly property real minimumGlyphSide: 48
@@ -997,7 +1123,7 @@ HnApplicationWindow {
                 width: canvasArea.width
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
-                visible: window.document.state === ImageDocument.Loading || window.document.state === ImageDocument.Error
+                visible: !window.gridMode && (window.document.state === ImageDocument.Loading || window.document.state === ImageDocument.Error)
                 rawText: window.document.state === ImageDocument.Loading ? qsTr("Loading %1…").arg(window.document.fileName) : window.document.error
                 Accessible.role: Accessible.StaticText
                 Accessible.name: rawText
@@ -1020,7 +1146,7 @@ HnApplicationWindow {
             anchors.bottom: parent.bottom
             height: implicitHeight
             spacing: 0
-            visible: !window.fullscreen || window.arrowsShown
+            visible: !window.fullscreen || window.gridMode || window.arrowsShown
             z: 2
             HoverHandler {
                 id: footerHover
@@ -1041,6 +1167,7 @@ HnApplicationWindow {
                 fadeMode: HnSeparator.Solid
             }
             FooterKeyHints {
+                gridMode: window.gridMode
                 animated: window.document.animation.canToggle
                 Layout.fillWidth: true
                 Layout.leftMargin: 24
@@ -1056,6 +1183,7 @@ HnApplicationWindow {
         anchors.fill: parent
         enabled: !window.modalActive
         onDropped: drop => {
+            window.gridMode = false;
             window.document.open(drop.urls);
             drop.acceptProposedAction();
         }

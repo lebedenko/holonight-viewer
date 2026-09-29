@@ -79,6 +79,7 @@ an image opens, including a transparent one.
 | `[` / Previous, `]` / Next | Browse siblings, stopping at folder boundaries |
 | `Ctrl+O` / Open… | Choose an image with the desktop file picker |
 | `Ctrl+R` / Refresh | Rescan the folder and reload the selected image, clearing the cache; an animated GIF restarts from its first frame |
+| `Ctrl+G` / Grid View | Toggle the thumbnail grid (see [Grid view](#grid-view)) |
 | `Space` | Play or pause an animated GIF (ignored for still images and while a header button has focus) |
 | `Ctrl+0` / Fit | Center the whole image and fit it as the window changes |
 | `1` / Actual Size | Center at one source pixel per physical display pixel |
@@ -93,7 +94,7 @@ an image opens, including a transparent one.
 | `Ctrl+Shift+C` | Copy the normalized absolute path, unquoted; retain symlink paths |
 | `I` | Open or close the Image Information card |
 | `?` | Open or close the Shortcut Help card |
-| `F` / Fullscreen | Toggle fullscreen; `Escape` leaves it |
+| `F` / Fullscreen | Toggle fullscreen; `Escape` leaves it (in grid view `Escape` closes the grid first) |
 | `Q` / Quit | Quit Viewer |
 
 Viewer shortcuts pause while Open, Image Information or Shortcut Help is active.
@@ -104,7 +105,7 @@ compositor-managed tiling. Native decorations belong to Qt and the compositor.
 Tab and Shift+Tab cycle through the enabled header buttons (Information, Fullscreen,
 Menu); the empty window skips Information. Image actions clear the focus ring. In the
 menu, J/K and Down/Up move between items, skipping separators; single-key shortcuts
-still act while the menu is open and close it. The menu groups Open/Refresh,
+still act while the menu is open and close it. The menu groups Open/Refresh/Grid View,
 Previous/Next, view controls, transforms, copying, Image Information/Shortcut Help and
 Fullscreen/Quit, with each item's shortcut shown right-aligned.
 
@@ -193,6 +194,40 @@ Navigation remains available while decoding or showing an image error. Broken fi
 keep their positions, and Ctrl+R retains a deleted selection so you can navigate
 away. Folder-read failures appear separately and preserve single-image viewing.
 There is no live watcher: press Ctrl+R after additions, renames or external edits.
+
+### Grid view
+
+`Ctrl+G` (or Menu → Grid View, which shows a check mark while the grid is open) replaces
+the canvas with a grid of thumbnails of every image in the folder, in the same order as
+browsing. It needs an open image with a non-empty folder and toggles back the same way;
+the header then reads "folder — N images". The open image is selected and scrolled
+into view when the grid opens.
+
+| Key | In grid view |
+| --- | --- |
+| `h` `j` `k` `l` or the arrow keys | Move the selection; left/right flow across rows without wrapping, up/down move a row and clamp to the last item |
+| `Ctrl+U` / `Ctrl+D` | Move half the visible rows up / down |
+| `[` / `]` and Menu → Previous / Next | Move the selection by one (the open image does not change) |
+| `Enter`, double-click | Open the selected image in single view |
+| Click | Select a cell |
+| `Escape` or `Ctrl+G` | Close the grid and return to the image that was open before it, whatever the selection; in fullscreen the first `Escape` closes only the grid |
+
+`Ctrl+O`, dropping a file and `Ctrl+R` still work; a file opened either way shows in
+single view, and a cancelled dialog leaves the grid. Zoom, fit, 1:1, rotate/flip,
+playback, pan, copy image and Image Information are unavailable in grid view. A focused
+header button keeps `Enter` and `Space`, so Tab to a button then Enter/Space activates it;
+any grid key moves focus back to the grid.
+
+Thumbnails fit a 256 × 256 logical-pixel box without enlarging small images (SVGs scale
+up), decode at the display's scale factor, apply EXIF orientation and show the first
+frame of animated images. They decode on a worker pool of about half the CPU threads,
+only for the visible cells plus roughly one page; requests for cells that scroll away
+are dropped. A bounded cache (1000 thumbnails, 256 MiB) is used, and `Ctrl+R` decodes
+again. A cell shows a placeholder while loading and a broken-image glyph when the file
+cannot be decoded or exceeds the image limits; it stays selectable and still opens in
+single view. An SVG that links external local images shows the glyph in the grid.
+During a scan the grid shows a busy state, and a rescan keeps the selection on the same
+file, or on the same position when that file is gone.
 
 ### Copying
 
@@ -537,6 +572,9 @@ for source and checksum assets.
   [empty-window decoration](docs/sdd/empty-window-decoration/VERIFICATION.md),
   [UI polish](docs/sdd/viewer-ui-polish/VERIFICATION.md),
   [release readiness](docs/sdd/release-readiness/VERIFICATION.md)
+- [Thumbnail grid view cycle](docs/sdd/thumbnail-grid-view/SPEC.md),
+  [design](docs/sdd/thumbnail-grid-view/DESIGN.md) and
+  [tasks](docs/sdd/thumbnail-grid-view/TASKS.md)
 - [Review-fixes cycle](docs/sdd/review-fixes/SPEC.md)
 
 ## License

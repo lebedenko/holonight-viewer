@@ -1,0 +1,34 @@
+#include "thumbnail_cache.h"
+
+#include <utility>
+
+size_t qHash(const ThumbnailKey& key, size_t seed) { return qHashMulti(seed, key.path, key.boxPixels, key.generation); }
+
+ThumbnailCache::ThumbnailCache(qsizetype maxEntries, qint64 maxBytes) : maxEntries_(maxEntries), maxBytes_(maxBytes) {}
+
+std::optional<QImage> ThumbnailCache::find(const ThumbnailKey& key) {
+  const auto found = index_.constFind(key);
+  if (found == index_.constEnd()) {
+    return std::nullopt;
+  }
+  entries_.splice(entries_.begin(), entries_, found.value());
+  return entries_.front().image;
+}
+
+void ThumbnailCache::insert(const ThumbnailKey& key, QImage image) {
+  if (const auto existing = index_.constFind(key); existing != index_.constEnd()) {
+    erase(existing.value());
+  }
+  bytes_ += image.sizeInBytes();
+  entries_.push_front(Entry{.key = key, .image = std::move(image)});
+  index_.insert(key, entries_.begin());
+  while (!entries_.empty() && (count() > maxEntries_ || bytes_ > maxBytes_)) {
+    erase(std::prev(entries_.end()));
+  }
+}
+
+void ThumbnailCache::erase(std::list<Entry>::iterator entry) {
+  bytes_ -= entry->image.sizeInBytes();
+  index_.remove(entry->key);
+  entries_.erase(entry);
+}

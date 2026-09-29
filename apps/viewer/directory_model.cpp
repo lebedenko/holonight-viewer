@@ -87,6 +87,9 @@ DirectoryResult scanDirectory(const QUrl& selected, const std::atomic_bool& canc
   }
   if (!result.urls.contains(explicitUrl)) {
     result.urls.append(explicitUrl);
+    if (!selectedInfo.isFile()) {
+      result.missing = explicitUrl;
+    }
   }
   struct Cancelled {};
   try {
@@ -135,9 +138,10 @@ QVariant DirectoryModel::data(const QModelIndex& index, int role) const {
 QHash<int, QByteArray> DirectoryModel::roleNames() const { return {{FileNameRole, "fileName"}, {UrlRole, "url"}}; }
 QUrl DirectoryModel::urlAt(int index) const { return index >= 0 && index < rowCount() ? urls_[index] : QUrl{}; }
 int DirectoryModel::indexOf(const QUrl& url) const { return static_cast<int>(urls_.indexOf(url)); }
-void DirectoryModel::replace(QList<QUrl> urls) {
+void DirectoryModel::replace(QList<QUrl> urls, QUrl missing) {
   beginResetModel();
   urls_ = std::move(urls);
+  missing_ = std::move(missing);
   endResetModel();
 }
 void DirectoryModel::clear() {
@@ -188,7 +192,7 @@ void DirectoryModel::startPending() {
               if (generation == generation_) {
                 scanning_ = false;
                 error_ = std::move(result.error);
-                replace(std::move(result.urls));
+                replace(std::move(result.urls), std::move(result.missing));
                 emit changed();
               }
               startPending();

@@ -1,5 +1,6 @@
 #include "image_document.h"
 #include "image_limits.h"
+#include "thumbnail_provider.h"
 
 #include <QCommandLineParser>
 #include <QGuiApplication>
@@ -46,6 +47,7 @@ int main(int argc, char* argv[]) {
   QObject::connect(
       &engine, &QQmlApplicationEngine::objectCreationFailed, &app, [] { QCoreApplication::exit(EXIT_FAILURE); },
       Qt::QueuedConnection);
+  engine.addImageProvider(QStringLiteral("thumbnail"), new ThumbnailProvider);
   engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
   engine.loadFromModule("HolonightViewer", "Main");
   if (engine.rootObjects().isEmpty()) {

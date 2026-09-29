@@ -13,7 +13,43 @@ Item {
 
     // Set while the current image is an animation that can be paused.
     property bool animated: false
-    readonly property var hints: [
+    // Grid view shows navigation hints instead of the picture actions.
+    property bool gridMode: false
+    readonly property var hints: gridMode ? gridHints : singleViewHints
+    readonly property var gridHints: [
+        {
+            name: "GridNavigate",
+            keyGroups: [[Qt.Key_H], [Qt.Key_J], [Qt.Key_K], [Qt.Key_L]],
+            label: qsTr("Move")
+        },
+        {
+            name: "GridPage",
+            keyGroups: [[Qt.Key_Control, Qt.Key_U], [Qt.Key_Control, Qt.Key_D]],
+            label: qsTr("Page")
+        },
+        {
+            name: "GridOpen",
+            // Key_Enter is spelled "Enter"; Key_Return would read "Return".
+            keyGroups: [[Qt.Key_Enter]],
+            label: qsTr("Open")
+        },
+        {
+            name: "GridToggle",
+            keyGroups: [[Qt.Key_Control, Qt.Key_G]],
+            label: qsTr("Grid")
+        },
+        {
+            name: "Fullscreen",
+            keyGroups: [[Qt.Key_F]],
+            label: qsTr("Fullscreen")
+        },
+        {
+            name: "Help",
+            keyGroups: [[Qt.Key_Question]],
+            label: qsTr("Help")
+        }
+    ]
+    readonly property var singleViewHints: [
         {
             name: "Navigate",
             keyGroups: [[Qt.Key_BracketLeft], [Qt.Key_BracketRight]],

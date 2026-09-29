@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "grid_navigation.h"
+
 #include <QCoreApplication>
 #include <QKeyEvent>
 #include <QObject>
@@ -18,6 +20,7 @@ class WindowKeyRouter : public QObject {
   Q_PROPERTY(bool modalActive MEMBER m_modalActive)
   Q_PROPERTY(bool menuOpen MEMBER m_menuOpen)
   Q_PROPERTY(bool playbackAvailable MEMBER m_playbackAvailable)
+  Q_PROPERTY(bool gridActive MEMBER m_gridActive)
 
  public:
   explicit WindowKeyRouter(QObject* parent = nullptr) : QObject(parent) {}
@@ -36,6 +39,9 @@ class WindowKeyRouter : public QObject {
   void windowChanged();
   void panRequested(int horizontal, int vertical);
   void playbackToggleRequested();
+  // A GridNavigation::Move value.
+  void gridMoveRequested(int move);
+  void gridActivateRequested();
 
  protected:
   bool eventFilter(QObject* object, QEvent* event) override {
@@ -43,7 +49,10 @@ class WindowKeyRouter : public QObject {
     const auto* keyEvent = static_cast<QKeyEvent*>(event);
     const int key = keyEvent->key();
     const bool shift = keyEvent->modifiers().testFlag(Qt::ShiftModifier);
-    if (keyEvent->modifiers() & ~(Qt::ShiftModifier | Qt::KeypadModifier)) return false;
+    const auto modifiers = keyEvent->modifiers() & ~Qt::KeypadModifier;
+    // Ctrl+D and Ctrl+U page through the grid; every other Ctrl chord stays with the shortcuts.
+    const bool gridPage = m_gridActive && modifiers == Qt::ControlModifier && (key == Qt::Key_D || key == Qt::Key_U);
+    if (!gridPage && (modifiers & ~Qt::ShiftModifier)) return false;
     if (m_menuOpen) {
       if (key != Qt::Key_J && key != Qt::Key_K) return false;
       if (m_forwarding) return false;
@@ -65,6 +74,41 @@ class WindowKeyRouter : public QObject {
           buttons[index]->forceActiveFocus(direction > 0 ? Qt::TabFocusReason : Qt::BacktabFocusReason);
           break;
         }
+      }
+    } else if (m_gridActive) {
+      using Move = GridNavigation::Move;
+      // Space is never handled here, so a focused header button keeps it.
+      if (shift) return false;
+      switch (key) {
+        case Qt::Key_Left:
+        case Qt::Key_H:
+          emit gridMoveRequested(static_cast<int>(Move::Previous));
+          break;
+        case Qt::Key_Right:
+        case Qt::Key_L:
+          emit gridMoveRequested(static_cast<int>(Move::Next));
+          break;
+        case Qt::Key_Up:
+        case Qt::Key_K:
+          emit gridMoveRequested(static_cast<int>(Move::RowUp));
+          break;
+        case Qt::Key_Down:
+        case Qt::Key_J:
+          emit gridMoveRequested(static_cast<int>(Move::RowDown));
+          break;
+        case Qt::Key_D:
+        case Qt::Key_U:
+          if (!gridPage) return false;
+          emit gridMoveRequested(static_cast<int>(key == Qt::Key_D ? Move::PageDown : Move::PageUp));
+          break;
+        case Qt::Key_Return:
+        case Qt::Key_Enter:
+          // A focused header button activates instead of opening the file.
+          if (keyEvent->isAutoRepeat() || headerOrPlaybackButtonFocused()) return false;
+          emit gridActivateRequested();
+          break;
+        default:
+          return false;
       }
     } else if (m_imageReady) {
       switch (key) {
@@ -108,5 +152,6 @@ class WindowKeyRouter : public QObject {
   bool m_modalActive = false;
   bool m_menuOpen = false;
   bool m_playbackAvailable = false;
+  bool m_gridActive = false;
   bool m_forwarding = false;
 };

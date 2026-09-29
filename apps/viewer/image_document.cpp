@@ -340,6 +340,21 @@ void ImageDocument::navigate(int direction) {
 }
 void ImageDocument::previous() { navigate(-1); }
 void ImageDocument::next() { navigate(1); }
+QString ImageDocument::folderName() const {
+  if (selected_url_.isEmpty()) {
+    return {};
+  }
+  const auto name = QFileInfo(localPath()).absoluteDir().dirName();
+  return name.isEmpty() ? QStringLiteral("/") : name;
+}
+
+void ImageDocument::openFromFolder(const QUrl& url) {
+  if (stopping_ || url == selected_url_ || directory_.indexOf(url) < 0) {
+    return;
+  }
+  select(url);
+}
+
 void ImageDocument::refresh() {
   if (stopping_ || selected_url_.isEmpty()) {
     return;

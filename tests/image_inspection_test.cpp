@@ -70,7 +70,7 @@ TEST(Viewer, InspectionControlsAndLifecycle) {
   ASSERT_TRUE(QTest::qWaitFor([&] { return menu->property("opened").toBool(); }));
   // Actual Size can be outside the viewport in this small window.
   // Exercise the menu's keyboard activation independently of scroll position.
-  ASSERT_TRUE(menu->setProperty("currentIndex", 7));
+  ASSERT_TRUE(menu->setProperty("currentIndex", 8));
   QTest::keyClick(window, Qt::Key_Return);
   EXPECT_DOUBLE_EQ(canvas->magnification(), 1);
   EXPECT_FALSE(canvas->fitting());

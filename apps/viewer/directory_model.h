@@ -12,6 +12,8 @@
 struct DirectoryResult {
   QList<QUrl> urls;
   QString error;
+  // The explicit URL when it had to be added to the listing because it is not an existing regular file.
+  QUrl missing = {};
 };
 QUrl normalizedLocalUrl(const QUrl& url);
 bool naturalFileNameLess(const QString& left, const QString& right);
@@ -36,6 +38,8 @@ class DirectoryModel : public QAbstractListModel {
   [[nodiscard]] int indexOf(const QUrl& url) const;
   [[nodiscard]] bool scanning() const { return scanning_; }
   [[nodiscard]] QString error() const { return error_; }
+  // Listed so single-view browsing keeps its position, but not a file on disk.
+  [[nodiscard]] QUrl missingUrl() const { return missing_; }
   void scan(const QUrl& selected);
   void clear();
   void shutdown();
@@ -45,11 +49,12 @@ class DirectoryModel : public QAbstractListModel {
 
  private:
   void startPending();
-  void replace(QList<QUrl> urls);
+  void replace(QList<QUrl> urls, QUrl missing = {});
   QThread thread_;
   QObject* worker_;
   Scanner scanner_;
   QList<QUrl> urls_;
+  QUrl missing_;
   QString error_;
   std::optional<QUrl> pending_;
   std::shared_ptr<std::atomic_bool> cancellation_;
