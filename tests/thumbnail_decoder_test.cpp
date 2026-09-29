@@ -6,11 +6,13 @@
 
 #include <QBuffer>
 #include <QFile>
+#include <QFileInfo>
 #include <QTemporaryDir>
 #include <QtEndian>
 
 #include <array>
 #include <gtest/gtest.h>
+#include <holonight_thumbnails/cache.h>
 
 namespace {
 const std::atomic_bool kNotCancelled{false};
@@ -37,8 +39,8 @@ QString writeImage(const QTemporaryDir& dir, const QString& name, QSize size, co
 
 // ExifFixture::jpegWithApp1 puts an XMP segment before the EXIF one, and Qt's JPEG handler then reports no
 // orientation, so the EXIF segment goes first here.
-QByteArray jpegWithExif(const QByteArray& payload) {
-  QImage image(4, 3, QImage::Format_RGB32);
+QByteArray jpegWithExif(const QByteArray& payload, QSize size = {4, 3}) {
+  QImage image(size, QImage::Format_RGB32);
   image.fill(Qt::blue);
   QByteArray jpeg;
   QBuffer buffer(&jpeg);
@@ -132,6 +134,36 @@ QByteArray redGreenBlueGif() {
 QByteArray svgWithViewBox() {
   return "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100'>"
          "<rect width='200' height='100' fill='#3366cc'/></svg>";
+}
+
+struct CacheHome {
+  explicit CacheHome(const QString& path)
+      : wasSet(qEnvironmentVariableIsSet("XDG_CACHE_HOME")), old(qgetenv("XDG_CACHE_HOME")) {
+    qputenv("XDG_CACHE_HOME", path.toUtf8());
+  }
+  CacheHome(const CacheHome&) = delete;
+  CacheHome& operator=(const CacheHome&) = delete;
+  CacheHome(CacheHome&&) = delete;
+  CacheHome& operator=(CacheHome&&) = delete;
+  ~CacheHome() {
+    if (wasSet) {
+      qputenv("XDG_CACHE_HOME", old);
+    } else {
+      qunsetenv("XDG_CACHE_HOME");
+    }
+  }
+  bool wasSet;
+  QByteArray old;
+};
+
+HolonightThumbnails::Request cacheRequest(const QString& path, QSize required, HolonightThumbnails::Kind kind) {
+  const QFileInfo info(path);
+  return {.uri = QUrl::fromLocalFile(info.absoluteFilePath()),
+          .modified = info.lastModified(),
+          .size = info.size(),
+          .required = required,
+          .kind = kind,
+          .revision = {}};
 }
 }  // namespace
 
@@ -229,6 +261,88 @@ TEST(ThumbnailDecoder, SvgWithExternalResourcesFails) {
   const auto path = writeBytes(dir, "linked.svg",
                                "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' "
                                "viewBox='0 0 10 10'><image xlink:href='https://example.com/a.png'/></svg>");
+  EXPECT_TRUE(decode(path, 1).image.isNull());
+}
+
+TEST(ThumbnailDecoder, ReusesSharedRasterPixelsAndPreservesLogicalSourceSize) {
+  QTemporaryDir dir;
+  ASSERT_TRUE(dir.isValid());
+  CacheHome cacheHome(dir.filePath("cache"));
+  const auto path = writeImage(dir, "red.png", {1024, 1024}, "PNG");
+  QImage shared({256, 256}, QImage::Format_ARGB32_Premultiplied);
+  shared.fill(Qt::blue);
+  ASSERT_TRUE(HolonightThumbnails::store(cacheRequest(path, {256, 256}, HolonightThumbnails::Kind::Raster), shared,
+                                         kNotCancelled));
+
+  const auto result = decode(path, 1);
+  ASSERT_FALSE(result.image.isNull()) << qPrintable(result.error);
+  EXPECT_EQ(result.image.pixelColor(128, 128), QColor(Qt::blue));
+  EXPECT_EQ(result.sourceSize, QSize(1024, 1024));
+}
+
+TEST(ThumbnailDecoder, WritesAspectAwareAndOrientedThumbnailEntries) {
+  QTemporaryDir dir;
+  ASSERT_TRUE(dir.isValid());
+  CacheHome cacheHome(dir.filePath("cache"));
+  const auto landscape = writeImage(dir, "landscape.png", {1024, 768}, "PNG");
+  const auto portrait = writeImage(dir, "portrait.png", {768, 1024}, "PNG");
+  const auto payload = QByteArray("Exif\0\0", 6) + ExifFixture::tiff({ExifFixture::shortValue(0x0112, 6)}, {}, {});
+  const auto oriented = writeBytes(dir, "oriented.jpg", jpegWithExif(payload));
+  const auto largeOriented = writeBytes(dir, "large-oriented.jpg", jpegWithExif(payload, {400, 300}));
+
+  for (const auto& [path, pixels] : {std::pair{landscape, QSize(256, 192)}, std::pair{portrait, QSize(192, 256)},
+                                     std::pair{oriented, QSize(3, 4)}, std::pair{largeOriented, QSize(192, 256)}}) {
+    const auto result = decode(path, 1);
+    ASSERT_FALSE(result.image.isNull()) << qPrintable(result.error);
+    const auto cached =
+        HolonightThumbnails::lookup(cacheRequest(path, pixels, HolonightThumbnails::Kind::Raster), kNotCancelled);
+    ASSERT_TRUE(cached.has_value()) << qPrintable(path);
+    EXPECT_EQ(cached->size(), pixels);
+  }
+}
+
+TEST(ThumbnailDecoder, RequestsAboveLargestTierDecodeTheSource) {
+  QTemporaryDir dir;
+  ASSERT_TRUE(dir.isValid());
+  CacheHome cacheHome(dir.filePath("cache"));
+  const auto path = writeImage(dir, "red.png", {1600, 1600}, "PNG");
+  QImage cached({1024, 1024}, QImage::Format_ARGB32_Premultiplied);
+  cached.fill(Qt::blue);
+  ASSERT_TRUE(HolonightThumbnails::store(cacheRequest(path, {1024, 1024}, HolonightThumbnails::Kind::Raster), cached,
+                                         kNotCancelled));
+
+  const auto result = decodeThumbnail({.path = path, .boxPixels = 1100}, kNotCancelled);
+  ASSERT_FALSE(result.image.isNull()) << qPrintable(result.error);
+  EXPECT_EQ(result.image.size(), QSize(1100, 1100));
+  EXPECT_EQ(result.image.pixelColor(550, 550), QColor(Qt::red));
+}
+
+TEST(ThumbnailDecoder, CacheWriteFailureDoesNotPreventSourceDecode) {
+  QTemporaryDir dir;
+  ASSERT_TRUE(dir.isValid());
+  const auto blocked = writeBytes(dir, "blocked-cache-home", "regular file");
+  ASSERT_FALSE(blocked.isEmpty());
+  CacheHome cacheHome(blocked);
+  const auto path = writeImage(dir, "red.png", {1024, 1024}, "PNG");
+
+  const auto result = decode(path, 1);
+  ASSERT_FALSE(result.image.isNull()) << qPrintable(result.error);
+  EXPECT_EQ(result.image.size(), QSize(256, 256));
+  EXPECT_EQ(result.image.pixelColor(128, 128), QColor(Qt::red));
+}
+
+TEST(ThumbnailDecoder, SvgResourceValidationPrecedesDiskLookup) {
+  QTemporaryDir dir;
+  ASSERT_TRUE(dir.isValid());
+  CacheHome cacheHome(dir.filePath("cache"));
+  const auto path = writeBytes(dir, "linked.svg",
+                               "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' "
+                               "viewBox='0 0 10 10'><image xlink:href='https://example.com/a.png'/></svg>");
+  QImage cached({256, 256}, QImage::Format_ARGB32_Premultiplied);
+  cached.fill(Qt::blue);
+  ASSERT_TRUE(HolonightThumbnails::store(cacheRequest(path, {256, 256}, HolonightThumbnails::Kind::Svg), cached,
+                                         kNotCancelled));
+
   EXPECT_TRUE(decode(path, 1).image.isNull());
 }
 

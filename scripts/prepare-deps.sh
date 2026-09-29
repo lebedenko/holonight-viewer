@@ -2,14 +2,16 @@
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 prefix=${HOLONIGHT_DEPENDENCY_PREFIX:-"$root/build/deps/prefix"}
-for provider in holonight-config holonight-qt holonight-images; do
+for provider in holonight-config holonight-qt holonight-images holonight-thumbnails; do
   source_dir="$root/../$provider"
   if [[ $provider == holonight-config ]]; then
     source_dir=${HOLONIGHT_CONFIG_SOURCE:-$source_dir}
   elif [[ $provider == holonight-qt ]]; then
     source_dir=${HOLONIGHT_QT_SOURCE:-$source_dir}
-  else
+  elif [[ $provider == holonight-images ]]; then
     source_dir=${HOLONIGHT_IMAGES_SOURCE:-$source_dir}
+  else
+    source_dir=${HOLONIGHT_THUMBNAILS_SOURCE:-$source_dir}
   fi
   cmake -S "$source_dir" -B "$root/build/deps/$provider" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$prefix" \
