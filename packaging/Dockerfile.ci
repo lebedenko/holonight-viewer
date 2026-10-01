@@ -1,5 +1,8 @@
-FROM archlinux:base
-RUN pacman -Syu --noconfirm && pacman -S --needed --noconfirm \
+FROM archlinux@sha256:eb8f6dcc89a38977c9735f10fcf6ae4afe496283e7008eb7a3420cdba31fbd04
+# Refresh the digest and completed archive date together, then run CI qualification.
+ARG ARCH_SNAPSHOT=2026/09/30
+RUN printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "$ARCH_SNAPSHOT" > /etc/pacman.d/mirrorlist \
+    && pacman -Syyuu --noconfirm && pacman -S --needed --noconfirm \
     base-devel cmake ninja go-task qt6-base qt6-declarative qt6-svg \
     libwebp libexif pkgconf wayland wayland-protocols qt6-imageformats qt6-tools qt6-wayland tomlplusplus gtest clang python reuse \
     desktop-file-utils glib2 dbus xorg-server-xvfb mesa binutils ripgrep git ttf-dejavu && pacman -Scc --noconfirm

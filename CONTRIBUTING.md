@@ -25,11 +25,25 @@ Individual `test`, `format-check`, `tidy`, `qml-lint`, `license-check`,
 to format sources and `task --list` to discover commands. Visual inspection (`task visual-check`) and
 Docker installed-runtime qualification remain separate from `check`.
 
+Run `task sanitizer-check` for the additional ASan/UBSan CTest configuration.
+It instruments Viewer-owned C/C++ code, keeps leak detection enabled, and uses
+extended test timeouts; providers and system Qt remain uninstrumented. GCC and
+Clang are supported. Fix application findings rather than suppressing them;
+external-library suppressions require reproducible evidence and narrow symbols.
+CI runs this as a separate matrix check alongside standard acceptance.
+
+The CI Dockerfile pins both its base-image digest and an Arch Linux Archive date.
+Refresh them together to a completed snapshot providing Qt 6.11+, then rerun
+standard checks, sanitizers, and isolated installed-runtime qualification with
+the exact provider revisions in the workflow. Preserve package/compiler/Qt
+provenance in the CI evidence artifact. The runtime image must use the same
+qualified toolchain image because providers use Qt's private ABI.
+
 `task run` does not register development desktop files. Use `task stage DESTDIR=...`
 to inspect a payload without changing the host. Coordinated system installation and
 removal belong to the umbrella; standalone CMake installation and legacy ownership
 review are documented in README.md. The executable remains `hn-viewer`.
-`task clean` removes only Viewer debug, release, test and system-install build
+`task clean` removes only Viewer debug, release, test, sanitizer and system-install build
 directories; it preserves `build/deps` and verification evidence. Record staged
 verification separately from any actual host installation.
 

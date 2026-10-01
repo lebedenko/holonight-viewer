@@ -4,7 +4,12 @@ permissions:
   contents: read
 jobs:
   build:
+    name: Viewer (${{ matrix.check }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [standard, sanitizer]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,14 +37,32 @@ jobs:
       - name: Build CI image locally
         run: docker build -t viewer-ci -f viewer/packaging/Dockerfile.ci viewer
       - name: Build and verify
+        if: matrix.check == 'standard'
         run: >-
           docker run --rm --user "$(id -u):$(id -g)" -v "$GITHUB_WORKSPACE:/work" viewer-ci
-          bash -euc 'task deps; task check;
+          bash -euc 'bash scripts/record-toolchain.sh; task deps; task check;
           bash scripts/prepare-runtime-check.sh'
 
+      - name: Sanitizer build and tests
+        if: matrix.check == 'sanitizer'
+        run: >-
+          docker run --rm --user "$(id -u):$(id -g)" -v "$GITHUB_WORKSPACE:/work" viewer-ci
+          bash -euc 'bash scripts/record-toolchain.sh; task deps; task sanitizer-check'
+
       - name: Isolated installed runtime (no workspace mount)
+        if: matrix.check == 'standard'
         run: |
           context=$(cat viewer/build/runtime-check-context)
           context="viewer/build/$(basename "$context")"
           docker build -t viewer-runtime-check "$context"
           docker run --rm --network none viewer-runtime-check
+
+      - name: Toolchain and test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: viewer-${{ matrix.check }}-evidence
+          path: |
+            viewer/build/ci-provenance/
+            viewer/build/test/Testing/Temporary/
+            viewer/build/sanitizer/Testing/Temporary/

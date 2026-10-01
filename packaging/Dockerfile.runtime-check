@@ -1,5 +1,6 @@
 # Reuse the exact Qt runtime used to build providers (their private Qt ABI matters).
-FROM viewer-ci
+ARG VIEWER_CI_IMAGE=viewer-ci
+FROM ${VIEWER_CI_IMAGE}
 # viewer-ci supplies required libwebp, libexif and Qt format plugins for installed payloads.
 COPY payload/usr/ /usr/
 COPY check/ /opt/check/
