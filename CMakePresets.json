@@ -56,6 +56,14 @@
         "QML_IMPORT_PATH": "${sourceDir}/build/deps/prefix/lib/qt6/qml",
         "LD_LIBRARY_PATH": "${sourceDir}/build/deps/prefix/lib"
       }
+    },
+    {
+      "name": "sanitizer",
+      "inherits": "test",
+      "binaryDir": "${sourceDir}/build/sanitizer",
+      "cacheVariables": {
+        "VIEWER_ENABLE_SANITIZERS": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -73,6 +81,11 @@
       "name": "test",
       "configurePreset": "test",
       "jobs": 2
+    },
+    {
+      "name": "sanitizer",
+      "configurePreset": "sanitizer",
+      "jobs": 2
     }
   ],
   "testPresets": [
@@ -84,6 +97,15 @@
       },
       "execution": {
         "noTestsAction": "error"
+      }
+    },
+    {
+      "name": "sanitizer",
+      "inherits": "test",
+      "configurePreset": "sanitizer",
+      "environment": {
+        "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1",
+        "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
       }
     }
   ]

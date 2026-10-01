@@ -19,7 +19,7 @@ add_custom_command(OUTPUT "${xdg_foreign_code}"
   DEPENDS "${xdg_foreign_xml}" VERBATIM)
 
 add_library(viewer-protocol STATIC "${xdg_foreign_code}" "${xdg_foreign_header}")
-target_link_libraries(viewer-protocol PRIVATE PkgConfig::WaylandClient)
+target_link_libraries(viewer-protocol PRIVATE PkgConfig::WaylandClient viewer-sanitizers)
 set_target_properties(viewer-protocol PROPERTIES AUTOMOC OFF)
 
 add_library(viewer-private STATIC

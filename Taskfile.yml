@@ -54,6 +54,12 @@ tasks:
       - task: build
         vars: {PRESET: test}
       - ctest --preset test
+  sanitizer-check:
+    desc: Build Viewer with ASan/UBSan and run CTest (providers remain uninstrumented)
+    cmds:
+      - task: build
+        vars: {PRESET: sanitizer}
+      - ctest --preset sanitizer
   format:
     desc: Format C++ and QML sources
     cmds:
@@ -104,7 +110,7 @@ tasks:
   clean:
     desc: Remove Viewer build directories while preserving local providers and evidence
     cmds:
-      - rm -rf -- build/debug build/release build/test build/system-install
+      - rm -rf -- build/debug build/release build/test build/sanitizer build/system-install
   visual-check:
     desc: Capture dark/light renders at normal and fractional scale for inspection
     cmds:

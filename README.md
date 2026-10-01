@@ -374,6 +374,10 @@ and QML import/metadata checks. Each step is also available on its own: `test`,
 `format-check`, `tidy`, `qml-lint`, `lint`, `license-check`, `install-check` and
 `qml-import-check`, `qmltypes-check`. `task format` applies C++ and QML formatting.
 
+`task sanitizer-check` separately builds Viewer with ASan/UBSan and runs the full
+CTest suite with leak detection enabled. It supports GCC/Clang; providers and Qt
+remain uninstrumented. See CONTRIBUTING.md for CI toolchain pinning and updates.
+
 Run `viewer-smoke` through ctest: it starts the tests on a private D-Bus session with
 a mock portal. Run directly on a desktop session, it exits with an explanation
 instead of reaching the real portal.
@@ -391,7 +395,7 @@ standalone invocations use the system temporary directory.
 QMLFORMAT="/opt/Qt 6/bin/qmlformat" task format-check
 ```
 
-`task clean` removes only `build/debug`, `build/release`, `build/test` and
+`task clean` removes only `build/debug`, `build/release`, `build/test`, `build/sanitizer` and
 `build/system-install`; local provider installs and verification artifacts stay
 under `build/`.
 

@@ -83,3 +83,14 @@ add_test(NAME viewer-clipboard-persistence-runner COMMAND ${Python3_EXECUTABLE}
   "${CMAKE_SOURCE_DIR}/scripts/check-clipboard-persistence.py")
 
 add_test(NAME viewer-performance-comparison COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-compare-performance.py")
+
+if(VIEWER_ENABLE_SANITIZERS)
+  get_property(viewer_tests DIRECTORY PROPERTY TESTS)
+  foreach(test IN LISTS viewer_tests)
+    get_property(timeout TEST "${test}" PROPERTY TIMEOUT)
+    if(timeout)
+      math(EXPR timeout "${timeout} * 3")
+      set_tests_properties("${test}" PROPERTIES TIMEOUT "${timeout}")
+    endif()
+  endforeach()
+endif()
