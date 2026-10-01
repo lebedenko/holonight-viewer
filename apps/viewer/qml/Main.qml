@@ -380,7 +380,7 @@ HnApplicationWindow {
             informationAction: viewerActions.imageInformation
             fullscreenAction: viewerActions.fullscreenCommand
             modalActive: window.modalActive
-            visible: !window.fullscreen || window.gridMode || window.arrowsShown || window.actionsMenuOpen
+            visible: !window.fullscreen || window.gridMode || window.arrowsShown || window.actionsMenuOpen || viewerHeader.controlFocused
             z: 2
             onMenuRequested: actionsMenu.open()
         }

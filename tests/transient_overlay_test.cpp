@@ -523,3 +523,46 @@ TEST(TransientOverlay, SingleImageNeverShowsBrowseArrows) {
   EXPECT_FALSE(fixture.previous->isVisible());
   EXPECT_FALSE(fixture.next->isVisible());
 }
+
+TEST(TransientOverlay, FullscreenHeaderFocusRevealsAndHoldsTheHeader) {
+  OverlayFixture fixture;
+  ASSERT_TRUE(fixture.load());
+  ASSERT_TRUE(fixture.openFolder());
+  fixture.arrowTimer->setProperty("interval", 100);
+  fixture.window->showFullScreen();
+  ASSERT_TRUE(QTest::qWaitFor([&] { return fixture.window->visibility() == QWindow::FullScreen; }));
+  fixture.pointerOverCanvas();
+  QTest::keyClick(fixture.window, Qt::Key_Tab);
+  QTest::qWait(200);
+  EXPECT_TRUE(fixture.header->isVisible());
+  EXPECT_TRUE(fixture.arrowsHidden());
+  EXPECT_FALSE(fixture.footer->isVisible());
+  QTest::keyClick(fixture.window, Qt::Key_0, Qt::ControlModifier);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !fixture.header->isVisible(); }, 1000));
+
+  for (const auto* name : {"informationButton", "fullscreenButton", "actionsButton", "informationButton"}) {
+    QTest::keyClick(fixture.window, Qt::Key_Tab);
+    auto* button = fixture.window->findChild<QQuickItem*>(name);
+    ASSERT_NE(button, nullptr);
+    EXPECT_EQ(fixture.window->activeFocusItem(), button);
+    EXPECT_TRUE(button->property("visualFocus").toBool());
+    EXPECT_TRUE(fixture.header->isVisible());
+    EXPECT_TRUE(fixture.headerBackground->isVisible());
+    QTest::qWait(200);
+    EXPECT_TRUE(fixture.header->isVisible());
+  }
+  for (const auto* name : {"actionsButton", "fullscreenButton", "informationButton"}) {
+    QTest::keyClick(fixture.window, Qt::Key_Backtab);
+    auto* button = fixture.window->findChild<QQuickItem*>(name);
+    ASSERT_NE(button, nullptr);
+    EXPECT_EQ(fixture.window->activeFocusItem(), button);
+    EXPECT_TRUE(button->property("visualFocus").toBool());
+    EXPECT_TRUE(fixture.header->isVisible());
+  }
+
+  // An image command clears header focus and restores ordinary fullscreen hiding.
+  QTest::keyClick(fixture.window, Qt::Key_0, Qt::ControlModifier);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !fixture.header->isVisible(); }, 1000));
+  EXPECT_FALSE(fixture.headerBackground->isVisible());
+  EXPECT_TRUE(fixture.arrowsHidden());
+}

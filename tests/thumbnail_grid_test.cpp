@@ -9,6 +9,7 @@
 #include <QMutex>
 #include <QQmlComponent>
 #include <QQmlEngine>
+#include <QQmlError>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QSignalSpy>
@@ -16,6 +17,7 @@
 #include <QTest>
 #include <QWaitCondition>
 
+#include <algorithm>
 #include <atomic>
 #include <functional>
 #include <gtest/gtest.h>
@@ -704,4 +706,24 @@ TEST(ThumbnailGrid, TheBoxSizeIsTheSharedConstantAndTheFolderIsNotWatched) {
   fixture.urls->append(photo(12));
   QTest::qWait(300);
   EXPECT_EQ(fixture.grid->property("count").toInt(), 10);
+}
+
+TEST(ThumbnailGrid, CacheBufferStaysNonnegativeDuringTransientLayout) {
+  GridFixture fixture;
+  QStringList cacheWarnings;
+  QObject::connect(&fixture.engine, &QQmlEngine::warnings, &fixture.engine, [&](const QList<QQmlError>& warnings) {
+    for (const auto& warning : warnings) {
+      if (warning.description().contains("negative cache buffer")) {
+        cacheWarnings.append(warning.toString());
+      }
+    }
+  });
+  ASSERT_TRUE(fixture.load(0));
+  EXPECT_GT(fixture.view()->property("cacheBuffer").toInt(), 0);
+  for (const int height : {-40, 0, 1, 200}) {
+    fixture.root->setHeight(height);
+    QCoreApplication::processEvents();
+    EXPECT_EQ(fixture.view()->property("cacheBuffer").toInt(), std::max(0, height));
+  }
+  EXPECT_TRUE(cacheWarnings.isEmpty()) << qPrintable(cacheWarnings.join('\n'));
 }

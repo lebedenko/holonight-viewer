@@ -128,11 +128,13 @@ hide from the right while the Help shortcut remains visible. In fullscreen, the
 canvas fills the window and the header and footer overlay it. They appear with
 the navigation controls on entry or mouse movement, then hide together after
 three seconds. Hovering a control or either bar holds them; an open menu keeps
-the header visible.
+the header visible. Keyboard focus reveals the header and keeps it visible while
+any header control has focus.
 
 - **Navigation arrows** appear on mouse movement for three seconds (held while the
   pointer rests on an arrow). Keyboard input hides them immediately; in fullscreen
-  it also hides the header and footer without resetting the countdown.
+  it also hides the footer and, unless a header control has focus, the header,
+  without resetting the countdown.
 - **Details strip** appears for four seconds after a new or refreshed image first
   renders and after zoom, Fit, Actual Size, rotate, flip or mouse movement; resizing
   does not reveal it. It shows transformed dimensions, decimal file size,

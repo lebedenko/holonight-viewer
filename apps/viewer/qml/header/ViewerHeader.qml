@@ -12,6 +12,7 @@ HnHeaderBar {
     required property Controls.Action fullscreenAction
     required property bool modalActive
     readonly property bool hovered: headerHover.hovered
+    readonly property bool controlFocused: (contentItem as HeaderContent)?.controlFocused ?? false
     readonly property Item menuAnchor: (contentItem as HeaderContent)?.menuAnchor ?? null
     signal menuRequested
     component HeaderButtonBase: Controls.Button {
@@ -48,6 +49,7 @@ HnHeaderBar {
         id: headerHover
     }
     component HeaderContent: Item {
+        readonly property bool controlFocused: informationButton.activeFocus || fullscreenButton.activeFocus || actionsButton.activeFocus
         readonly property Item menuAnchor: actionsButton
         HnLabel {
             objectName: "headerTitle"

@@ -7,7 +7,8 @@ Approved through the user-supplied implementation plan on 2026-09-13. These focu
 - R3: The canvas shall never enter the tab chain or show a focus outline.
 - R4: While the Actions menu is open, J and K shall move selection like Down and Up, skipping disabled items and retaining menu activation. Modal dialogs shall keep usable focus and suppress image commands.
 - R5: Shortcut Help and README shall describe the new behavior.
+- R6: In fullscreen, focusing any header control shall reveal the header and keep it visible while any header control has keyboard focus. Tab and Shift+Tab shall retain their existing order even after the fullscreen header has hidden. When focus leaves the header, ordinary fullscreen visibility rules shall apply.
 
 Non-goals: changing image geometry, rendering, or sibling packages.
 
-Status: implemented; local automated and visual acceptance passed on 2026-09-14. See [verification](VERIFICATION.md).
+Status: R1–R5 implemented; local automated and visual acceptance passed on 2026-09-14. See [verification](VERIFICATION.md). R6 is implemented with automated regression coverage and user-confirmed native fullscreen focus acceptance on 2026-10-02.

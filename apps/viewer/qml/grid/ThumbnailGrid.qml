@@ -146,7 +146,8 @@ Item {
         keyNavigationEnabled: false
         activeFocusOnTab: false
         reuseItems: false
-        cacheBuffer: height
+        // Anchor layout can briefly produce a negative height while the window changes state.
+        cacheBuffer: Math.max(0, height)
         Controls.ScrollBar.vertical: Controls.ScrollBar {}
         Accessible.role: Accessible.List
         Accessible.name: qsTr("Images")
