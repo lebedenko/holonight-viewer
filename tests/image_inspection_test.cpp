@@ -57,7 +57,9 @@ TEST(Viewer, InspectionControlsAndLifecycle) {
     canvas->fit();
     open_button->forceActiveFocus(Qt::TabFocusReason);
     EXPECT_FALSE(canvas->hasActiveFocus());
+    const auto before_zoom = canvas->magnification();
     QTest::keyClick(window, key, Qt::ControlModifier);
+    EXPECT_DOUBLE_EQ(canvas->magnification(), before_zoom * 1.25);
     EXPECT_FALSE(canvas->hasActiveFocus());
     const auto before_keyboard_pan = canvas->imageRect();
     QTest::keyClick(window, Qt::Key_Down);

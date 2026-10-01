@@ -90,6 +90,8 @@ TEST(EmptyState, HintWordingStyleAndPlacement) {
   }
 
   ASSERT_TRUE(fixture.glyph->isVisible());
+  EXPECT_LE(fixture.glyph->property("size").toReal() * fixture.window->devicePixelRatio(), 1024);
+  EXPECT_FALSE(fixture.glyph->property("hasError").toBool());
   ASSERT_TRUE(fixture.primary->isVisible());
   ASSERT_TRUE(fixture.secondary->isVisible());
   const auto glyph = fixture.inArea(fixture.glyph);

@@ -33,7 +33,10 @@ viewer_warnings(viewer-private)
 
 function(add_viewer_application target)
   set(app_dir "${PROJECT_SOURCE_DIR}/apps/viewer")
-  set(qml_files qml/Main.qml qml/footer/FooterKeyHints.qml
+  set(qml_files qml/Main.qml
+    qml/header/ViewerHeader.qml qml/header/ViewerActionsMenu.qml
+    qml/overlays/ImageDetailsStrip.qml qml/overlays/ViewerOverlayController.qml qml/overlays/ViewerEmptyState.qml
+    qml/footer/FooterKeyHints.qml
     qml/information/ImageInformationPopup.qml qml/shortcuts/ShortcutHelpPopup.qml
     qml/grid/ThumbnailCell.qml qml/grid/ThumbnailGrid.qml)
   set(module_qml)
