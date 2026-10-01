@@ -8,4 +8,4 @@
 - [x] Pin and qualify the CI toolchain; document updates and package provenance.
 - [x] Run focused checks, task check, sanitizer CTest and installed-runtime qualification.
 - [x] Record automated evidence and remaining limitations.
-- [ ] Obtain manual native clipboard, GIF navigation/playback and SVG zoom confirmation.
+- [x] Obtain manual native clipboard, GIF navigation/playback and SVG zoom confirmation.

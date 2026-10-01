@@ -18,13 +18,14 @@
 | Clean pinned-image `task deps; task check` | Passed against the exact workflow provider revisions |
 | Pinned-image `task sanitizer-check` | 25/25 entries passed; final updated smoke: 319 passed, 8 skipped |
 | Installed-runtime image, no mount/network | Passed format decoding, CLI opening/rejection/recovery and installed GIO desktop launch |
+| Manual native acceptance | User confirmed clipboard copy/paste from/to Viewer, copy → close → paste persistence, GIF playback/navigation, and SVG zoom/copy/paste without issues on 2026-10-01 |
 
 The pinned base is `archlinux@sha256:eb8f6dcc89a38977c9735f10fcf6ae4afe496283e7008eb7a3420cdba31fbd04`, with Arch snapshot `2026/09/30` and Qt 6.11.2. Clean qualification used temporary source copies and archived workflow provider revisions, preserving sibling working trees. Installed-runtime qualification used the same toolchain image through `VIEWER_CI_IMAGE`.
 
 Local evidence is under `build/maintenance-*.log`. Clean container package/compiler/CMake/Qt provenance is under the temporary CI workspace recorded in `build/maintenance-ci-workspace-path`; future CI runs upload the same provenance and CTest logs as artifacts.
 
-## Pending native acceptance and limits
+## Native acceptance and limits
 
-Run `task run -- /path/to/image.svg` and manually check SVG copy/paste, rotation and transparency; check GIF playback/navigation and SVG zoom. Native clipboard persistence, optional performance/large-folder scenarios and visual captures were not exercised by these offscreen runs. Project AGENTS.md requires manual native interaction and forbids automated desktop focus/pointer movement.
+The user completed native clipboard, GIF playback/navigation and SVG zoom/copy/paste checks without issues, including clipboard persistence after closing Viewer. Rotation and transparency were covered by automated regressions but were not separately reported in the native confirmation. Optional performance/large-folder scenarios and visual captures were not exercised. Project AGENTS.md requires manual native interaction and forbids automated desktop focus/pointer movement.
 
 Providers and Qt remain uninstrumented. Memory accounting covers retained decoded buffers, not whole-process RSS. Temporary decode/conversion buffers, codec allocations, clipboard preparation/storage and canvas textures remain excluded. SVG local linked resources are read during worker preparation rather than snapshotted. No system installation or publication was performed.
