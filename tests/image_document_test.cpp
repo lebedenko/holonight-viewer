@@ -1,9 +1,11 @@
 #include "image_document.h"
 
+#include "fake_frame_source.h"
 #include "frame_source.h"
 #include "gif_fixture.h"
 #include "image_canvas.h"
 #include "image_limits.h"
+#include "manual_playback_clock.h"
 
 #include <QBuffer>
 #include <QCryptographicHash>
@@ -25,6 +27,13 @@
 
 struct ImageDocumentTestAccess {
   static bool busy(const ImageDocument& document) { return document.busy_; }
+  static std::pair<qint64, qint64> cacheBudget(ImageDocument& document) {
+    std::pair<qint64, qint64> result;
+    QMetaObject::invokeMethod(
+        document.worker_, [&] { result = {document.cache_.bytes(), document.cache_.limit()}; },
+        Qt::BlockingQueuedConnection);
+    return result;
+  }
 };
 
 namespace {
@@ -490,6 +499,97 @@ TEST(Document, CopyWhilePlayingUsesTheCurrentFrameAndKeepsPlaying) {
   EXPECT_TRUE(QTest::qWaitFor([&] { return !document.clipboard()->busy(); }));
   EXPECT_TRUE(document.animation()->playing());
   EXPECT_EQ(document.state(), ImageDocument::Ready);
+}
+
+TEST(Document, GifReservationSurvivesStillNeighborPrefetchAndReleasesFrameZero) {
+  FakeScript script;
+  script.delaysMs = {100, 100, 100};
+  script.info = {.frameCount = 3, .loopCount = -1};
+  auto clock = std::make_unique<ManualPlaybackClock>();
+  auto* manual = clock.get();
+  const auto gifUrl = writeFixture("budget-a.gif", "fake gif");
+  const auto pngUrl = writeFixture("budget-b.png", "fake png");
+  ImageDocument document(
+      [&](const QUrl& url, const std::atomic_bool&) {
+        QImage image = url == gifUrl ? fakeImage(script, 0) : QImage(2, 2, QImage::Format_ARGB32_Premultiplied);
+        return DecodeResult{.image = std::move(image),
+                            .error = {},
+                            .information = {.format = url == gifUrl ? QStringLiteral("GIF") : QStringLiteral("PNG"),
+                                            .encodedSize = -1,
+                                            .modified = {},
+                                            .decodedSize = {2, 2},
+                                            .exif = {}},
+                            .svgData = {}};
+      },
+      [&](const QUrl&, const std::atomic_bool&) { return DirectoryResult{.urls = {gifUrl, pngUrl}, .error = {}}; },
+      {.clock = std::move(clock),
+       .source = [&] { return std::make_unique<FakeFrameSource>(script); },
+       .execution = AnimationController::Execution::Inline,
+       .retainedBytes = 48});
+  document.open({gifUrl});
+  ASSERT_TRUE(settled(document));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !document.scanning() && !ImageDocumentTestAccess::busy(document); }));
+  const auto [bytes, limit] = ImageDocumentTestAccess::cacheBudget(document);
+  EXPECT_EQ(limit, 16);
+  EXPECT_LE(bytes, 16);
+  manual->advance(100);
+  EXPECT_EQ(document.animation()->frameIndex(), 1);
+  EXPECT_EQ(script.outstanding, 2);  // Only the displayed frame and look-ahead remain.
+  document.animation()->toggle();
+  manual->advance(500);
+  EXPECT_EQ(document.animation()->frameIndex(), 1);
+  document.animation()->toggle();
+  manual->advance(100);
+  EXPECT_EQ(document.animation()->frameIndex(), 2);
+  document.next();
+  ASSERT_TRUE(settled(document));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !ImageDocumentTestAccess::busy(document); }));
+  EXPECT_EQ(ImageDocumentTestAccess::cacheBudget(document).second, 32);
+  EXPECT_EQ(script.outstanding, 0);
+  QSignalSpy finished(&document, &ImageDocument::shutdownFinished);
+  document.shutdown();
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !finished.isEmpty(); }));
+}
+
+TEST(Document, GifFrameZeroIsReusedWhenItFitsTheRetainedBudget) {
+  FakeScript script;
+  script.delaysMs = {100, 100};
+  script.info = {.frameCount = 2, .loopCount = -1};
+  const auto gifUrl = writeFixture("reuse-a.gif", "fake gif");
+  const auto pngUrl = writeFixture("reuse-b.png", "fake png");
+  std::atomic_int gifDecodes{0};
+  ImageDocument document(
+      [&](const QUrl& url, const std::atomic_bool&) {
+        const bool gif = url == gifUrl;
+        if (gif) {
+          ++gifDecodes;
+        }
+        QImage image(2, 2, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::red);
+        return DecodeResult{.image = std::move(image),
+                            .error = {},
+                            .information = {.format = gif ? QStringLiteral("GIF") : QStringLiteral("PNG"),
+                                            .encodedSize = -1,
+                                            .modified = {},
+                                            .decodedSize = {2, 2},
+                                            .exif = {}},
+                            .svgData = {}};
+      },
+      [&](const QUrl&, const std::atomic_bool&) { return DirectoryResult{.urls = {gifUrl, pngUrl}, .error = {}}; },
+      {.clock = std::make_unique<ManualPlaybackClock>(),
+       .source = [&] { return std::make_unique<FakeFrameSource>(script); },
+       .execution = AnimationController::Execution::Inline,
+       .retainedBytes = 64});
+  document.open({gifUrl});
+  ASSERT_TRUE(settled(document));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !document.scanning() && !ImageDocumentTestAccess::busy(document); }));
+  document.next();
+  ASSERT_TRUE(settled(document));
+  document.previous();
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(gifDecodes, 1);
+  EXPECT_EQ(document.animation()->frameIndex(), 0);
+  EXPECT_TRUE(document.animation()->playing());
 }
 
 TEST(Document, UnreadableAndSpecialFiles) {

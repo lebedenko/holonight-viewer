@@ -16,7 +16,6 @@
 #include <utility>
 
 namespace {
-constexpr qint64 kDisplayAndCacheBytes = 2 * kImageLimitBytes;
 // Worker-owned validation; persistent GUI renderers stay in ImageDocument.
 DecodeResult decodeSvg(QFile& file, const std::atomic_bool& cancelled, ImageInformation facts) {
   const auto source = HolonightImages::loadSvg(file, kSvgFileLimitBytes, cancelled);
@@ -229,7 +228,16 @@ ImageDocument::ImageDocument(Decoder decoder, QObject* parent)
     : ImageDocument(std::move(decoder), scanDirectory, parent) {}
 
 ImageDocument::ImageDocument(Decoder decoder, DirectoryModel::Scanner scanner, QObject* parent)
-    : QObject(parent), directory_(std::move(scanner)), worker_(new QObject), decoder_(std::move(decoder)) {
+    : ImageDocument(std::move(decoder), std::move(scanner), PlaybackOptions{}, parent) {}
+
+ImageDocument::ImageDocument(Decoder decoder, DirectoryModel::Scanner scanner, PlaybackOptions playback,
+                             QObject* parent)
+    : QObject(parent),
+      animation_(std::move(playback.clock), std::move(playback.source), playback.execution),
+      directory_(std::move(scanner)),
+      retained_budget_(playback.retainedBytes),
+      worker_(new QObject),
+      decoder_(std::move(decoder)) {
   worker_->moveToThread(&thread_);
   connect(&thread_, &QThread::finished, worker_, &QObject::deleteLater);
   connect(&thread_, &QThread::finished, this, &ImageDocument::workerFinished);
@@ -397,14 +405,15 @@ void ImageDocument::startPending() {
           entry->image = result.image;
           entry->information = result.information;
         }
-        if (!result.image.isNull()) {
+        const bool gif = result.information.format == QLatin1String("GIF");
+        if (!request.prefetch) {
           // Playback holds the displayed frame and one look-ahead; the cache gets what remains of the shared budget.
-          const bool gif = result.information.format == QLatin1String("GIF");
-          cache_.setLimit(gif ? kDisplayAndCacheBytes - (2 * result.image.sizeInBytes())
-                              : DecodedImageCache::byteLimit);
+          // A neighbor's format and size must never change the foreground reservation.
+          cache_.setLimit(retained_budget_ - ((gif ? 2 : 1) * result.image.sizeInBytes()));
         }
         if (!cancel->load() && !result.image.isNull()) {
-          if (request.prefetch) {
+          if (request.prefetch || gif) {
+            // Frame zero may be reused, but it must fit in the LRU rather than stay alive as an extra displayed frame.
             cache_.put(std::move(*entry));
           } else {
             displayed_ = std::move(entry);

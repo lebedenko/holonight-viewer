@@ -509,7 +509,8 @@ Performance acceptance requires explicit user review of the measured tradeoffs.
 - **Cache:** the decoded LRU holds at most two entries and 128 MiB, excluding the
   displayed image; display plus cache stays within 256 MiB. Hits are checked on the
   worker by absolute path, file size and modification time, so edits that preserve
-  both need Ctrl+R.
+  both need Ctrl+R. GIF frame zero may be retained only as a budgeted LRU entry;
+  neighbor prefetch never changes the foreground document's cache allowance.
 - **Animation:** frames are decoded one at a time on a dedicated thread through a
   single reader per file; the controller holds only the displayed frame and one
   look-ahead, never a list of frames. The canvas swaps each frame in place, so zoom,

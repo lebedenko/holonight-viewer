@@ -95,9 +95,16 @@ class ImageDocument : public QObject {
   enum State { Empty, Loading, Ready, Error };
   Q_ENUM(State)
   using Decoder = std::function<DecodeResult(const QUrl&, const std::atomic_bool&)>;
+  struct PlaybackOptions {
+    std::unique_ptr<PlaybackClock> clock = std::make_unique<QtPlaybackClock>();
+    FrameSourceFactory source = makeQtGifFrameSource;
+    AnimationController::Execution execution = AnimationController::Execution::Threaded;
+    qint64 retainedBytes = 256 * 1024 * 1024;
+  };
   explicit ImageDocument(QObject* parent = nullptr);
   explicit ImageDocument(Decoder decoder, QObject* parent = nullptr);
   ImageDocument(Decoder decoder, DirectoryModel::Scanner scanner, QObject* parent = nullptr);
+  ImageDocument(Decoder decoder, DirectoryModel::Scanner scanner, PlaybackOptions playback, QObject* parent = nullptr);
   ~ImageDocument() override;
   [[nodiscard]] int orientation() const { return orientation_; }
   [[nodiscard]] QSize transformedDimensions() const {
@@ -192,6 +199,7 @@ class ImageDocument : public QObject {
   // Accessed exclusively by the decode worker.
   quint64 worker_cache_epoch_ = 0;
   DecodedImageCache cache_;
+  qint64 retained_budget_;
   std::optional<CachedImage> displayed_;
   QThread thread_;
   QObject* worker_;
