@@ -5,6 +5,8 @@
 #include "decoded_image_cache.h"
 #include "directory_model.h"
 #include "folder_grid_model.h"
+#include "image_decoder.h"
+#include "image_information_formatter.h"
 #include "image_orientation.h"
 
 #include <QDir>
@@ -21,20 +23,7 @@
 #include <memory>
 #include <optional>
 
-struct DecodeResult {
-  QImage image;
-  QString error;
-  ImageInformation information;
-  QByteArray svgData;  // Non-empty only for a successfully validated SVG.
-  std::optional<HolonightImages::Outcome> outcome = std::nullopt;
-  QSizeF svgSize = {};
-  bool svgLocalImages = false;
-};
-
-DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled);
 QUrl commandLineUrl(const QString& argument);
-// Shared default-size-first layout rule for consumer-owned linked-image renderers.
-QSizeF svgIntrinsicSize(const QSvgRenderer& renderer);
 
 // Exposes QSvgRenderer as a property type to QML/qmllint without making it constructible there.
 struct QSvgRendererForeign {
@@ -43,23 +32,13 @@ struct QSvgRendererForeign {
   QML_ANONYMOUS
 };
 
-// Image Information presentation helpers; pure so tests need no decoded image.
-// Replaces a leading home directory with "~"; a sibling such as "/home/alice2" is left unchanged.
-QString abbreviateHomePath(const QString& absolutePath, const QString& home = QDir::homePath());
-// "JPEG · 3072 × 4080 · 12.5 MP · 2.5 MB" without missing parts, or "Details unavailable" when all are missing.
-QString formatSummaryLine(const QString& format, QSize decodedSize, qint64 encodedSize);
-// "Rotated view W × H" only when the transform swaps the decoded width and height.
-QString formatTransformedLine(QSize decodedSize, QSize transformedSize);
-// Locale short date and time, or empty for an unknown time.
-QString formatModifiedText(const QDateTime& modified);
-QString joinNonEmpty(const QStringList& parts, QStringView separator = u" · ");
-
 // QObject owns identity and disables copying/moving.
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class ImageDocument : public QObject {
   Q_OBJECT
   QML_ELEMENT
   QML_UNCREATABLE("Created by the application")
+  Q_PROPERTY(int thumbnailGeneration READ thumbnailGeneration NOTIFY thumbnailGenerationChanged)
   Q_PROPERTY(int orientation READ orientation NOTIFY orientationChanged)
   Q_PROPERTY(QSize transformedDimensions READ transformedDimensions NOTIFY changed)
   Q_PROPERTY(QString localPath READ localPath NOTIFY changed)
@@ -106,6 +85,7 @@ class ImageDocument : public QObject {
   ImageDocument(Decoder decoder, DirectoryModel::Scanner scanner, QObject* parent = nullptr);
   ImageDocument(Decoder decoder, DirectoryModel::Scanner scanner, PlaybackOptions playback, QObject* parent = nullptr);
   ~ImageDocument() override;
+  [[nodiscard]] int thumbnailGeneration() const { return thumbnail_generation_; }
   [[nodiscard]] int orientation() const { return orientation_; }
   [[nodiscard]] QSize transformedDimensions() const {
     return ImageOrientation::dimensions(orientation_, information_.decodedSize);
@@ -141,8 +121,8 @@ class ImageDocument : public QObject {
   [[nodiscard]] QSvgRenderer* svgRenderer() {
     return state_ == Ready && information_.format == QLatin1String("SVG") ? &svg_renderer_ : nullptr;
   }
-  // Always a raster QImage: the decoded image for raster formats, or an on-demand bounded rasterization for SVG.
-  [[nodiscard]] QImage previewImage();
+  // Always a raster QImage: the decoded image for raster formats, or the worker-prepared bounded preview for SVG.
+  [[nodiscard]] QImage previewImage() const { return image_.isNull() ? svg_preview_ : image_; }
   [[nodiscard]] QSizeF svgSize() const { return svg_size_; }
   [[nodiscard]] int position() const { return selected_index_ + 1; }
   [[nodiscard]] int count() const { return directory_.rowCount(); }
@@ -165,6 +145,7 @@ class ImageDocument : public QObject {
  signals:
   void openingFailed(QString fileName, QString error);
   void changed();
+  void thumbnailGenerationChanged();
   // A new animation frame is now image(); changed() is not emitted.
   void frameChanged();
   void orientationChanged();
@@ -186,6 +167,7 @@ class ImageDocument : public QObject {
   void workerFinished();
   ClipboardController clipboard_;
   AnimationController animation_;
+  int thumbnail_generation_ = 0;
   int orientation_ = 0;
   ImageInformation information_;
   DirectoryModel directory_;
@@ -213,6 +195,7 @@ class ImageDocument : public QObject {
   QString file_name_;
   QString error_;
   QImage image_;
+  QImage svg_preview_;
   QByteArray svg_data_;
   QSizeF svg_size_;
   bool svg_local_images_ = false;

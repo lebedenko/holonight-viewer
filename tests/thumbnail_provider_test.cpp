@@ -4,12 +4,14 @@
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QMutex>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QQuickTextureFactory>
 #include <QSignalSpy>
+#include <QTemporaryDir>
 #include <QTest>
 #include <QThread>
 #include <QWaitCondition>
@@ -43,7 +45,7 @@ struct FakeDecoder {
     if (failing) {
       return {.image = {}, .sourceSize = {}, .error = QStringLiteral("boom")};
     }
-    return {.image = solid(decodedSize), .sourceSize = sourceSize, .error = {}};
+    return {.image = solid(decodedSize), .sourceSize = sourceSize, .error = {}, .cacheEligible = cacheEligible};
   }
   void block() {
     QMutexLocker lock(&mutex);
@@ -74,6 +76,7 @@ struct FakeDecoder {
   QSize decodedSize{100, 50};
   QSize sourceSize{100, 50};
   bool failing = false;
+  bool cacheEligible = true;
 
   mutable QMutex mutex;
   QWaitCondition gate;
@@ -86,7 +89,14 @@ struct FakeDecoder {
 
 // Requests go through the same entry point QML uses; the provider forwards to the shared decoder.
 struct Harness {
-  explicit Harness(int threads = 2) : provider([this](auto&&... args) { return decoder(args...); }, threads) {}
+  explicit Harness(int threads = 2) : provider([this](auto&&... args) { return decoder(args...); }, threads) {
+    for (const auto* name : {"a.png", "b.png"}) {
+      QFile file(directory.filePath(name));
+      EXPECT_TRUE(file.open(QIODevice::WriteOnly));
+      EXPECT_EQ(file.write("fixture"), 7);
+    }
+  }
+  QTemporaryDir directory;
   std::unique_ptr<QQuickImageResponse> request(const QString& path, int box = kBox, int generation = 0) {
     return std::unique_ptr<QQuickImageResponse>(
         provider.requestImageResponse(ThumbnailProvider::idFor(path, box, generation), {}));
@@ -107,7 +117,7 @@ bool settled(const ThumbnailProvider& provider) {
 
 TEST(ThumbnailProvider, DecodesOffTheGuiThreadAndDeliversTheImage) {
   Harness harness;
-  const auto response = harness.request("/photos/a.png");
+  const auto response = harness.request(harness.directory.filePath("a.png"));
   ASSERT_TRUE(waitFinished(*response));
   ASSERT_EQ(harness.decoder.threads().size(), 1);
   EXPECT_NE(harness.decoder.threads().first(), QThread::currentThread());
@@ -138,7 +148,7 @@ TEST(ThumbnailProvider, TextureSizeIsTheLogicalSizeNotTheDevicePixels) {
     Harness harness;
     harness.decoder.decodedSize = expected.decoded;
     harness.decoder.sourceSize = expected.source;
-    const auto response = harness.request("/photos/a.png");
+    const auto response = harness.request(harness.directory.filePath("a.png"));
     ASSERT_TRUE(waitFinished(*response));
     const std::unique_ptr<QQuickTextureFactory> texture(response->textureFactory());
     ASSERT_NE(texture, nullptr);
@@ -149,9 +159,9 @@ TEST(ThumbnailProvider, TextureSizeIsTheLogicalSizeNotTheDevicePixels) {
 
 TEST(ThumbnailProvider, CacheHitDoesNotCallTheDecoder) {
   Harness harness;
-  ASSERT_TRUE(waitFinished(*harness.request("/photos/a.png")));
+  ASSERT_TRUE(waitFinished(*harness.request(harness.directory.filePath("a.png"))));
   ASSERT_TRUE(settled(harness.provider));
-  const auto second = harness.request("/photos/a.png");
+  const auto second = harness.request(harness.directory.filePath("a.png"));
   ASSERT_TRUE(waitFinished(*second));
   EXPECT_EQ(harness.decoder.calls().size(), 1);
   const std::unique_ptr<QQuickTextureFactory> texture(second->textureFactory());
@@ -161,9 +171,9 @@ TEST(ThumbnailProvider, CacheHitDoesNotCallTheDecoder) {
 
 TEST(ThumbnailProvider, CacheHitFinishesAfterTheCallerCanConnect) {
   Harness harness;
-  ASSERT_TRUE(waitFinished(*harness.request("/photos/a.png")));
+  ASSERT_TRUE(waitFinished(*harness.request(harness.directory.filePath("a.png"))));
   ASSERT_TRUE(settled(harness.provider));
-  const auto second = harness.request("/photos/a.png");
+  const auto second = harness.request(harness.directory.filePath("a.png"));
   QSignalSpy spy(second.get(), &QQuickImageResponse::finished);
   EXPECT_EQ(spy.count(), 0);
   ASSERT_TRUE(spy.wait(5000));
@@ -173,10 +183,10 @@ TEST(ThumbnailProvider, KeyIncludesBoxGenerationAndPath) {
   Harness harness;
   const std::vector<std::unique_ptr<QQuickImageResponse>> responses = [&] {
     std::vector<std::unique_ptr<QQuickImageResponse>> made;
-    made.push_back(harness.request("/photos/a.png", kBox, 0));
-    made.push_back(harness.request("/photos/a.png", 320, 0));
-    made.push_back(harness.request("/photos/a.png", kBox, 1));
-    made.push_back(harness.request("/photos/b.png", kBox, 0));
+    made.push_back(harness.request(harness.directory.filePath("a.png"), kBox, 0));
+    made.push_back(harness.request(harness.directory.filePath("a.png"), 320, 0));
+    made.push_back(harness.request(harness.directory.filePath("a.png"), kBox, 1));
+    made.push_back(harness.request(harness.directory.filePath("b.png"), kBox, 0));
     return made;
   }();
   ASSERT_EQ(responses.size(), 4U);
@@ -194,9 +204,9 @@ TEST(ThumbnailProvider, PathsWithSpecialCharactersRoundTrip) {
 TEST(ThumbnailProvider, CancelBeforeTheDecodeStartsPreventsIt) {
   Harness harness(1);
   harness.decoder.block();
-  const auto first = harness.request("/photos/a.png");
+  const auto first = harness.request(harness.directory.filePath("a.png"));
   ASSERT_TRUE(QTest::qWaitFor([&] { return harness.decoder.started() == 1; }, 5000));
-  const auto second = harness.request("/photos/b.png");
+  const auto second = harness.request(harness.directory.filePath("b.png"));
   ASSERT_EQ(harness.provider.pendingCount(), 2);
   QSignalSpy secondFinished(second.get(), &QQuickImageResponse::finished);
   second->cancel();
@@ -207,14 +217,14 @@ TEST(ThumbnailProvider, CancelBeforeTheDecodeStartsPreventsIt) {
   ASSERT_TRUE(settled(harness.provider));
   // The cancelled request still finishes, so the caller can release it, but its decoder never ran.
   EXPECT_TRUE(secondFinished.count() > 0 || secondFinished.wait(5000));
-  EXPECT_EQ(harness.decoder.calls(), QStringList{"/photos/a.png"});
+  EXPECT_EQ(harness.decoder.calls(), QStringList{harness.directory.filePath("a.png")});
   EXPECT_EQ(harness.provider.cache().count(), 1);
 }
 
 TEST(ThumbnailProvider, CancelOfARunningDecodeIsNeverCached) {
   Harness harness;
   harness.decoder.block();
-  const auto response = harness.request("/photos/a.png");
+  const auto response = harness.request(harness.directory.filePath("a.png"));
   ASSERT_TRUE(QTest::qWaitFor([&] { return harness.decoder.started() == 1; }, 5000));
   QSignalSpy finished(response.get(), &QQuickImageResponse::finished);
   response->cancel();
@@ -230,7 +240,7 @@ TEST(ThumbnailProvider, CancelOfARunningDecodeIsNeverCached) {
 TEST(ThumbnailProvider, ResponseDestroyedMidDecodeIsSafe) {
   Harness harness;
   harness.decoder.block();
-  auto response = harness.request("/photos/a.png");
+  auto response = harness.request(harness.directory.filePath("a.png"));
   ASSERT_TRUE(QTest::qWaitFor([&] { return harness.decoder.started() == 1; }, 5000));
   response->cancel();
   response.reset();
@@ -243,7 +253,7 @@ TEST(ThumbnailProvider, ResponseDestroyedMidDecodeIsSafe) {
 TEST(ThumbnailProvider, FailureAndBadIdsReportAnError) {
   Harness harness;
   harness.decoder.failing = true;
-  const auto failed = harness.request("/photos/a.png");
+  const auto failed = harness.request(harness.directory.filePath("a.png"));
   ASSERT_TRUE(waitFinished(*failed));
   EXPECT_EQ(failed->errorString(), QLatin1String("boom"));
   EXPECT_EQ(failed->textureFactory(), nullptr);
@@ -258,7 +268,7 @@ TEST(ThumbnailProvider, FailureAndBadIdsReportAnError) {
 TEST(ThumbnailProvider, BlockedDecoderLeavesTheGuiThreadFree) {
   Harness harness;
   harness.decoder.block();
-  const auto response = harness.request("/photos/a.png");
+  const auto response = harness.request(harness.directory.filePath("a.png"));
   QSignalSpy finished(response.get(), &QQuickImageResponse::finished);
   QElapsedTimer timer;
   timer.start();
@@ -395,4 +405,44 @@ TEST(ThumbnailProvider, ConcurrentRequestsAndCancellationFinishOnTheirOwnThread)
   EXPECT_LE(harness.provider.cache().count(), kCount);
   loader.quit();
   loader.wait();
+}
+
+TEST(ThumbnailProvider, ChangedAndDeletedSourcesMissTheMemoryCache) {
+  Harness harness;
+  const auto path = harness.directory.filePath("a.png");
+  ASSERT_TRUE(waitFinished(*harness.request(path)));
+  QFile file(path);
+  ASSERT_TRUE(file.open(QIODevice::WriteOnly | QIODevice::Append));
+  file.write("replacement");
+  file.close();
+  ASSERT_TRUE(waitFinished(*harness.request(path)));
+  EXPECT_EQ(harness.decoder.calls().size(), 2);
+  ASSERT_TRUE(file.remove());
+  ASSERT_TRUE(waitFinished(*harness.request(path)));
+  EXPECT_EQ(harness.decoder.calls().size(), 3);
+}
+
+TEST(ThumbnailProvider, SourceChangedDuringDecodeIsNotCached) {
+  Harness harness;
+  harness.decoder.block();
+  const auto path = harness.directory.filePath("a.png");
+  const auto response = harness.request(path);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return harness.decoder.started() == 1; }));
+  QFile file(path);
+  ASSERT_TRUE(file.open(QIODevice::WriteOnly | QIODevice::Append));
+  file.write("changed");
+  file.close();
+  harness.decoder.release();
+  ASSERT_TRUE(waitFinished(*response));
+  EXPECT_EQ(harness.provider.cache().count(), 0);
+}
+
+TEST(ThumbnailProvider, DependencySensitiveResultsAreNeverCached) {
+  Harness harness;
+  harness.decoder.cacheEligible = false;
+  const auto path = harness.directory.filePath("a.png");
+  ASSERT_TRUE(waitFinished(*harness.request(path)));
+  ASSERT_TRUE(waitFinished(*harness.request(path)));
+  EXPECT_EQ(harness.decoder.calls().size(), 2);
+  EXPECT_EQ(harness.provider.cache().count(), 0);
 }

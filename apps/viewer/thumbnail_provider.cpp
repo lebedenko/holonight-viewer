@@ -1,5 +1,6 @@
 #include "thumbnail_provider.h"
 
+#include <QFileInfo>
 #include <QMutexLocker>
 #include <QQuickTextureFactory>
 #include <QQuickWindow>
@@ -46,6 +47,11 @@ QSize logicalSizeOf(const QImage& image) {
   return {qRound(size.width()), qRound(size.height())};
 }
 
+ThumbnailSource sourceFacts(const QString& path) {
+  const QFileInfo info(path);
+  return info.isFile() ? ThumbnailSource{.size = info.size(), .modified = info.lastModified()} : ThumbnailSource{};
+}
+
 struct RequestState {
   std::atomic_bool cancelled{false};
 };
@@ -90,6 +96,7 @@ class ThumbnailResponse : public QQuickImageResponse {
       finishLater();
       return;
     }
+    source_ = sourceFacts(key_.path);
     start();
   }
 
@@ -109,7 +116,9 @@ class ThumbnailResponse : public QQuickImageResponse {
       error_ = result.error.isEmpty() ? QStringLiteral("The image could not be decoded.") : result.error;
     } else {
       image_ = tagged(std::move(result.image), result.sourceSize);
-      owner_.storeImage(key_, image_);
+      if (result.cacheEligible && source_.size >= 0 && sourceFacts(key_.path) == source_) {
+        owner_.storeImage(key_, image_, source_);
+      }
     }
     emitFinished();
   }
@@ -129,6 +138,7 @@ class ThumbnailResponse : public QQuickImageResponse {
   ThumbnailProvider& owner_;
   std::shared_ptr<RequestState> state_;
   ThumbnailKey key_;
+  ThumbnailSource source_;
   QImage image_;
   QString error_;
   bool finished_ = false;
@@ -194,13 +204,14 @@ ThumbnailProvider::~ThumbnailProvider() {
 }
 
 std::optional<QImage> ThumbnailProvider::cachedImage(const ThumbnailKey& key) {
+  const auto source = sourceFacts(key.path);
   const QMutexLocker lock(&cacheMutex_);
-  return cache_.find(key);
+  return cache_.find(key, source);
 }
 
-void ThumbnailProvider::storeImage(const ThumbnailKey& key, const QImage& image) {
+void ThumbnailProvider::storeImage(const ThumbnailKey& key, const QImage& image, const ThumbnailSource& source) {
   const QMutexLocker lock(&cacheMutex_);
-  cache_.insert(key, image);
+  cache_.insert(key, image, source);
 }
 
 QString ThumbnailProvider::idFor(const QString& path, int boxPixels, int generation) {

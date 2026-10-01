@@ -263,9 +263,9 @@ TEST(GridMode, OpenFileToggleFullscreenAndRescanStayAvailable) {
   ASSERT_TRUE(fixture.open(5));
   fixture.key(Qt::Key_G, Qt::ControlModifier);
   ASSERT_TRUE(fixture.gridMode());
-  const auto generation = fixture.window->property("thumbnailGeneration").toInt();
+  const auto generation = fixture.document.thumbnailGeneration();
   fixture.key(Qt::Key_R, Qt::ControlModifier);
-  EXPECT_EQ(fixture.window->property("thumbnailGeneration").toInt(), generation + 1);
+  EXPECT_EQ(fixture.document.thumbnailGeneration(), generation + 1);
   EXPECT_TRUE(fixture.gridMode());
   EXPECT_FALSE(fixture.window->property("modalActive").toBool());
   fixture.key(Qt::Key_Question);

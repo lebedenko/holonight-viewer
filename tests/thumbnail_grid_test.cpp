@@ -5,12 +5,14 @@
 #include "thumbnail_size.h"
 
 #include <QAccessible>
+#include <QFile>
 #include <QMutex>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QSignalSpy>
+#include <QTemporaryDir>
 #include <QTest>
 #include <QWaitCondition>
 
@@ -664,10 +666,21 @@ TEST(ThumbnailGrid, ChangingTheScaleFactorRequestsTheNewBoxSize) {
 }
 
 TEST(ThumbnailGrid, RescanGenerationDecodesAgainWithoutTouchingTheFiles) {
+  QTemporaryDir directory;
   GridFixture fixture;
   ASSERT_TRUE(fixture.load(30));
-  ASSERT_TRUE(fixture.open(1));
-  fixture.enter(photo(1));
+  fixture.urls->clear();
+  for (int index = 0; index < 30; ++index) {
+    const auto path = directory.filePath(QStringLiteral("photo_%1.png").arg(index));
+    QFile file(path);
+    ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+    ASSERT_EQ(file.write("fixture"), 7);
+    fixture.urls->append(QUrl::fromLocalFile(path));
+  }
+  fixture.document.open({fixture.urls->first()});
+  ASSERT_TRUE(QTest::qWaitFor(
+      [&] { return !fixture.document.scanning() && fixture.document.state() == ImageDocument::Ready; }));
+  fixture.enter(fixture.urls->first());
   QTest::qWait(200);
   const auto first = fixture.decoder.calls.load();
   ASSERT_GT(first, 0);

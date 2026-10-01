@@ -919,3 +919,72 @@ TEST(Document, SvgRejectsExternalResourcesWithoutSelectingLocalFallback) {
   EXPECT_TRUE(document.error().contains("resource"));
   EXPECT_EQ(document.svgRenderer(), nullptr);
 }
+
+TEST(Document, DirectOpenAndRefreshAdvanceThumbnailGenerationAndReusePreparedPreview) {
+  ImageDocument document;
+  QSignalSpy generations(&document, &ImageDocument::thumbnailGenerationChanged);
+  const auto url = writeFixture("prepared-preview.svg", svgWithViewBox());
+  document.open({url});
+  EXPECT_EQ(document.thumbnailGeneration(), 1);
+  ASSERT_TRUE(settled(document));
+  const auto preview = document.previewImage();
+  ASSERT_FALSE(preview.isNull());
+  EXPECT_EQ(document.previewImage().cacheKey(), preview.cacheKey());
+  document.transform(1);
+  EXPECT_EQ(document.previewImage().cacheKey(), preview.cacheKey());
+  document.refresh();
+  EXPECT_EQ(document.thumbnailGeneration(), 2);
+  EXPECT_TRUE(document.previewImage().isNull());
+  ASSERT_TRUE(settled(document));
+  document.open({url});
+  EXPECT_EQ(document.thumbnailGeneration(), 3);
+  EXPECT_TRUE(document.previewImage().isNull());
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(generations.count(), 3);
+  document.open({QUrl("https://example.com/image.svg")});
+  EXPECT_TRUE(document.previewImage().isNull());
+}
+
+TEST(Document, ObsoleteDecodeCannotReplaceTheCurrentSvgPreview) {
+  const auto oldUrl = writeFixture("obsolete-preview.svg", svgWithViewBox());
+  const auto currentUrl = writeFixture("current-preview.svg",
+                                       "<svg xmlns='http://www.w3.org/2000/svg' width='20' height='10'>"
+                                       "<rect width='20' height='10' fill='blue'/></svg>");
+  std::atomic_bool entered{false};
+  std::atomic_bool release{false};
+  ImageDocument document([&](const QUrl& url, const std::atomic_bool& cancelled) {
+    auto result = decodeImage(url, cancelled);
+    if (url == oldUrl) {
+      entered.store(true);
+      while (!release.load()) {
+        QThread::msleep(1);
+      }
+    }
+    return result;
+  });
+  const auto cleanup = qScopeGuard([&] { release.store(true); });
+  document.open({oldUrl});
+  ASSERT_TRUE(QTest::qWaitFor([&] { return entered.load(); }));
+  document.open({currentUrl});
+  EXPECT_TRUE(document.previewImage().isNull());
+  release.store(true);
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(document.url(), currentUrl);
+  ASSERT_FALSE(document.previewImage().isNull());
+  EXPECT_EQ(document.previewImage().pixelColor(128, 64), QColor(Qt::blue));
+}
+
+TEST(Document, ReopeningAReplacedSourceUsesFreshPixels) {
+  const auto url = writeFixture("replaced-preview.svg", svgWithViewBox());
+  ImageDocument document;
+  document.open({url});
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(document.previewImage().pixelColor(20, 20), QColor(Qt::red));
+  ASSERT_EQ(writeFixture("replaced-preview.svg",
+                         "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'>"
+                         "<rect width='10' height='10' fill='blue'/></svg>"),
+            url);
+  document.open({url});
+  ASSERT_TRUE(settled(document));
+  EXPECT_EQ(document.previewImage().pixelColor(20, 20), QColor(Qt::blue));
+}

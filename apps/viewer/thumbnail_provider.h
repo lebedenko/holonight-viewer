@@ -46,7 +46,7 @@ class ThumbnailProvider : public QQuickAsyncImageProvider {
   friend class ThumbnailTask;
 
   std::optional<QImage> cachedImage(const ThumbnailKey& key);
-  void storeImage(const ThumbnailKey& key, const QImage& image);
+  void storeImage(const ThumbnailKey& key, const QImage& image, const ThumbnailSource& source);
 
   Decoder decoder_;
   QMutex cacheMutex_;

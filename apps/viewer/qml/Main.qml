@@ -79,8 +79,6 @@ HnApplicationWindow {
     readonly property bool modalActive: dialogRequested || informationOpen || helpOpen
     // Grid view replaces the canvas; everything that acts on the picture is gated by canInspect.
     property bool gridMode: false
-    // Changes on a rescan so thumbnails decode again.
-    property int thumbnailGeneration: 0
     readonly property bool canEnterGrid: document.localPath.length > 0 && (document.scanning || document.folder.count > 0) && !modalActive
     readonly property bool canToggleGrid: gridMode || canEnterGrid
     readonly property bool canInspect: document.state === ImageDocument.Ready && !modalActive && !gridMode
@@ -191,209 +189,38 @@ HnApplicationWindow {
         ++window.inputEpoch;
     }
 
-    Controls.Action {
-        id: openImage
-        objectName: "openImageAction"
-        text: qsTr("Open…")
-        enabled: !window.modalActive
-        onTriggered: window.dialogRequested = true
-    }
-    Controls.Action {
-        id: refresh
-        objectName: "refreshAction"
-        text: qsTr("Refresh")
-        enabled: window.hasPath
-        onTriggered: window.refreshFolder()
-    }
-    Controls.Action {
-        id: gridToggle
-        objectName: "gridToggleAction"
-        text: qsTr("Grid View")
-        enabled: !window.modalActive && window.canToggleGrid
-        onTriggered: window.toggleGrid()
-    }
-    Controls.Action {
-        id: previousImage
-        objectName: "previousImageAction"
-        text: qsTr("Previous")
-        enabled: window.canBrowse(-1)
-        onTriggered: window.browse(-1)
-    }
-    Controls.Action {
-        id: nextImage
-        objectName: "nextImageAction"
-        text: qsTr("Next")
-        enabled: window.canBrowse(1)
-        onTriggered: window.browse(1)
-    }
-    Controls.Action {
-        id: fit
-        objectName: "fitAction"
-        text: qsTr("Fit")
-        enabled: window.canInspect
-        onTriggered: window.fitImage()
-    }
-    Controls.Action {
-        id: actualSize
-        objectName: "actualSizeAction"
-        text: qsTr("Actual Size")
-        enabled: window.canInspect
-        onTriggered: window.actualSizeImage()
-    }
-    Controls.Action {
-        id: zoomIn
-        objectName: "zoomInAction"
-        text: qsTr("Zoom In")
-        enabled: window.canInspect
-        onTriggered: window.zoomImage(1)
-    }
-    Controls.Action {
-        id: zoomOut
-        objectName: "zoomOutAction"
-        text: qsTr("Zoom Out")
-        enabled: window.canInspect
-        onTriggered: window.zoomImage(-1)
-    }
-    Controls.Action {
-        id: fullscreenCommand
-        objectName: "fullscreenCommandAction"
-        text: qsTr("Fullscreen")
-        enabled: !window.modalActive
-        onTriggered: window.toggleFullscreen()
-    }
-    Controls.Action {
-        id: quit
-        objectName: "quitAction"
-        text: qsTr("Quit")
-        enabled: !window.modalActive
-        onTriggered: window.close()
-    }
-
-    Controls.Action {
-        id: rotateClockwise
-        objectName: "rotateClockwiseAction"
-        text: qsTr("Rotate Clockwise")
-        shortcut: "R"
-        enabled: window.canInspect
-        onTriggered: window.transformImage(1)
-    }
-    Controls.Action {
-        id: rotateCounterclockwise
-        objectName: "rotateCounterclockwiseAction"
-        text: qsTr("Rotate Counterclockwise")
-        shortcut: "Shift+R"
-        enabled: window.canInspect
-        onTriggered: window.transformImage(3)
-    }
-    Controls.Action {
-        id: flipHorizontal
-        objectName: "flipHorizontalAction"
-        text: qsTr("Flip Horizontally")
-        shortcut: "X"
-        enabled: window.canInspect
-        onTriggered: window.transformImage(4)
-    }
-    Controls.Action {
-        id: flipVertical
-        objectName: "flipVerticalAction"
-        text: qsTr("Flip Vertically")
-        shortcut: "Shift+X"
-        enabled: window.canInspect
-        onTriggered: window.transformImage(6)
-    }
-    Controls.Action {
-        id: resetTransform
-        objectName: "resetTransformAction"
-        text: qsTr("Reset Transform")
-        enabled: window.canInspect
-        onTriggered: {
+    ViewerActions {
+        id: viewerActions
+        document: window.document
+        modalActive: window.modalActive
+        hasPath: window.hasPath
+        canToggleGrid: window.canToggleGrid
+        canInspect: window.canInspect
+        canShowInformation: window.canShowInformation
+        gridMode: window.gridMode
+        actionsMenuOpen: window.actionsMenuOpen
+        canPrevious: window.canBrowse(-1)
+        canNext: window.canBrowse(1)
+        onOpenRequested: window.dialogRequested = true
+        onInformationRequested: window.informationOpen = true
+        onHelpRequested: window.helpOpen = true
+        onRefreshRequested: window.refreshFolder()
+        onGridRequested: window.toggleGrid()
+        onBrowseRequested: direction => window.browse(direction)
+        onFitRequested: window.fitImage()
+        onActualSizeRequested: window.actualSizeImage()
+        onZoomRequested: steps => window.zoomImage(steps)
+        onFullscreenRequested: window.toggleFullscreen()
+        onQuitRequested: window.close()
+        onTransformRequested: operation => window.transformImage(operation)
+        onResetRequested: {
             window.document.resetTransform();
             window.fitImage();
             ++window.inputEpoch;
         }
-    }
-    Controls.Action {
-        id: copyImage
-        objectName: "copyImageAction"
-        text: qsTr("Copy Image")
-        shortcut: "Ctrl+C"
-        enabled: window.canInspect && !window.document.clipboard.busy
-        onTriggered: {
-            window.document.copyImage();
-            window.clearImageFocus();
-        }
-    }
-    Controls.Action {
-        id: copyPath
-        objectName: "copyPathAction"
-        text: qsTr("Copy Path")
-        shortcut: "Ctrl+Shift+C"
-        enabled: window.hasPath && !window.document.clipboard.busy
-        onTriggered: {
-            window.document.copyPath();
-            window.clearImageFocus();
-        }
-    }
-    Controls.Action {
-        id: imageInformation
-        objectName: "imageInformationAction"
-        text: qsTr("Image Information")
-        shortcut: "I"
-        // While open, the modal popup blocks window shortcuts and handles I itself.
-        enabled: window.canShowInformation
-        onTriggered: window.informationOpen = true
-    }
-    Controls.Action {
-        id: shortcutHelp
-        objectName: "shortcutHelpAction"
-        text: qsTr("Shortcut Help")
-        shortcut: "?"
-        // While open, the modal popup blocks window shortcuts and handles ? itself.
-        enabled: !window.modalActive
-        onTriggered: window.helpOpen = true
-    }
-
-    Shortcut {
-        sequence: "Ctrl+0"
-        enabled: fit.enabled
-        onActivated: fit.trigger()
-    }
-    Shortcut {
-        sequence: "1"
-        enabled: actualSize.enabled
-        onActivated: actualSize.trigger()
-    }
-    Shortcut {
-        sequences: ["Ctrl++", "Ctrl+="]
-        enabled: zoomIn.enabled
-        onActivated: zoomIn.trigger()
-    }
-    Shortcut {
-        sequence: "Ctrl+-"
-        enabled: zoomOut.enabled
-        onActivated: zoomOut.trigger()
-    }
-
-    Shortcut {
-        sequence: "["
-        enabled: previousImage.enabled
-        onActivated: previousImage.trigger()
-    }
-    Shortcut {
-        sequence: "]"
-        enabled: nextImage.enabled
-        onActivated: nextImage.trigger()
-    }
-    // A literal sequence, so that Ctrl+Shift+G does not match.
-    Shortcut {
-        sequence: "Ctrl+G"
-        enabled: gridToggle.enabled
-        onActivated: gridToggle.trigger()
-    }
-    Shortcut {
-        sequence: "Ctrl+R"
-        enabled: refresh.enabled
-        onActivated: refresh.trigger()
+        onFocusRequested: window.clearImageFocus()
+        onLeaveGridRequested: window.leaveGrid()
+        onLeaveFullscreenRequested: window.leaveFullscreen()
     }
 
     // In grid mode the neighbours are cells, and the open document is left alone.
@@ -437,7 +264,6 @@ HnApplicationWindow {
     }
 
     function refreshFolder(): void {
-        ++window.thumbnailGeneration;
         window.document.refresh();
         window.clearImageFocus();
     }
@@ -463,35 +289,6 @@ HnApplicationWindow {
     function leaveFullscreen(): void {
         if (window.visibility === Window.FullScreen)
             WindowState.setFullscreen(window, false);
-    }
-
-    Shortcut {
-        sequences: [StandardKey.Open]
-        enabled: openImage.enabled
-        onActivated: openImage.trigger()
-    }
-    Shortcut {
-        sequence: "F"
-        enabled: fullscreenCommand.enabled
-        onActivated: fullscreenCommand.trigger()
-    }
-    Shortcut {
-        sequence: "Escape"
-        enabled: !window.modalActive
-        onActivated: {
-            // The grid closes first and fullscreen is untouched; a menu-closing Escape must not also close the grid.
-            if (window.gridMode) {
-                if (!window.actionsMenuOpen)
-                    window.leaveGrid();
-            } else {
-                window.leaveFullscreen();
-            }
-        }
-    }
-    Shortcut {
-        sequence: "Q"
-        enabled: quit.enabled
-        onActivated: quit.trigger()
     }
 
     // Every Open trigger sets dialogRequested; the portal picker runs first and the
@@ -580,8 +377,8 @@ HnApplicationWindow {
             anchors.right: parent.right
             anchors.top: parent.top
             title: window.headerTitle
-            informationAction: imageInformation
-            fullscreenAction: fullscreenCommand
+            informationAction: viewerActions.imageInformation
+            fullscreenAction: viewerActions.fullscreenCommand
             modalActive: window.modalActive
             visible: !window.fullscreen || window.gridMode || window.arrowsShown || window.actionsMenuOpen
             z: 2
@@ -593,26 +390,26 @@ HnApplicationWindow {
             windowWidth: window.width
             windowHeight: window.height
             gridMode: window.gridMode
-            openImageAction: openImage
-            refreshAction: refresh
-            gridToggleAction: gridToggle
-            previousImageAction: previousImage
-            nextImageAction: nextImage
-            fitAction: fit
-            actualSizeAction: actualSize
-            zoomInAction: zoomIn
-            zoomOutAction: zoomOut
-            fullscreenCommandAction: fullscreenCommand
-            quitAction: quit
-            rotateClockwiseAction: rotateClockwise
-            rotateCounterclockwiseAction: rotateCounterclockwise
-            flipHorizontalAction: flipHorizontal
-            flipVerticalAction: flipVertical
-            resetTransformAction: resetTransform
-            copyImageAction: copyImage
-            copyPathAction: copyPath
-            imageInformationAction: imageInformation
-            shortcutHelpAction: shortcutHelp
+            openImageAction: viewerActions.openImage
+            refreshAction: viewerActions.refresh
+            gridToggleAction: viewerActions.gridToggle
+            previousImageAction: viewerActions.previousImage
+            nextImageAction: viewerActions.nextImage
+            fitAction: viewerActions.fit
+            actualSizeAction: viewerActions.actualSize
+            zoomInAction: viewerActions.zoomIn
+            zoomOutAction: viewerActions.zoomOut
+            fullscreenCommandAction: viewerActions.fullscreenCommand
+            quitAction: viewerActions.quit
+            rotateClockwiseAction: viewerActions.rotateClockwise
+            rotateCounterclockwiseAction: viewerActions.rotateCounterclockwise
+            flipHorizontalAction: viewerActions.flipHorizontal
+            flipVerticalAction: viewerActions.flipVertical
+            resetTransformAction: viewerActions.resetTransform
+            copyImageAction: viewerActions.copyImage
+            copyPathAction: viewerActions.copyPath
+            imageInformationAction: viewerActions.imageInformation
+            shortcutHelpAction: viewerActions.shortcutHelp
             onOpened: window.actionsMenuOpen = true
             onClosed: {
                 window.actionsMenuOpen = false;
@@ -641,7 +438,7 @@ HnApplicationWindow {
             anchors.top: window.fullscreen && !window.gridMode ? parent.top : folderError.visible ? folderError.bottom : viewerHeader.bottom
             anchors.bottom: window.fullscreen && !window.gridMode ? parent.bottom : viewerFooter.top
 
-            ImageCanvas {
+            ViewerImageView {
                 id: canvas
                 objectName: "imageCanvas"
                 anchors.fill: parent
@@ -672,40 +469,10 @@ HnApplicationWindow {
                 Accessible.role: Accessible.Graphic
                 Accessible.name: window.document.state === ImageDocument.Empty ? qsTr("No image open") : window.document.fileName || qsTr("Image canvas")
 
-                DragHandler {
-                    id: drag
-                    target: null
-                    enabled: window.canInspect
-                    acceptedButtons: Qt.LeftButton
-                    property int gestureEpoch: -1
-                    readonly property bool validGesture: active && gestureEpoch === window.inputEpoch
-                    cursorShape: validGesture && canvas.canPan ? Qt.ClosedHandCursor : canvas.canPan ? Qt.OpenHandCursor : Qt.ArrowCursor
-                    onActiveChanged: {
-                        gestureEpoch = active ? window.inputEpoch : -1;
-                        if (active)
-                            window.clearImageFocus();
-                    }
-                    onTranslationChanged: delta => {
-                        if (drag.validGesture)
-                            canvas.pan(Qt.point(delta.x, delta.y));
-                    }
-                }
-                WheelHandler {
-                    target: null
-                    enabled: window.canInspect
-                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                    onWheel: event => {
-                        const steps = event.pixelDelta.y !== 0 ? event.pixelDelta.y / 40 : event.angleDelta.y / 120;
-                        if (steps !== 0) {
-                            canvas.zoomSteps(steps, Qt.point(event.x, event.y));
-                            window.revealDetails();
-                            window.clearImageFocus();
-                            event.accepted = true;
-                        } else {
-                            event.accepted = false;
-                        }
-                    }
-                }
+                inputEpoch: window.inputEpoch
+                canInspect: window.canInspect
+                onFocusRequested: window.clearImageFocus()
+                onDetailsRequested: window.revealDetails()
             }
             ThumbnailGrid {
                 id: grid
@@ -713,7 +480,7 @@ HnApplicationWindow {
                 visible: window.gridMode
                 model: window.document.folder
                 scanning: window.document.scanning
-                generation: window.thumbnailGeneration
+                generation: window.document.thumbnailGeneration
                 devicePixelRatio: window.devicePixelRatio
                 onSelectionInteraction: window.clearImageFocus()
                 onActivated: fileUrl => {
@@ -741,7 +508,7 @@ HnApplicationWindow {
                         duration: 150
                     }
                 }
-                action: previousImage
+                action: viewerActions.previousImage
             }
             ViewerButton {
                 id: playPauseButton
@@ -791,7 +558,7 @@ HnApplicationWindow {
                         duration: 150
                     }
                 }
-                action: nextImage
+                action: viewerActions.nextImage
             }
             ImageDetailsStrip {
                 document: window.document

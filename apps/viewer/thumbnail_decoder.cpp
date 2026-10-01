@@ -1,6 +1,7 @@
 #include "thumbnail_decoder.h"
 
 #include "image_limits.h"
+#include "svg_helper.h"
 #include "thumbnail_size.h"
 
 #include <QFile>
@@ -59,7 +60,15 @@ ThumbnailResult decodeSvg(QFile& file, const QFileInfo& info, int boxPixels, con
   if (source.outcome != HolonightImages::Outcome::Success) {
     return failure(outcomeError(source.outcome));
   }
-  const auto inspection = HolonightImages::inspectSvg(source.bytes, cancelled);
+  QSvgRenderer renderer;
+  const auto inspection = inspectViewerSvg(source.bytes, file.fileName(), renderer, cancelled);
+  if (renderer.isValid() && !cancelled.load()) {
+    const auto size = inspection.facts.documentSize;
+    auto result = finish(renderLocalSvg(renderer, size, {boxPixels, boxPixels}, cancelled),
+                         HolonightImages::svgPixelSize(size, {kThumbnailBoxLogical, kThumbnailBoxLogical}));
+    result.cacheEligible = false;
+    return result;
+  }
   if (inspection.outcome != HolonightImages::Outcome::Success) {
     return failure(outcomeError(inspection.outcome));
   }
@@ -79,7 +88,9 @@ ThumbnailResult decodeSvg(QFile& file, const QFileInfo& info, int boxPixels, con
     return failure(outcomeError(rendered.inspection.outcome));
   }
   auto result = finish(std::move(rendered.image), sourceSize);
-  if (!result.image.isNull() && useDiskCache(boxPixels) && !cancelled.load()) {
+  if (!result.image.isNull() && useDiskCache(boxPixels) && !cancelled.load() &&
+      QFileInfo(info.absoluteFilePath()).size() == info.size() &&
+      QFileInfo(info.absoluteFilePath()).lastModified() == info.lastModified()) {
     HolonightThumbnails::store(cache, result.image, cancelled);
   }
   return result;
@@ -122,7 +133,9 @@ ThumbnailResult decodeThumbnail(const ThumbnailRequest& request, const std::atom
     return failure(outcomeError(decoded.outcome));
   }
   auto result = finish(std::move(decoded.image), decoded.inspection.orientedSize);
-  if (!result.image.isNull() && useDiskCache(request.boxPixels) && !cancelled.load()) {
+  if (!result.image.isNull() && useDiskCache(request.boxPixels) && !cancelled.load() &&
+      QFileInfo(info.absoluteFilePath()).size() == info.size() &&
+      QFileInfo(info.absoluteFilePath()).lastModified() == info.lastModified()) {
     HolonightThumbnails::store(cache, result.image, cancelled);
   }
   return result;

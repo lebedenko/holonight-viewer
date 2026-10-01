@@ -18,6 +18,7 @@ struct ThumbnailResult {
   QImage image;
   QSize sourceSize;
   QString error;
+  bool cacheEligible = true;
 };
 
 // Runs on a worker thread and touches no GUI state. The image is at most boxPixels on each side, is never

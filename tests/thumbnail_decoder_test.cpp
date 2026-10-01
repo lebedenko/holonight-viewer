@@ -354,3 +354,33 @@ TEST(ThumbnailDecoder, CancelledBeforeStartDecodesNothing) {
   EXPECT_TRUE(result.image.isNull());
   EXPECT_EQ(result.error, QLatin1String("Cancelled"));
 }
+
+TEST(ThumbnailDecoder, LocalImageSvgBypassesCachesAndReflectsLinkedEdits) {
+  QTemporaryDir directory;
+  const auto linked = writeImage(directory, "linked.png", {16, 8}, "PNG", Qt::red);
+  ASSERT_FALSE(linked.isEmpty());
+  const auto svg = writeBytes(
+      directory, "linked.svg",
+      "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='16' height='8'>"
+      "<image xlink:href='linked.png' width='16' height='8'/></svg>");
+  for (const int box : {256, 320}) {
+    const auto first = decodeThumbnail({.path = svg, .boxPixels = box}, kNotCancelled);
+    ASSERT_FALSE(first.image.isNull()) << qPrintable(first.error);
+    EXPECT_FALSE(first.cacheEligible);
+    EXPECT_EQ(first.image.size(), QSize(box, box / 2));
+    EXPECT_EQ(first.sourceSize, QSize(256, 128));
+    EXPECT_EQ(first.image.pixelColor(box / 2, box / 4), QColor(Qt::red));
+  }
+  ASSERT_FALSE(writeImage(directory, "linked.png", {16, 8}, "PNG", Qt::blue).isEmpty());
+  const auto changed = decodeThumbnail({.path = svg, .boxPixels = 320}, kNotCancelled);
+  ASSERT_FALSE(changed.image.isNull());
+  EXPECT_EQ(changed.image.pixelColor(160, 80), QColor(Qt::blue));
+}
+
+TEST(ThumbnailDecoder, MixedUnsupportedSvgReferencesRemainRejected) {
+  QTemporaryDir directory;
+  const auto svg = writeBytes(directory, "mixed.svg",
+                              "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='8'>"
+                              "<image href='linked.png'/><image href='https://example.com/image.png'/></svg>");
+  EXPECT_TRUE(decodeThumbnail({.path = svg, .boxPixels = 256}, kNotCancelled).image.isNull());
+}

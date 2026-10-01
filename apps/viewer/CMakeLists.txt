@@ -23,9 +23,10 @@ target_link_libraries(viewer-protocol PRIVATE PkgConfig::WaylandClient viewer-sa
 set_target_properties(viewer-protocol PROPERTIES AUTOMOC OFF)
 
 add_library(viewer-private STATIC
+  image_decoder.cpp image_information_formatter.cpp svg_helper.cpp
   image_orientation.cpp thumbnail_cache.cpp thumbnail_decoder.cpp thumbnail_provider.cpp directory_model.cpp decoded_image_cache.cpp exif_metadata.cpp
   view_geometry.cpp portal_request_builder.cpp wayland_foreign_export.cpp frame_source.cpp frame_streamer.cpp)
-target_link_libraries(viewer-private PUBLIC Qt6::Quick Qt6::DBus HolonightImages::Images HolonightThumbnails::Thumbnails PRIVATE
+target_link_libraries(viewer-private PUBLIC Qt6::Quick Qt6::DBus Qt6::Svg HolonightImages::Images HolonightThumbnails::Thumbnails PRIVATE
   PkgConfig::WaylandClient Qt6::GuiPrivate viewer-protocol)
 target_include_directories(viewer-private PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(viewer-private SYSTEM PRIVATE "${xdg_foreign_dir}")
@@ -33,7 +34,7 @@ viewer_warnings(viewer-private)
 
 function(add_viewer_application target)
   set(app_dir "${PROJECT_SOURCE_DIR}/apps/viewer")
-  set(qml_files qml/Main.qml
+  set(qml_files qml/Main.qml qml/ViewerActions.qml qml/ViewerImageView.qml
     qml/header/ViewerHeader.qml qml/header/ViewerActionsMenu.qml
     qml/overlays/ImageDetailsStrip.qml qml/overlays/ViewerOverlayController.qml qml/overlays/ViewerEmptyState.qml
     qml/footer/FooterKeyHints.qml

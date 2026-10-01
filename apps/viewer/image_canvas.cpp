@@ -1,7 +1,7 @@
 #include "image_canvas.h"
 
-#include "image_document.h"
 #include "image_orientation.h"
+#include "svg_helper.h"
 
 #include <QCoreApplication>
 #include <QEvent>
