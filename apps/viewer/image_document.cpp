@@ -29,12 +29,12 @@ DecodeResult decodeSvg(QFile& file, const std::atomic_bool& cancelled, ImageInfo
     }
     return result;
   }
-  const auto inspection = HolonightImages::inspectSvg(source.bytes, cancelled, HolonightImages::SvgAnimation::Enabled);
+  const auto inspection = HolonightImages::inspectSvg(source.bytes, cancelled);
   if (inspection.outcome == HolonightImages::Outcome::Unsupported &&
       inspection.resourceReason == HolonightImages::SvgResourceReason::LocalImageReference) {
     // The application retains the document directory for its existing local-image path.
     QSvgRenderer renderer;
-    renderer.setOptions(QtSvg::NoOption);
+    renderer.setOptions(QtSvg::DisableAnimations);
     if (renderer.load(file.fileName())) {
       result.svgSize = svgIntrinsicSize(renderer);
       result.svgLocalImages = true;
@@ -442,7 +442,7 @@ void ImageDocument::complete(const Request& request, DecodeResult result) {
     svg_data_ = std::move(result.svgData);
     svg_size_ = result.svgSize;
     svg_local_images_ = result.svgLocalImages;
-    svg_renderer_.setOptions(QtSvg::NoOption);
+    svg_renderer_.setOptions(QtSvg::DisableAnimations);
     error_ = result.outcome ? rasterError(*result.outcome) : std::move(result.error);
     if (error_.isEmpty() && information_.format == QLatin1String("SVG") &&
         !(svg_local_images_ ? svg_renderer_.load(request.url.toLocalFile()) : svg_renderer_.load(svg_data_))) {
@@ -522,7 +522,13 @@ void ImageDocument::resetTransform() {
 }
 void ImageDocument::copyImage() {
   if (state_ == Ready && !stopping_) {
-    clipboard_.copyImage(image_, orientation_, file_name_);
+    if (information_.format == QLatin1String("SVG")) {
+      clipboard_.copySvg(
+          {.bytes = svg_data_, .localPath = localPath(), .intrinsicSize = svg_size_, .localImages = svg_local_images_},
+          orientation_, file_name_);
+    } else {
+      clipboard_.copyImage(image_, orientation_, file_name_);
+    }
   }
 }
 void ImageDocument::copyPath() {
@@ -576,11 +582,9 @@ QImage ImageDocument::previewImage() {
   constexpr int kPreviewMaxDimension = 256;  // Comfortably above the 96x96 popup box at any DPR this app targets.
   if (!svg_local_images_) {
     const std::atomic_bool cancelled{false};
-    return HolonightImages::rasterizeSvg(svg_data_,
-                                         {.bound = {kPreviewMaxDimension, kPreviewMaxDimension},
-                                          .outputBytes = kImageLimitBytes,
-                                          .animation = HolonightImages::SvgAnimation::Enabled},
-                                         cancelled)
+    return HolonightImages::rasterizeSvg(
+               svg_data_, {.bound = {kPreviewMaxDimension, kPreviewMaxDimension}, .outputBytes = kImageLimitBytes},
+               cancelled)
         .image;
   }
   const auto raster = HolonightImages::svgPixelSize(svg_size_, {kPreviewMaxDimension, kPreviewMaxDimension});

@@ -1,5 +1,6 @@
 add_viewer_application(viewer-smoke smoke.cpp release_formats_test.cpp accessibility_test.cpp release_performance_test.cpp static_workflow_test.cpp folder_browsing_test.cpp image_document_test.cpp frame_source_test.cpp animation_controller_test.cpp animation_ui_test.cpp view_geometry_test.cpp image_inspection_test.cpp exif_metadata_test.cpp footer_key_hints_test.cpp image_information_popup_test.cpp menu_layout_test.cpp shortcut_help_popup_test.cpp empty_state_test.cpp transient_overlay_test.cpp portal_request_builder_test.cpp mock_portal.cpp portal_file_chooser_test.cpp grid_navigation_test.cpp thumbnail_cache_test.cpp thumbnail_decoder_test.cpp thumbnail_provider_test.cpp thumbnail_grid_test.cpp grid_mode_test.cpp)
 target_link_libraries(viewer-smoke PRIVATE Qt6::Test GTest::gtest)
+target_sources(viewer-smoke PRIVATE svg_clipboard_test.cpp)
 # The pixel matrix below exercises hairlines with the production RHI renderer.
 # Every viewer-smoke run gets a private bus with no service directories, so the Open flow can
 # only reach the mock portal and never activates the desktop's real one.

@@ -232,7 +232,12 @@ file, or on the same position when that file is gone.
 ### Copying
 
 **Copy Image** captures the image and orientation when invoked, ignoring zoom and pan,
-and publishes it as `image/png`. **Copy Path** copies the absolute path and remains
+and publishes it as `image/png`. SVG copying rasterizes at intrinsic dimensions,
+rounded to positive pixels and proportionally reduced when needed to meet the
+decoded-image limits. Transparency and orientation are preserved. Self-contained
+SVG bytes are captured at invocation; linked local resources are read by the worker
+during preparation. Copy failure preserves the previous clipboard.
+**Copy Path** copies the absolute path and remains
 available during loading and errors. Both commands pause while a copy is being
 prepared; browsing and inspection remain available. Feedback names the copied file,
 so it is distinguishable from a later selection. A failed copy leaves the clipboard

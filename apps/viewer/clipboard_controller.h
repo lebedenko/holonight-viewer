@@ -7,6 +7,16 @@
 
 #include <functional>
 
+struct SvgClipboardSource {
+  QByteArray bytes;
+  QString localPath;
+  QSizeF intrinsicSize;
+  bool localImages = false;
+};
+
+// Intrinsic pixels, proportionally reduced to the application's decoded-image limits.
+QSize svgClipboardSize(QSizeF intrinsic);
+
 // QObject owns identity and disables copying/moving.
 // NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 class ClipboardController : public QObject {
@@ -23,6 +33,7 @@ class ClipboardController : public QObject {
   [[nodiscard]] bool busy() const { return busy_; }
   [[nodiscard]] QString feedback() const { return feedback_; }
   void copyImage(const QImage& image, int orientation, const QString& fileName);
+  void copySvg(SvgClipboardSource source, int orientation, const QString& fileName);
   void copyPath(const QString& path);
   void shutdown();
  signals:
@@ -30,6 +41,7 @@ class ClipboardController : public QObject {
   void shutdownFinished();
 
  private:
+  void prepareCopy(std::function<QImage()> source, int orientation, const QString& fileName);
   QThread thread_;
   QObject* worker_;
   Prepare prepare_;
