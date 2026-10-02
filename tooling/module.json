@@ -1,0 +1,37 @@
+{
+  "module": "holonight-viewer",
+  "cpp": true,
+  "qml": true,
+  "languages": [
+    "cpp",
+    "qml",
+    "python",
+    "bash"
+  ],
+  "dependencies": [
+    {
+      "module": "holonight-config",
+      "package": "HoloNightConfig",
+      "source_variable": "HOLONIGHT_CONFIG_SOURCE"
+    },
+    {
+      "module": "holonight-qt",
+      "package": "HolonightQt",
+      "source_variable": "HOLONIGHT_QT_SOURCE"
+    },
+    {
+      "module": "holonight-images",
+      "package": "HolonightImages",
+      "source_variable": "HOLONIGHT_IMAGES_SOURCE"
+    },
+    {
+      "module": "holonight-thumbnails",
+      "package": "HolonightThumbnails",
+      "source_variable": "HOLONIGHT_THUMBNAILS_SOURCE"
+    }
+  ],
+  "qml_modules": [
+    "HolonightViewer"
+  ],
+  "wayland": false
+}

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-build_dir="${1:-build}"
+build_dir="${1:-build/test}"
 if [[ "${build_dir}" != /* ]]; then
   build_dir="${repo_root}/${build_dir}"
 fi
