@@ -418,7 +418,7 @@ TEST(ImageInformationPopup, DimsLikeShortcutHelp) {
   window->requestActivate();
   ASSERT_TRUE(QTest::qWaitForWindowActive(window));
   // The dimmer is the visible translucent rectangle covering the whole window.
-  const auto dimmerAlpha = [&]() -> qreal {
+  const auto dimmerAlpha = [&] -> qreal {
     std::function<qreal(QQuickItem*)> find = [&](QQuickItem* item) -> qreal {
       const auto color = item->property("color").value<QColor>();
       if (item->isVisible() && item->inherits("QQuickRectangle") && item->width() >= window->width() &&

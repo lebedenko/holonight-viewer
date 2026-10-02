@@ -33,12 +33,20 @@ void ImageCanvas::setImage(const QImage& image) {
   if (svg_renderer_ == nullptr && image_.cacheKey() == image.cacheKey()) {
     return;
   }
+  // Documents clear before setting new content; same-sized raster updates are playback frames.
+  if (svg_renderer_ == nullptr && !image_.isNull() && !image.isNull() && image_.size() == image.size()) {
+    image_ = image;
+    update();
+    emit imageChanged();
+    return;
+  }
   ++generation_;
   image_ = image;
   svg_renderer_ = nullptr;
   content_size_ = image.size();
   view_.setImage((orientation_ & 1) != 0 ? content_size_.transposed() : content_size_);
   refresh();
+  emit contentReset();
   emit imageChanged();
 }
 void ImageCanvas::setSvgRenderer(QSvgRenderer* renderer) {
@@ -54,6 +62,7 @@ void ImageCanvas::setSvgRenderer(QSvgRenderer* renderer) {
   }
   view_.setImage((orientation_ & 1) != 0 ? content_size_.transposed() : content_size_);
   refresh();
+  emit contentReset();
   emit imageChanged();
 }
 void ImageCanvas::setSvgSize(QSizeF size) {
@@ -62,20 +71,15 @@ void ImageCanvas::setSvgSize(QSizeF size) {
   }
   svg_size_ = size;
   if (svg_renderer_ != nullptr && svg_renderer_->isValid()) {
+    ++generation_;
     content_size_ = size.isEmpty() ? svgIntrinsicSize(*svg_renderer_) : size;
     view_.setImage((orientation_ & 1) != 0 ? content_size_.transposed() : content_size_);
     refresh();
+    emit contentReset();
   }
   emit imageChanged();
 }
-void ImageCanvas::replaceFrame(const QImage& frame) {
-  if (image_.isNull() || frame.size() != image_.size()) {
-    setImage(frame);
-    return;
-  }
-  image_ = frame;
-  update();
-}
+void ImageCanvas::replaceFrame(const QImage& frame) { setImage(frame); }
 void ImageCanvas::setOrientation(int orientation) {
   if (orientation < 0 || orientation > 7) {
     return;

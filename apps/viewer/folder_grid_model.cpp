@@ -1,5 +1,7 @@
 #include "folder_grid_model.h"
 
+#include "directory_model.h"
+
 FolderGridModel::FolderGridModel(DirectoryModel* source, QObject* parent)
     : QSortFilterProxyModel(parent), directory_(source) {
   connect(this, &QAbstractItemModel::modelReset, this, &FolderGridModel::countChanged);

@@ -1,5 +1,7 @@
 #include "animation_controller.h"
 
+#include "frame_streamer.h"
+
 #include <QMetaObject>
 
 #include <algorithm>
@@ -17,7 +19,7 @@ AnimationController::AnimationController(std::unique_ptr<PlaybackClock> clock, F
       return;
     }
     QMetaObject::invokeMethod(
-        this, [this, event = std::move(event)]() mutable { handle(std::move(event)); }, Qt::QueuedConnection);
+        this, [this, event = std::move(event)] mutable { handle(std::move(event)); }, Qt::QueuedConnection);
   });
   if (execution_ == Execution::Threaded) {
     context_ = new QObject;

@@ -745,9 +745,9 @@ TEST(GridMenu, CheckMarkAppearsOnlyWhileTheGridShows) {
   ASSERT_NE(check, nullptr);
   EXPECT_TRUE(check->isVisible());
   EXPECT_EQ(check->opacity(), 0);
-  fixture.window->setProperty("gridMode", true);
+  QMetaObject::invokeMethod(fixture.window, "enterGrid");
   EXPECT_EQ(check->opacity(), 1);
-  fixture.window->setProperty("gridMode", false);
+  QMetaObject::invokeMethod(fixture.window, "leaveGrid");
   EXPECT_EQ(check->opacity(), 0);
   // Items that cannot be checked carry no mark.
   auto* open = fixture.find("openButton");

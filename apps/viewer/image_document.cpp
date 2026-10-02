@@ -1,5 +1,7 @@
 #include "image_document.h"
 
+#include "image_information_formatter.h"
+
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -52,6 +54,8 @@ ImageDocument::ImageDocument(Decoder decoder, DirectoryModel::Scanner scanner, P
   connect(&animation_, &AnimationController::frameReady, this, [this](const QImage& frame) {
     if (state_ == Ready) {
       image_ = frame;
+      emit imageChanged();
+      emit previewImageChanged();
       emit frameChanged();
     }
   });
@@ -112,6 +116,8 @@ void ImageDocument::open(const QList<QUrl>& urls) {
     error_ = tr("Open exactly one local image file. Remote URLs are not supported.");
     emit openingFailed(file_name_, error_);
     directory_.clear();
+    emit imageChanged();
+    emit previewImageChanged();
     emit changed();
     return;
   }
@@ -138,6 +144,8 @@ void ImageDocument::select(const QUrl& url) {
   file_name_ = url.fileName();
   state_ = Loading;
   pending_ = Request{.requestId = request_id_, .url = url, .cacheEpoch = cache_epoch_};
+  emit imageChanged();
+  emit previewImageChanged();
   emit changed();
   startPending();
 }
@@ -227,7 +235,7 @@ void ImageDocument::startPending() {
           result = {};
         }
         QMetaObject::invokeMethod(
-            this, [this, request, result = std::move(result)]() mutable { complete(request, std::move(result)); },
+            this, [this, request, result = std::move(result)] mutable { complete(request, std::move(result)); },
             Qt::QueuedConnection);
       },
       Qt::QueuedConnection);
@@ -263,6 +271,8 @@ void ImageDocument::complete(const Request& request, DecodeResult result) {
       svg_preview_ = {};
       emit openingFailed(file_name_, error_);
     }
+    emit imageChanged();
+    emit previewImageChanged();
     emit changed();
     if (state_ == Ready && information_.format == QLatin1String("GIF")) {
       animation_.start(localPath(), image_.size());
@@ -345,3 +355,12 @@ void ImageDocument::copyPath() {
 QVariantList ImageDocument::informationSections() const { return formatInformationSections(information_, localPath()); }
 
 QString ImageDocument::formattedFileSize() const { return formatFileSize(information_.encodedSize); }
+
+QString ImageDocument::summaryLine() const {
+  return formatSummaryLine(information_.format, information_.decodedSize, information_.encodedSize);
+}
+QString ImageDocument::transformedLine() const {
+  return formatTransformedLine(information_.decodedSize, transformedDimensions());
+}
+QString ImageDocument::modifiedText() const { return formatModifiedText(information_.modified); }
+QString ImageDocument::displayPath() const { return abbreviateHomePath(localPath()); }

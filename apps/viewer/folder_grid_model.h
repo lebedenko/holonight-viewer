@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "directory_model.h"
+class DirectoryModel;
 
 #include <QSortFilterProxyModel>
 #include <QUrl>

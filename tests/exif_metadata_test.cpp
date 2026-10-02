@@ -2,6 +2,7 @@
 
 #include "exif_fixture.h"
 #include "image_document.h"
+#include "image_information_formatter.h"
 
 #include <QBuffer>
 #include <QFile>

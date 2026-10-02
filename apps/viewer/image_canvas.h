@@ -48,6 +48,7 @@ class ImageCanvas : public QQuickPaintedItem {
   void mouseMoved();
   void keyboardInput();
   void imageChanged();
+  void contentReset();
   void orientationChanged();
   void viewChanged();
   void viewportChanged();

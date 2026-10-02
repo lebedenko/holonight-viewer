@@ -4,6 +4,7 @@
 
 #include <QAccessible>
 #include <QQmlApplicationEngine>
+#include <QQmlComponent>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QSignalSpy>
@@ -266,8 +267,26 @@ TEST(AnimationUi, ZoomPanAndTransformsDoNotInterruptPlayback) {
   fixture.canvas->zoom(2, {10, 10});
   ASSERT_FALSE(fixture.canvas->fitting());
   const auto rect = fixture.canvas->imageRect();
+  QQmlComponent previewComponent(&fixture.engine);
+  previewComponent.setData(R"(import QtQuick
+import HolonightViewer
+QtObject {
+    required property ImageDocument document
+    property var preview: document.previewImage
+})",
+                           QUrl());
+  std::unique_ptr<QObject> preview(
+      previewComponent.createWithInitialProperties({{"document", QVariant::fromValue(&fixture.document)}}));
+  ASSERT_NE(preview, nullptr) << previewComponent.errorString().toStdString();
+  QSignalSpy resets(fixture.canvas, &ImageCanvas::contentReset);
+  QSignalSpy renders(fixture.canvas, &ImageCanvas::firstRendered);
+  QSignalSpy imageChanges(fixture.canvas, &ImageCanvas::imageChanged);
   QSignalSpy frames(fixture.animation(), &AnimationController::frameReady);
   ASSERT_TRUE(QTest::qWaitFor([&] { return frames.count() >= 3; }, 3000));
+  EXPECT_TRUE(resets.isEmpty());
+  EXPECT_TRUE(renders.isEmpty());
+  EXPECT_GE(imageChanges.count(), 3);
+  EXPECT_EQ(preview->property("preview").value<QImage>().cacheKey(), fixture.document.previewImage().cacheKey());
   // Frames replaced the picture in place: the view is exactly where the user left it.
   EXPECT_FALSE(fixture.canvas->fitting());
   EXPECT_EQ(fixture.canvas->imageRect(), rect);

@@ -10,7 +10,8 @@ Item {
     id: root
     objectName: "thumbnailGrid"
 
-    required property var model
+    required property FolderGridModel model
+    required property GridSelectionController selectionController
     // Bound to document.scanning by Main.
     property bool scanning: false
     // Changes on a rescan so thumbnails decode again.
@@ -25,10 +26,26 @@ Item {
     readonly property int columns: Math.max(1, Math.floor(width / cellWidth))
     readonly property int visibleRows: height > 0 ? Math.max(1, Math.floor(height / cellHeight)) : 1
     readonly property int count: view.count
-    property url selectedUrl
-    property int selectedIndex: -1
-    // The last valid index, used to fall back to when the selected file disappears on a rescan.
-    property int lastIndex: 0
+    readonly property url selectedUrl: selectionController.selectedUrl
+    readonly property int selectedIndex: selectionController.selectedIndex
+    Binding {
+        target: root.selectionController
+        property: "columns"
+        value: root.columns
+    }
+    Binding {
+        target: root.selectionController
+        property: "visibleRows"
+        value: root.visibleRows
+    }
+    Connections {
+        target: root.selectionController
+        function onChanged(): void {
+            Qt.callLater(root.scrollIntoView);
+        }
+    }
+    onVisibleChanged: if (visible)
+        Qt.callLater(root.scrollTo, GridView.Center)
     readonly property bool showsEmpty: !scanning && count === 0
 
     signal activated(url fileUrl)
@@ -45,78 +62,19 @@ Item {
         root.scrollTo(GridView.Contain);
     }
 
-    function chooseIndex(index: int): void {
-        root.selectedIndex = index;
-        root.selectedUrl = root.model.urlAt(index);
-        root.lastIndex = index;
-    }
-
-    // Selects the open file, or the first one when it is not listed, and centres it once layout has a size.
-    function enter(url: url): void {
-        if (root.count === 0) {
-            root.selectedUrl = url;
-            root.selectedIndex = -1;
-            return;
-        }
-        const index = root.model.indexOfUrl(url);
-        root.chooseIndex(index < 0 ? 0 : index);
-        Qt.callLater(root.scrollTo, GridView.Center);
-    }
-
     function select(index: int): void {
-        if (root.scanning || index < 0 || index >= root.count) {
-            return;
-        }
-        root.chooseIndex(index);
+        root.selectionController.select(index);
         root.scrollIntoView();
     }
-
-    function target(move: int): int {
-        return GridNavigation.target(root.selectedIndex, move, root.count, root.columns, root.visibleRows);
-    }
-
     function canMove(move: int): bool {
-        if (root.scanning)
-            return false;
-        const index = root.target(move);
-        return index >= 0 && index !== root.selectedIndex;
+        return root.selectionController.canMove(move);
     }
-
     function move(move: int): void {
-        if (root.canMove(move)) {
-            root.select(root.target(move));
-        }
+        root.selectionController.move(move);
     }
-
     function activateSelection(): void {
-        if (!root.scanning && root.selectedIndex >= 0 && root.selectedIndex < root.count) {
+        if (root.selectionController.canActivate)
             root.activated(root.selectedUrl);
-        }
-    }
-
-    // After a rescan: keep the same file, or the item at the old position when it is gone.
-    function restoreSelection(): void {
-        if (root.count === 0) {
-            root.selectedIndex = -1;
-            return;
-        }
-        let index = root.model.indexOfUrl(root.selectedUrl);
-        if (index < 0) {
-            index = Math.max(0, Math.min(root.lastIndex, root.count - 1));
-        }
-        root.chooseIndex(index);
-        Qt.callLater(root.scrollTo, GridView.Contain);
-    }
-
-    onScanningChanged: {
-        if (!scanning) {
-            // The deferral swallows the transient false of a rescan started during a scan.
-            Qt.callLater(() => {
-                if (!root.scanning) {
-                    root.restoreSelection();
-                }
-            });
-        }
     }
 
     // Grows the viewport-dependent scroll position once the first real size arrives.

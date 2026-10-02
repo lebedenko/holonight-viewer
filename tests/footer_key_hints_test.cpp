@@ -399,7 +399,11 @@ QStringList hintNames(QQuickItem* footer) {
 TEST(FooterKeyHints, GridModeShowsNavigationHintsOnly) {
   ViewerFixture viewer;
   ASSERT_TRUE(viewer.load());
-  ASSERT_TRUE(viewer.window->setProperty("gridMode", true));
+  viewer.document.open({QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/sample.png")});
+  ASSERT_TRUE(
+      QTest::qWaitFor([&] { return viewer.document.state() == ImageDocument::Ready && !viewer.document.scanning(); }));
+  ASSERT_TRUE(QMetaObject::invokeMethod(viewer.window, "enterGrid"));
+  ASSERT_TRUE(viewer.window->property("gridMode").toBool());
   QTest::qWait(50);
   EXPECT_EQ(hintNames(viewer.footer), (QStringList{"footerHintGridNavigate", "footerHintGridPage", "footerHintGridOpen",
                                                    "footerHintGridToggle", "footerHintFullscreen", "footerHintHelp"}));
@@ -427,10 +431,15 @@ TEST(FooterKeyHints, LeavingGridRestoresTheSingleViewHints) {
   ViewerFixture viewer;
   ASSERT_TRUE(viewer.load());
   const auto before = hintNames(viewer.footer);
-  ASSERT_TRUE(viewer.window->setProperty("gridMode", true));
+  viewer.document.open({QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/sample.png")});
+  ASSERT_TRUE(
+      QTest::qWaitFor([&] { return viewer.document.state() == ImageDocument::Ready && !viewer.document.scanning(); }));
+  ASSERT_TRUE(QMetaObject::invokeMethod(viewer.window, "enterGrid"));
+  ASSERT_TRUE(viewer.window->property("gridMode").toBool());
   QTest::qWait(50);
   ASSERT_NE(hintNames(viewer.footer), before);
-  ASSERT_TRUE(viewer.window->setProperty("gridMode", false));
+  ASSERT_TRUE(QMetaObject::invokeMethod(viewer.window, "leaveGrid"));
+  ASSERT_FALSE(viewer.window->property("gridMode").toBool());
   QTest::qWait(50);
   EXPECT_EQ(hintNames(viewer.footer), before);
   const auto rows = hintRows(viewer.footer);

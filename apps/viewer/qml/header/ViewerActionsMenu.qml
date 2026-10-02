@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import HolonightViewer
 import QtQuick.Layouts
 import QtQuick.Controls as Controls
 import Holonight.Core
@@ -108,17 +109,17 @@ Controls.Menu {
     ViewerMenuItem {
         objectName: "openButton"
         action: menu.openImageAction
-        shortcutKeys: [[Qt.Key_Control, Qt.Key_O]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Open)
     }
     ViewerMenuItem {
         action: menu.refreshAction
-        shortcutKeys: [[Qt.Key_Control, Qt.Key_R]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Refresh)
     }
     ViewerMenuItem {
         id: gridToggleItem
         objectName: "gridToggleItem"
         action: menu.gridToggleAction
-        shortcutKeys: [[Qt.Key_Control, Qt.Key_G]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Grid)
     }
     // The command is not checkable: only gridMode controls the displayed state.
     Binding {
@@ -136,50 +137,50 @@ Controls.Menu {
     ViewerMenuItem {
         objectName: "previousMenuItem"
         action: menu.previousImageAction
-        shortcutKeys: [[Qt.Key_BracketLeft]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Previous)
     }
     ViewerMenuItem {
         objectName: "nextMenuItem"
         action: menu.nextImageAction
-        shortcutKeys: [[Qt.Key_BracketRight]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Next)
     }
     ViewerMenuSeparator {}
     ViewerMenuItem {
         objectName: "fitButton"
         action: menu.fitAction
-        shortcutKeys: [[Qt.Key_Control, Qt.Key_0]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Fit)
     }
     ViewerMenuItem {
         objectName: "actualSizeButton"
         action: menu.actualSizeAction
-        shortcutKeys: [[Qt.Key_1]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.ActualSize)
     }
     ViewerMenuItem {
         objectName: "zoomInButton"
         action: menu.zoomInAction
-        shortcutKeys: [[Qt.Key_Control, Qt.Key_Plus]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.ZoomIn)
     }
     ViewerMenuItem {
         objectName: "zoomOutButton"
         action: menu.zoomOutAction
-        shortcutKeys: [[Qt.Key_Control, Qt.Key_Minus]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.ZoomOut)
     }
     ViewerMenuSeparator {}
     ViewerMenuItem {
         action: menu.rotateClockwiseAction
-        shortcutKeys: [[Qt.Key_R]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.RotateClockwise)
     }
     ViewerMenuItem {
         action: menu.rotateCounterclockwiseAction
-        shortcutKeys: [[Qt.Key_Shift, Qt.Key_R]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.RotateCounterclockwise)
     }
     ViewerMenuItem {
         action: menu.flipHorizontalAction
-        shortcutKeys: [[Qt.Key_X]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.FlipHorizontal)
     }
     ViewerMenuItem {
         action: menu.flipVerticalAction
-        shortcutKeys: [[Qt.Key_Shift, Qt.Key_X]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.FlipVertical)
     }
     ViewerMenuItem {
         action: menu.resetTransformAction
@@ -188,29 +189,29 @@ Controls.Menu {
     ViewerMenuSeparator {}
     ViewerMenuItem {
         action: menu.copyImageAction
-        shortcutKeys: [[Qt.Key_Control, Qt.Key_C]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.CopyImage)
     }
     ViewerMenuItem {
         action: menu.copyPathAction
-        shortcutKeys: [[Qt.Key_Control, Qt.Key_Shift, Qt.Key_C]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.CopyPath)
     }
     ViewerMenuSeparator {}
     ViewerMenuItem {
         action: menu.imageInformationAction
         objectName: "informationMenuItem"
-        shortcutKeys: [[Qt.Key_I]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Information)
     }
     ViewerMenuItem {
         action: menu.shortcutHelpAction
-        shortcutKeys: [[Qt.Key_Question]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Help)
     }
     ViewerMenuSeparator {}
     ViewerMenuItem {
         action: menu.fullscreenCommandAction
-        shortcutKeys: [[Qt.Key_F]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Fullscreen)
     }
     ViewerMenuItem {
         action: menu.quitAction
-        shortcutKeys: [[Qt.Key_Q]]
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Quit)
     }
 }

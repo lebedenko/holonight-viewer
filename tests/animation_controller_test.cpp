@@ -1,6 +1,7 @@
 #include "animation_controller.h"
 
 #include "fake_frame_source.h"
+#include "frame_streamer.h"
 #include "gif_fixture.h"
 #include "image_limits.h"
 #include "manual_playback_clock.h"

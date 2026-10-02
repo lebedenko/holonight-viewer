@@ -14,6 +14,7 @@ HnHeaderBar {
     readonly property bool hovered: headerHover.hovered
     readonly property bool controlFocused: (contentItem as HeaderContent)?.controlFocused ?? false
     readonly property Item menuAnchor: (contentItem as HeaderContent)?.menuAnchor ?? null
+    readonly property list<Item> focusTargets: (contentItem as HeaderContent)?.focusTargets ?? []
     signal menuRequested
     component HeaderButtonBase: Controls.Button {
         id: control
@@ -51,6 +52,7 @@ HnHeaderBar {
     component HeaderContent: Item {
         readonly property bool controlFocused: informationButton.activeFocus || fullscreenButton.activeFocus || actionsButton.activeFocus
         readonly property Item menuAnchor: actionsButton
+        readonly property list<Item> focusTargets: [informationButton, fullscreenButton, actionsButton]
         HnLabel {
             objectName: "headerTitle"
             anchors.centerIn: parent

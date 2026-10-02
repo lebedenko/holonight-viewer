@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import HolonightViewer
 import Holonight.Core
 import Holonight.Controls
 
@@ -19,77 +20,77 @@ Item {
     readonly property var gridHints: [
         {
             name: "GridNavigate",
-            keyGroups: [[Qt.Key_H], [Qt.Key_J], [Qt.Key_K], [Qt.Key_L]],
+            keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.GridLeft).concat(ViewerShortcuts.keyGroups(ViewerShortcuts.GridDown), ViewerShortcuts.keyGroups(ViewerShortcuts.GridUp), ViewerShortcuts.keyGroups(ViewerShortcuts.GridRight)),
             label: qsTr("Move")
         },
         {
             name: "GridPage",
-            keyGroups: [[Qt.Key_Control, Qt.Key_U], [Qt.Key_Control, Qt.Key_D]],
+            keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.PageUp).concat(ViewerShortcuts.keyGroups(ViewerShortcuts.PageDown)),
             label: qsTr("Page")
         },
         {
             name: "GridOpen",
             // Key_Enter is spelled "Enter"; Key_Return would read "Return".
-            keyGroups: [[Qt.Key_Enter]],
+            keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Activate),
             label: qsTr("Open")
         },
         {
             name: "GridToggle",
-            keyGroups: [[Qt.Key_Control, Qt.Key_G]],
+            keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Grid),
             label: qsTr("Grid")
         },
         {
             name: "Fullscreen",
-            keyGroups: [[Qt.Key_F]],
+            keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Fullscreen),
             label: qsTr("Fullscreen")
         },
         {
             name: "Help",
-            keyGroups: [[Qt.Key_Question]],
+            keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Help),
             label: qsTr("Help")
         }
     ]
     readonly property var singleViewHints: [
         {
             name: "Navigate",
-            keyGroups: [[Qt.Key_BracketLeft], [Qt.Key_BracketRight]],
+            keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Previous).concat(ViewerShortcuts.keyGroups(ViewerShortcuts.Next)),
             label: qsTr("Navigate")
         },
         {
             name: "Zoom",
-            keyGroups: [[Qt.Key_Control, Qt.Key_Plus], [Qt.Key_Control, Qt.Key_Minus]],
+            keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.ZoomIn).concat(ViewerShortcuts.keyGroups(ViewerShortcuts.ZoomOut)),
             label: qsTr("Zoom")
         },
         {
             name: "Fit",
-            keyGroups: [[Qt.Key_Control, Qt.Key_0]],
+            keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Fit),
             label: qsTr("Fit")
         },
         {
             name: "ActualSize",
-            keyGroups: [[Qt.Key_1]],
+            keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.ActualSize),
             label: qsTr("100%")
         },
         {
             name: "Rotate",
-            keyGroups: [[Qt.Key_R]],
+            keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.RotateClockwise),
             label: qsTr("Rotate")
         },
         {
             name: "Fullscreen",
-            keyGroups: [[Qt.Key_F]],
+            keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Fullscreen),
             label: qsTr("Fullscreen")
         }
     ].concat(root.animated ? [
         {
             name: "PlayPause",
-            keyGroups: [[Qt.Key_Space]],
+            keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Playback),
             label: qsTr("Play/Pause")
         }
     ] : []).concat([
         {
             name: "Help",
-            keyGroups: [[Qt.Key_Question]],
+            keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Help),
             label: qsTr("Help")
         }
     ])

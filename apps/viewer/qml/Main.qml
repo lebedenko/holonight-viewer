@@ -57,7 +57,7 @@ HnApplicationWindow {
         overlayController.hideArrows();
     }
     function togglePlayback(): void {
-        window.document.animation.toggle();
+        controller.togglePlayback();
         // The keyboard hides the arrows, so the strip is what shows the new state.
         window.revealDetails();
         window.clearImageFocus();
@@ -78,12 +78,19 @@ HnApplicationWindow {
     property bool helpOpen: false
     readonly property bool modalActive: dialogRequested || informationOpen || helpOpen
     // Grid view replaces the canvas; everything that acts on the picture is gated by canInspect.
-    property bool gridMode: false
-    readonly property bool canEnterGrid: document.localPath.length > 0 && (document.scanning || document.folder.count > 0) && !modalActive
-    readonly property bool canToggleGrid: gridMode || canEnterGrid
-    readonly property bool canInspect: document.state === ImageDocument.Ready && !modalActive && !gridMode
-    readonly property bool hasPath: document.localPath.length > 0 && !modalActive
-    readonly property bool canShowInformation: hasPath && !gridMode
+    ViewerController {
+        id: controller
+        objectName: "viewerController"
+        document: window.document
+        modalActive: window.modalActive
+        windowSuspended: !window.visible || window.visibility === Window.Minimized
+    }
+    readonly property bool gridMode: controller.gridMode
+    readonly property bool canEnterGrid: controller.canEnterGrid
+    readonly property bool canToggleGrid: controller.canToggleGrid
+    readonly property bool canInspect: controller.canInspect
+    readonly property bool hasPath: controller.hasPath
+    readonly property bool canShowInformation: controller.canShowInformation
     // While a scan runs the count is the transient one-item listing, so only the folder is named.
     readonly property string headerTitle: {
         if (!gridMode)
@@ -110,16 +117,21 @@ HnApplicationWindow {
         id: keyRouter
         objectName: "windowKeyRouter"
         target: window
+        headerFocusTargets: viewerHeader.focusTargets
+        playbackButton: playPauseButton
         imageReady: window.canInspect
         modalActive: window.modalActive
         menuOpen: window.actionsMenuOpen
         playbackAvailable: window.document.animation.canToggle && window.canInspect
         gridActive: window.gridMode
         onGridMoveRequested: move => {
-            grid.move(move);
+            controller.moveSelection(move);
             window.clearImageFocus();
         }
-        onGridActivateRequested: grid.activateSelection()
+        onGridActivateRequested: {
+            controller.activateSelection();
+            window.clearImageFocus();
+        }
         onPlaybackToggleRequested: window.togglePlayback()
         onPanRequested: (horizontal, vertical) => {
             canvas.pan(Qt.point(horizontal, vertical));
@@ -148,25 +160,6 @@ HnApplicationWindow {
             canvas.Accessible.announce(qsTr("Error opening %1: %2").arg(window.document.fileName).arg(window.document.error));
     }
 
-    // Playback pauses while a dialog covers the image or the window is hidden; focus loss alone does not pause.
-    Binding {
-        target: window.document.animation
-        property: "suspendedByModal"
-        // A hidden animated canvas must not keep decoding frames.
-        value: window.modalActive || window.gridMode
-    }
-    Binding {
-        target: window.document.animation
-        property: "suspendedByWindow"
-        value: !window.visible || window.visibility === Window.Minimized
-    }
-    // Each frame replaces the picture in place: zoom, pan and fit stay as they are.
-    Connections {
-        target: window.document
-        function onFrameChanged(): void {
-            canvas.replaceFrame(window.document.image);
-        }
-    }
     Connections {
         target: window.document.animation
         function onFailureNoticeChanged(notice: string): void {
@@ -223,48 +216,27 @@ HnApplicationWindow {
         onLeaveFullscreenRequested: window.leaveFullscreen()
     }
 
-    // In grid mode the neighbours are cells, and the open document is left alone.
     function canBrowse(direction: int): bool {
-        if (window.modalActive)
-            return false;
-        if (window.gridMode)
-            return grid.canMove(direction < 0 ? GridNavigation.Previous : GridNavigation.Next);
-        return direction < 0 ? window.document.canPrevious : window.document.canNext;
+        return direction < 0 ? controller.canPrevious : controller.canNext;
     }
-
     function browse(direction: int): void {
-        if (window.gridMode)
-            grid.move(direction < 0 ? GridNavigation.Previous : GridNavigation.Next);
-        else if (direction < 0)
-            window.document.previous();
-        else
-            window.document.next();
+        controller.browse(direction);
         window.clearImageFocus();
     }
-
     function enterGrid(): void {
-        if (!window.canEnterGrid)
-            return;
-        window.gridMode = true;
-        grid.enter(window.document.url);
+        controller.enterGrid();
         window.clearImageFocus();
     }
-
-    // The document is untouched, so the same image is showing again.
     function leaveGrid(): void {
-        window.gridMode = false;
+        controller.leaveGrid();
         window.clearImageFocus();
     }
-
     function toggleGrid(): void {
-        if (window.gridMode)
-            window.leaveGrid();
-        else
-            window.enterGrid();
+        controller.toggleGrid();
+        window.clearImageFocus();
     }
-
     function refreshFolder(): void {
-        window.document.refresh();
+        controller.refresh();
         window.clearImageFocus();
     }
 
@@ -310,9 +282,8 @@ HnApplicationWindow {
         nameFilters: window.document.nameFilters
         currentLocalPath: window.document.localPath
         onFinished: urls => {
-            // A chosen file shows in single view; a cancelled dialog never gets here and leaves the grid.
-            window.gridMode = false;
-            window.document.open(urls);
+            // Acceptance enters single view; cancellation preserves the grid and its selection.
+            controller.open(urls);
             window.dialogRequested = false;
         }
         onCancelled: {
@@ -450,7 +421,7 @@ HnApplicationWindow {
                 onOrientationChanged: ++window.inputEpoch
                 displayPixelRatio: window.devicePixelRatio
                 activeFocusOnTab: false
-                onImageChanged: {
+                onContentReset: {
                     ++window.inputEpoch;
                     window.rendered = false;
                     window.concealDetails();
@@ -479,13 +450,14 @@ HnApplicationWindow {
                 anchors.fill: parent
                 visible: window.gridMode
                 model: window.document.folder
+                selectionController: controller.selection
                 scanning: window.document.scanning
                 generation: window.document.thumbnailGeneration
                 devicePixelRatio: window.devicePixelRatio
                 onSelectionInteraction: window.clearImageFocus()
-                onActivated: fileUrl => {
-                    window.document.openFromFolder(fileUrl);
-                    window.leaveGrid();
+                onActivated: {
+                    controller.activateSelection();
+                    window.clearImageFocus();
                 }
             }
             ViewerButton {
@@ -642,8 +614,7 @@ HnApplicationWindow {
         anchors.fill: parent
         enabled: !window.modalActive
         onDropped: drop => {
-            window.gridMode = false;
-            window.document.open(drop.urls);
+            controller.open(drop.urls);
             drop.acceptProposedAction();
         }
     }

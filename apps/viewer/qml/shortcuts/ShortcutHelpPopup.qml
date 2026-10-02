@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import HolonightViewer
 import QtQuick.Layouts
 import QtQuick.Controls as Controls
 import Holonight.Core
@@ -22,17 +23,17 @@ Controls.Popup {
             label: qsTr("Navigation"),
             rows: [
                 {
-                    keyGroups: [[Qt.Key_Control, Qt.Key_O]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Open),
                     description: qsTr("Open image"),
                     keycap: true
                 },
                 {
-                    keyGroups: [[Qt.Key_BracketLeft], [Qt.Key_BracketRight]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Previous).concat(ViewerShortcuts.keyGroups(ViewerShortcuts.Next)),
                     description: qsTr("Previous / next image"),
                     keycap: true
                 },
                 {
-                    keyGroups: [[Qt.Key_Control, Qt.Key_R]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Refresh),
                     description: qsTr("Refresh folder and image"),
                     keycap: true
                 }
@@ -43,27 +44,27 @@ Controls.Popup {
             label: qsTr("View"),
             rows: [
                 {
-                    keyGroups: [[Qt.Key_Control, Qt.Key_0]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Fit),
                     description: qsTr("Fit"),
                     keycap: true
                 },
                 {
-                    keyGroups: [[Qt.Key_1]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.ActualSize),
                     description: qsTr("Actual size"),
                     keycap: true
                 },
                 {
-                    keyGroups: [[Qt.Key_Control, Qt.Key_Plus], [Qt.Key_Control, Qt.Key_Minus]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.ZoomIn).concat(ViewerShortcuts.keyGroups(ViewerShortcuts.ZoomOut)),
                     description: qsTr("Zoom"),
                     keycap: true
                 },
                 {
-                    keyGroups: [[Qt.Key_F]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Fullscreen),
                     description: qsTr("Fullscreen"),
                     keycap: true
                 },
                 {
-                    keyGroups: [[Qt.Key_Escape]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Escape),
                     description: qsTr("Close dialog, grid or leave fullscreen"),
                     keycap: true
                 }
@@ -74,27 +75,27 @@ Controls.Popup {
             label: qsTr("Grid"),
             rows: [
                 {
-                    keyGroups: [[Qt.Key_Control, Qt.Key_G]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Grid),
                     description: qsTr("Toggle grid view"),
                     keycap: true
                 },
                 {
-                    keyGroups: [[Qt.Key_H], [Qt.Key_J], [Qt.Key_K], [Qt.Key_L]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.GridLeft).concat(ViewerShortcuts.keyGroups(ViewerShortcuts.GridDown), ViewerShortcuts.keyGroups(ViewerShortcuts.GridUp), ViewerShortcuts.keyGroups(ViewerShortcuts.GridRight)),
                     description: qsTr("Move selection"),
                     keycap: true
                 },
                 {
-                    keyGroups: [[Qt.Key_Control, Qt.Key_U]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.PageUp),
                     description: qsTr("Half page up"),
                     keycap: true
                 },
                 {
-                    keyGroups: [[Qt.Key_Control, Qt.Key_D]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.PageDown),
                     description: qsTr("Half page down"),
                     keycap: true
                 },
                 {
-                    keyGroups: [[Qt.Key_Enter]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Activate),
                     description: qsTr("Open selected image"),
                     keycap: true
                 }
@@ -105,12 +106,12 @@ Controls.Popup {
             label: qsTr("Transform"),
             rows: [
                 {
-                    keyGroups: [[Qt.Key_R], [Qt.Key_Shift, Qt.Key_R]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.RotateClockwise).concat(ViewerShortcuts.keyGroups(ViewerShortcuts.RotateCounterclockwise)),
                     description: qsTr("Rotate clockwise/counterclockwise"),
                     keycap: true
                 },
                 {
-                    keyGroups: [[Qt.Key_X], [Qt.Key_Shift, Qt.Key_X]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.FlipHorizontal).concat(ViewerShortcuts.keyGroups(ViewerShortcuts.FlipVertical)),
                     description: qsTr("Flip horizontally/vertically"),
                     keycap: true
                 }
@@ -121,7 +122,7 @@ Controls.Popup {
             label: qsTr("Playback"),
             rows: [
                 {
-                    keyGroups: [[Qt.Key_Space]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Playback),
                     description: qsTr("Toggle play/pause"),
                     keycap: true
                 }
@@ -132,17 +133,17 @@ Controls.Popup {
             label: qsTr("Image"),
             rows: [
                 {
-                    keyGroups: [[Qt.Key_I]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Information),
                     description: qsTr("Image information"),
                     keycap: true
                 },
                 {
-                    keyGroups: [[Qt.Key_Control, Qt.Key_C]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.CopyImage),
                     description: qsTr("Copy image"),
                     keycap: true
                 },
                 {
-                    keyGroups: [[Qt.Key_Control, Qt.Key_Shift, Qt.Key_C]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.CopyPath),
                     description: qsTr("Copy path"),
                     keycap: true
                 }
@@ -153,12 +154,12 @@ Controls.Popup {
             label: qsTr("Application"),
             rows: [
                 {
-                    keyGroups: [[Qt.Key_Question]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Help),
                     description: qsTr("Toggle this help"),
                     keycap: true
                 },
                 {
-                    keyGroups: [[Qt.Key_Q]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Quit),
                     description: qsTr("Quit"),
                     keycap: true
                 }
@@ -179,7 +180,7 @@ Controls.Popup {
                     keycap: false
                 },
                 {
-                    keyGroups: [[Qt.Key_Left], [Qt.Key_Right], [Qt.Key_Up], [Qt.Key_Down]],
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.PanLeft).concat(ViewerShortcuts.keyGroups(ViewerShortcuts.PanRight), ViewerShortcuts.keyGroups(ViewerShortcuts.PanUp), ViewerShortcuts.keyGroups(ViewerShortcuts.PanDown)),
                     description: qsTr("Pan"),
                     keycap: true
                 },
@@ -218,7 +219,7 @@ Controls.Popup {
 
         // A modal popup blocks the window's ? action, so the toggle's closing half lives here.
         Shortcut {
-            sequence: "?"
+            sequence: ViewerShortcuts.sequence(ViewerShortcuts.Help)
             enabled: root.opened
             onActivated: root.close()
         }

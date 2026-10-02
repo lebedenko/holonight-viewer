@@ -62,8 +62,11 @@ function(add_viewer_application target)
     QML_FILES ${module_qml}
     RESOURCES ${module_icons}
     SOURCES
+      "${app_dir}/viewer_shortcuts.h" "${app_dir}/viewer_shortcuts.cpp"
+      "${app_dir}/viewer_controller.h" "${app_dir}/viewer_controller.cpp"
+      "${app_dir}/grid_selection_controller.h" "${app_dir}/grid_selection_controller.cpp"
       "${app_dir}/window_state.h" "${app_dir}/grid_navigation.h" "${app_dir}/thumbnail_metrics.h"
-      "${app_dir}/folder_grid_model.h" "${app_dir}/folder_grid_model.cpp" "${app_dir}/window_key_router.h"
+      "${app_dir}/folder_grid_model.h" "${app_dir}/folder_grid_model.cpp" "${app_dir}/window_key_router.h" "${app_dir}/window_key_router.cpp"
       "${app_dir}/clipboard_controller.h" "${app_dir}/clipboard_controller.cpp"
       "${app_dir}/animation_controller.h" "${app_dir}/animation_controller.cpp"
       "${app_dir}/image_document.h" "${app_dir}/image_document.cpp"

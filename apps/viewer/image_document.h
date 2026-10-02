@@ -6,10 +6,8 @@
 #include "directory_model.h"
 #include "folder_grid_model.h"
 #include "image_decoder.h"
-#include "image_information_formatter.h"
 #include "image_orientation.h"
 
-#include <QDir>
 #include <QImage>
 #include <QObject>
 #include <QSvgRenderer>
@@ -56,10 +54,10 @@ class ImageDocument : public QObject {
   Q_PROPERTY(State state READ state NOTIFY changed)
   Q_PROPERTY(QString fileName READ fileName NOTIFY changed)
   Q_PROPERTY(QString error READ error NOTIFY changed)
-  Q_PROPERTY(QImage image READ image NOTIFY changed)
+  Q_PROPERTY(QImage image READ image NOTIFY imageChanged)
   Q_PROPERTY(QSvgRenderer* svgRenderer READ svgRenderer NOTIFY changed)
   Q_PROPERTY(QSizeF svgSize READ svgSize NOTIFY changed)
-  Q_PROPERTY(QImage previewImage READ previewImage NOTIFY changed)
+  Q_PROPERTY(QImage previewImage READ previewImage NOTIFY previewImageChanged)
   Q_PROPERTY(int position READ position NOTIFY changed)
   Q_PROPERTY(int count READ count NOTIFY changed)
   Q_PROPERTY(bool scanning READ scanning NOTIFY changed)
@@ -73,6 +71,9 @@ class ImageDocument : public QObject {
   // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,performance-enum-size)
   enum State { Empty, Loading, Ready, Error };
   Q_ENUM(State)
+  // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,performance-enum-size)
+  enum TransformOperation { RotateClockwise = 1, RotateCounterclockwise = 3, FlipHorizontal = 4, FlipVertical = 6 };
+  Q_ENUM(TransformOperation)
   using Decoder = std::function<DecodeResult(const QUrl&, const std::atomic_bool&)>;
   struct PlaybackOptions {
     std::unique_ptr<PlaybackClock> clock = std::make_unique<QtPlaybackClock>();
@@ -95,14 +96,10 @@ class ImageDocument : public QObject {
   // The containing folder's name, or "/" for the root; empty without a document.
   [[nodiscard]] QString folderName() const;
   FolderGridModel* folder() { return &grid_model_; }
-  [[nodiscard]] QString summaryLine() const {
-    return formatSummaryLine(information_.format, information_.decodedSize, information_.encodedSize);
-  }
-  [[nodiscard]] QString transformedLine() const {
-    return formatTransformedLine(information_.decodedSize, transformedDimensions());
-  }
-  [[nodiscard]] QString modifiedText() const { return formatModifiedText(information_.modified); }
-  [[nodiscard]] QString displayPath() const { return abbreviateHomePath(localPath()); }
+  [[nodiscard]] QString summaryLine() const;
+  [[nodiscard]] QString transformedLine() const;
+  [[nodiscard]] QString modifiedText() const;
+  [[nodiscard]] QString displayPath() const;
   // Ordered {key, label, lines} maps for Camera, Location and File; sections without lines are omitted.
   [[nodiscard]] QVariantList informationSections() const;
   [[nodiscard]] QString formattedFileSize() const;
@@ -145,6 +142,8 @@ class ImageDocument : public QObject {
  signals:
   void openingFailed(QString fileName, QString error);
   void changed();
+  void imageChanged();
+  void previewImageChanged();
   void thumbnailGenerationChanged();
   // A new animation frame is now image(); changed() is not emitted.
   void frameChanged();

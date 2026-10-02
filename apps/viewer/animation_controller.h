@@ -1,7 +1,6 @@
 #pragma once
 
 #include "frame_source.h"
-#include "frame_streamer.h"
 #include "playback_clock.h"
 
 #include <QImage>
@@ -12,8 +11,12 @@
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
+
+class FrameStreamer;
+struct StreamEvent;
 
 // Playback state machine for one animated document. All state lives on the GUI thread; frames are decoded one at a
 // time on a dedicated animation thread and paired with a single look-ahead frame, so memory never depends on the

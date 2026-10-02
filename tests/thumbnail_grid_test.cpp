@@ -1,4 +1,5 @@
 #include "grid_navigation.h"
+#include "grid_selection_controller.h"
 #include "image_document.h"
 #include "synthetic_thumbnails.h"
 #include "thumbnail_provider.h"
@@ -229,6 +230,7 @@ struct GridFixture {
 
   std::shared_ptr<QList<QUrl>> urls;
   ImageDocument document;
+  GridSelectionController selection{&document};
   QQmlEngine engine;
   QQuickWindow window;
   SyntheticDecoder decoder;
@@ -256,18 +258,20 @@ struct GridFixture {
     component.setData(R"(import QtQuick
 import HolonightViewer
 Item {
-    required property var document
+    required property ImageDocument document
+    required property GridSelectionController selection
     property alias grid: thumbnailGrid
     ThumbnailGrid {
         id: thumbnailGrid
         anchors.fill: parent
         model: document.folder
+        selectionController: selection
         scanning: document.scanning
     }
 })",
                       QUrl());
-    root.reset(qobject_cast<QQuickItem*>(
-        component.createWithInitialProperties({{"document", QVariant::fromValue(&document)}})));
+    root.reset(qobject_cast<QQuickItem*>(component.createWithInitialProperties(
+        {{"document", QVariant::fromValue(&document)}, {"selection", QVariant::fromValue(&selection)}})));
     if (!root) {
       return ::testing::AssertionFailure() << component.errorString().toStdString();
     }
@@ -319,8 +323,9 @@ Item {
     QMetaObject::invokeMethod(grid, method, Q_ARG(int, argument));
     settle();
   }
-  void enter(const QUrl& url) const {
-    QMetaObject::invokeMethod(grid, "enter", Q_ARG(QUrl, url));
+  void enter(const QUrl& url) {
+    selection.enter(url);
+    QMetaObject::invokeMethod(grid, "scrollIntoView");
     settle();
   }
   // The selected cell's rectangle in the grid's coordinates.

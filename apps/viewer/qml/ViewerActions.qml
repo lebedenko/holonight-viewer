@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import HolonightViewer
 import QtQuick.Controls as Controls
 
 Item {
@@ -133,33 +134,33 @@ Item {
         id: rotateClockwise
         objectName: "rotateClockwiseAction"
         text: qsTranslate("Main", "Rotate Clockwise")
-        shortcut: "R"
+        shortcut: ViewerShortcuts.sequence(ViewerShortcuts.RotateClockwise)
         enabled: root.canInspect
-        onTriggered: root.transformRequested(1)
+        onTriggered: root.transformRequested(ImageDocument.RotateClockwise)
     }
     Controls.Action {
         id: rotateCounterclockwise
         objectName: "rotateCounterclockwiseAction"
         text: qsTranslate("Main", "Rotate Counterclockwise")
-        shortcut: "Shift+R"
+        shortcut: ViewerShortcuts.sequence(ViewerShortcuts.RotateCounterclockwise)
         enabled: root.canInspect
-        onTriggered: root.transformRequested(3)
+        onTriggered: root.transformRequested(ImageDocument.RotateCounterclockwise)
     }
     Controls.Action {
         id: flipHorizontal
         objectName: "flipHorizontalAction"
         text: qsTranslate("Main", "Flip Horizontally")
-        shortcut: "X"
+        shortcut: ViewerShortcuts.sequence(ViewerShortcuts.FlipHorizontal)
         enabled: root.canInspect
-        onTriggered: root.transformRequested(4)
+        onTriggered: root.transformRequested(ImageDocument.FlipHorizontal)
     }
     Controls.Action {
         id: flipVertical
         objectName: "flipVerticalAction"
         text: qsTranslate("Main", "Flip Vertically")
-        shortcut: "Shift+X"
+        shortcut: ViewerShortcuts.sequence(ViewerShortcuts.FlipVertical)
         enabled: root.canInspect
-        onTriggered: root.transformRequested(6)
+        onTriggered: root.transformRequested(ImageDocument.FlipVertical)
     }
     Controls.Action {
         id: resetTransform
@@ -174,7 +175,7 @@ Item {
         id: copyImage
         objectName: "copyImageAction"
         text: qsTranslate("Main", "Copy Image")
-        shortcut: "Ctrl+C"
+        shortcut: ViewerShortcuts.sequence(ViewerShortcuts.CopyImage)
         enabled: root.canInspect && !root.document.clipboard.busy
         onTriggered: {
             root.document.copyImage();
@@ -185,7 +186,7 @@ Item {
         id: copyPath
         objectName: "copyPathAction"
         text: qsTranslate("Main", "Copy Path")
-        shortcut: "Ctrl+Shift+C"
+        shortcut: ViewerShortcuts.sequence(ViewerShortcuts.CopyPath)
         enabled: root.hasPath && !root.document.clipboard.busy
         onTriggered: {
             root.document.copyPath();
@@ -196,7 +197,7 @@ Item {
         id: imageInformation
         objectName: "imageInformationAction"
         text: qsTranslate("Main", "Image Information")
-        shortcut: "I"
+        shortcut: ViewerShortcuts.sequence(ViewerShortcuts.Information)
         // While open, the modal popup blocks window shortcuts and handles I itself.
         enabled: root.canShowInformation
         onTriggered: root.informationRequested()
@@ -205,67 +206,67 @@ Item {
         id: shortcutHelp
         objectName: "shortcutHelpAction"
         text: qsTranslate("Main", "Shortcut Help")
-        shortcut: "?"
+        shortcut: ViewerShortcuts.sequence(ViewerShortcuts.Help)
         // While open, the modal popup blocks window shortcuts and handles ? itself.
         enabled: !root.modalActive
         onTriggered: root.helpRequested()
     }
 
     Shortcut {
-        sequence: "Ctrl+0"
+        sequence: ViewerShortcuts.sequence(ViewerShortcuts.Fit)
         enabled: fit.enabled
         onActivated: fit.trigger()
     }
     Shortcut {
-        sequence: "1"
+        sequence: ViewerShortcuts.sequence(ViewerShortcuts.ActualSize)
         enabled: actualSize.enabled
         onActivated: actualSize.trigger()
     }
     Shortcut {
-        sequences: ["Ctrl++", "Ctrl+="]
+        sequences: ViewerShortcuts.sequences(ViewerShortcuts.ZoomIn)
         enabled: zoomIn.enabled
         onActivated: zoomIn.trigger()
     }
     Shortcut {
-        sequence: "Ctrl+-"
+        sequence: ViewerShortcuts.sequence(ViewerShortcuts.ZoomOut)
         enabled: zoomOut.enabled
         onActivated: zoomOut.trigger()
     }
 
     Shortcut {
-        sequence: "["
+        sequence: ViewerShortcuts.sequence(ViewerShortcuts.Previous)
         enabled: previousImage.enabled
         onActivated: previousImage.trigger()
     }
     Shortcut {
-        sequence: "]"
+        sequence: ViewerShortcuts.sequence(ViewerShortcuts.Next)
         enabled: nextImage.enabled
         onActivated: nextImage.trigger()
     }
     // A literal sequence, so that Ctrl+Shift+G does not match.
     Shortcut {
-        sequence: "Ctrl+G"
+        sequence: ViewerShortcuts.sequence(ViewerShortcuts.Grid)
         enabled: gridToggle.enabled
         onActivated: gridToggle.trigger()
     }
     Shortcut {
-        sequence: "Ctrl+R"
+        sequence: ViewerShortcuts.sequence(ViewerShortcuts.Refresh)
         enabled: refresh.enabled
         onActivated: refresh.trigger()
     }
 
     Shortcut {
-        sequences: [StandardKey.Open]
+        sequences: ViewerShortcuts.sequences(ViewerShortcuts.Open)
         enabled: openImage.enabled
         onActivated: openImage.trigger()
     }
     Shortcut {
-        sequence: "F"
+        sequence: ViewerShortcuts.sequence(ViewerShortcuts.Fullscreen)
         enabled: fullscreenCommand.enabled
         onActivated: fullscreenCommand.trigger()
     }
     Shortcut {
-        sequence: "Escape"
+        sequence: ViewerShortcuts.sequence(ViewerShortcuts.Escape)
         enabled: !root.modalActive
         onActivated: {
             // The grid closes first and fullscreen is untouched; a menu-closing Escape must not also close the grid.
@@ -278,7 +279,7 @@ Item {
         }
     }
     Shortcut {
-        sequence: "Q"
+        sequence: ViewerShortcuts.sequence(ViewerShortcuts.Quit)
         enabled: quit.enabled
         onActivated: quit.trigger()
     }

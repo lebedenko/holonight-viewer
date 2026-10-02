@@ -159,7 +159,12 @@ void DirectoryModel::scan(const QUrl& selected) {
   if (stopping_) {
     return;
   }
-  clear();
+  ++generation_;
+  pending_.reset();
+  if (cancellation_) {
+    cancellation_->store(true);
+  }
+  error_.clear();
   scanning_ = true;
   pending_ = normalizedLocalUrl(selected);
   replace({*pending_});
@@ -182,7 +187,7 @@ void DirectoryModel::startPending() {
         auto result = scanner_(selected, *cancel);
         QMetaObject::invokeMethod(
             this,
-            [this, generation, result = std::move(result)]() mutable {
+            [this, generation, result = std::move(result)] mutable {
               busy_ = false;
               cancellation_.reset();
               if (stopping_) {

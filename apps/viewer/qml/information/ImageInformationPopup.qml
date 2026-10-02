@@ -52,7 +52,7 @@ Controls.Popup {
 
         // A modal popup blocks the window's I action, so the toggle's closing half lives here.
         Shortcut {
-            sequence: "I"
+            sequence: ViewerShortcuts.sequence(ViewerShortcuts.Information)
             enabled: root.opened
             onActivated: root.close()
         }
