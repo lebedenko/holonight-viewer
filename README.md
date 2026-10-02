@@ -76,26 +76,30 @@ an image opens, including a transparent one.
 
 | Control | Action |
 | --- | --- |
-| `[` / Previous, `]` / Next | Browse siblings, stopping at folder boundaries |
-| `Ctrl+O` / Open… | Choose an image with the desktop file picker |
-| `Ctrl+R` / Refresh | Rescan the folder and reload the selected image, clearing the cache; an animated GIF restarts from its first frame |
-| `Ctrl+G` / Grid View | Toggle the thumbnail grid (see [Grid view](#grid-view)) |
+| `[` / Previous, `]` / Next (aliases: `h` / `l` in single view) | Browse siblings, stopping at folder boundaries |
+| `Ctrl+o` / Open… | Choose an image with the desktop file picker |
+| `Ctrl+r` / Refresh | Rescan the folder and reload the selected image, clearing the cache; an animated GIF restarts from its first frame |
+| `Ctrl+g` / Grid View | Toggle the thumbnail grid (see [Grid view](#grid-view)) |
 | `Space` | Play or pause an animated GIF (ignored for still images and while a header button has focus) |
-| `Ctrl+0` / Fit | Center the whole image and fit it as the window changes |
+| `Ctrl+0` (alias: `0`) / Fit | Center the whole image and fit it as the window changes |
 | `1` / Actual Size | Center at one source pixel per physical display pixel |
-| `Ctrl++` or `Ctrl+=` / `Ctrl+-` | Zoom in/out around the canvas center |
+| `Ctrl++` / `Ctrl+-` (aliases: `Ctrl+=`, `+` / `-`) | Zoom in/out around the canvas center |
 | Vertical wheel or trackpad scroll over the canvas | Zoom around the pointer |
 | Left-button drag | Pan the image |
 | Arrow keys | Pan the viewed region from anywhere in the window |
-| `R` / `Shift+R` | Rotate clockwise / counterclockwise by 90° |
-| `X` / `Shift+X` | Flip horizontally / vertically relative to the displayed image |
+| `r` / `Shift+r` | Rotate clockwise / counterclockwise by 90° |
+| `x` / `Shift+x` | Flip horizontally / vertically relative to the displayed image |
 | Menu → Reset Transform | Clear temporary rotation and flips |
-| `Ctrl+C` | Copy the entire transformed image, including transparency |
-| `Ctrl+Shift+C` | Copy the normalized absolute path, unquoted; retain symlink paths |
-| `I` | Open or close the Image Information card |
+| `Ctrl+c` | Copy the entire transformed image, including transparency |
+| `Ctrl+Shift+c` | Copy the normalized absolute path, unquoted; retain symlink paths |
+| `i` | Open or close the Image Information card |
 | `?` | Open or close the Shortcut Help card |
-| `F` / Fullscreen | Toggle fullscreen; `Escape` leaves it (in grid view `Escape` closes the grid first) |
-| `Q` / Quit | Quit Viewer |
+| `f` / Fullscreen | Toggle fullscreen; `Escape` leaves it (in grid view `Escape` closes the grid first) |
+| `q` / Quit | Quit Viewer |
+
+Mouse Back/Forward buttons trigger previous/next once per click, browsing images in single view and moving selection in grid view.
+
+`gg` requires two unmodified `g` presses within one second. Auto-repeat is ignored; another key, mouse input, focus loss, or a grid/menu/modal change cancels the sequence. Letter keys are shown in lowercase in hints; Help labels aliases explicitly.
 
 Viewer shortcuts pause while Open, Image Information or Shortcut Help is active.
 Escape closes a card or dialog before leaving fullscreen; closing clears the focus
@@ -104,7 +108,7 @@ compositor-managed tiling. Native decorations belong to Qt and the compositor.
 
 Tab and Shift+Tab cycle through the enabled header buttons (Information, Fullscreen,
 Menu); the empty window skips Information. Image actions clear the focus ring. In the
-menu, J/K and Down/Up move between items, skipping separators; single-key shortcuts
+menu, j/k and Down/Up move between items, skipping separators; single-key shortcuts
 still act while the menu is open and close it. The menu groups Open/Refresh/Grid View,
 Previous/Next, view controls, transforms, copying, Image Information/Shortcut Help and
 Fullscreen/Quit, with each item's shortcut shown right-aligned.
@@ -208,6 +212,7 @@ into view when the grid opens.
 | Key | In grid view |
 | --- | --- |
 | `h` `j` `k` `l` or the arrow keys | Move the selection; left/right flow across rows without wrapping, up/down move a row and clamp to the last item |
+| `gg` / `Shift+g` | Select and reveal the first / last item without opening it |
 | `Ctrl+U` / `Ctrl+D` | Move half the visible rows up / down |
 | `[` / `]` and Menu → Previous / Next | Move the selection by one (the open image does not change) |
 | `Enter`, double-click | Open the selected image in single view |

@@ -336,7 +336,9 @@ Item {
   }
   [[nodiscard]] bool selectedFullyVisible() const {
     const auto rect = selectedRect();
-    return !rect.isNull() && QRectF(0, 0, grid->width(), grid->height()).contains(rect);
+    // Fractional viewport coordinates can accumulate subpixel floating-point roundoff at the last row.
+    return !rect.isNull() &&
+           QRectF(0, 0, grid->width(), grid->height()).adjusted(-1e-6, -1e-6, 1e-6, 1e-6).contains(rect);
   }
 };
 }  // namespace
@@ -731,4 +733,32 @@ TEST(ThumbnailGrid, CacheBufferStaysNonnegativeDuringTransientLayout) {
     EXPECT_EQ(fixture.view()->property("cacheBuffer").toInt(), std::max(0, height));
   }
   EXPECT_TRUE(cacheWarnings.isEmpty()) << qPrintable(cacheWarnings.join('\n'));
+}
+
+TEST(ThumbnailGrid, FirstAndLastRevealTheSelectionWithoutOpeningAndIgnoreEmptyFolders) {
+  GridFixture fixture;
+  ASSERT_TRUE(fixture.load(100));
+  ASSERT_TRUE(fixture.open(50));
+  fixture.enter(photo(50));
+  fixture.call("move", static_cast<int>(GridNavigation::Move::Last));
+  EXPECT_EQ(fixture.selectedIndex(), 99);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return fixture.selectedFullyVisible(); }));
+  EXPECT_EQ(fixture.document.url(), photo(50));
+  auto* view = fixture.grid->findChild<QQuickItem*>("thumbnailGridView");
+  ASSERT_NE(view, nullptr);
+  view->setProperty("contentY", 0);
+  settle();
+  EXPECT_FALSE(fixture.selectedFullyVisible());
+  fixture.call("move", static_cast<int>(GridNavigation::Move::Last));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return fixture.selectedFullyVisible(); }));
+
+  fixture.call("move", static_cast<int>(GridNavigation::Move::First));
+  EXPECT_EQ(fixture.selectedIndex(), 0);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return fixture.selectedFullyVisible(); }));
+  EXPECT_EQ(fixture.document.url(), photo(50));
+  fixture.urls->clear();
+  ASSERT_TRUE(fixture.rescan());
+  fixture.call("move", static_cast<int>(GridNavigation::Move::First));
+  fixture.call("move", static_cast<int>(GridNavigation::Move::Last));
+  EXPECT_EQ(fixture.selectedIndex(), -1);
 }

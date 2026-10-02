@@ -43,22 +43,33 @@ class ViewerShortcuts : public QObject {
     PanRight,
     PanUp,
     PanDown,
+    GridFirst,
+    GridLast,
+    MenuDown,
+    MenuUp,
   };
   Q_ENUM(Command)
   explicit ViewerShortcuts(QObject* parent = nullptr) : QObject(parent) {}
   Q_INVOKABLE static QVariantList sequences(Command command);
   Q_INVOKABLE static QString sequence(Command command);
   Q_INVOKABLE static QVariantList keyGroups(Command command);
+  Q_INVOKABLE static QVariantList aliasSequences(Command command);
+  Q_INVOKABLE static QVariantList aliasKeyGroups(Command command);
   static constexpr int key(Command command) {
     switch (command) {
       case GridLeft:
         return Qt::Key_H;
+      case MenuDown:
       case GridDown:
         return Qt::Key_J;
+      case MenuUp:
       case GridUp:
         return Qt::Key_K;
       case GridRight:
         return Qt::Key_L;
+      case GridFirst:
+      case GridLast:
+        return Qt::Key_G;
       case PageUp:
         return Qt::Key_U;
       case PageDown:

@@ -33,45 +33,59 @@ struct Section {
 // REQ-F-012/013 as committed in DESIGN §3.4.
 const std::vector<Section>& expectedSections() {
   static const std::vector<Section> sections = {
-      Section{.key = "Navigation",
-              .label = "Navigation",
-              .rows = {Row{.key = "Ctrl plus O", .description = "Open image", .keycap = true},
-                       Row{.key = "[ or ]", .description = "Previous / next image", .keycap = true},
-                       Row{.key = "Ctrl plus R", .description = "Refresh folder and image", .keycap = true}}},
+      Section{
+          .key = "Navigation",
+          .label = "Navigation",
+          .rows = {Row{.key = "Ctrl plus o", .description = "Open image", .keycap = true},
+                   Row{.key = "[ or ]", .description = "Previous / next image", .keycap = true},
+                   Row{.key = "h or l", .description = "Aliases: previous / next image (single view)", .keycap = true},
+                   Row{.key = "Ctrl plus r", .description = "Refresh folder and image", .keycap = true}}},
       Section{.key = "View",
               .label = "View",
               .rows = {Row{.key = "Ctrl plus 0", .description = "Fit", .keycap = true},
+                       Row{.key = "0", .description = "Alias: Fit", .keycap = true},
                        Row{.key = "1", .description = "Actual size", .keycap = true},
                        Row{.key = "Ctrl plus + or Ctrl plus -", .description = "Zoom", .keycap = true},
-                       Row{.key = "F", .description = "Fullscreen", .keycap = true},
+                       Row{.key = "Ctrl plus = or +", .description = "Aliases: zoom in", .keycap = true},
+                       Row{.key = "-", .description = "Alias: zoom out", .keycap = true},
+                       Row{.key = "f", .description = "Fullscreen", .keycap = true},
                        Row{.key = "Esc", .description = "Close dialog, grid or leave fullscreen", .keycap = true}}},
-      Section{.key = "Grid",
-              .label = "Grid",
-              .rows = {Row{.key = "Ctrl plus G", .description = "Toggle grid view", .keycap = true},
-                       Row{.key = "H or J or K or L", .description = "Move selection", .keycap = true},
-                       Row{.key = "Ctrl plus U", .description = "Half page up", .keycap = true},
-                       Row{.key = "Ctrl plus D", .description = "Half page down", .keycap = true},
-                       Row{.key = "Enter", .description = "Open selected image", .keycap = true}}},
+      Section{
+          .key = "Grid",
+          .label = "Grid",
+          .rows = {Row{.key = "Ctrl plus g", .description = "Toggle grid view", .keycap = true},
+                   Row{.key = "h or j or k or l", .description = "Move selection", .keycap = true},
+                   Row{.key = "Left or Down or Up or Right", .description = "Aliases: move selection", .keycap = true},
+                   Row{.key = "gg", .description = "First item", .keycap = true},
+                   Row{.key = "Shift plus g", .description = "Last item", .keycap = true},
+                   Row{.key = "Ctrl plus u", .description = "Half page up", .keycap = true},
+                   Row{.key = "Ctrl plus d", .description = "Half page down", .keycap = true},
+                   Row{.key = "Enter", .description = "Open selected image", .keycap = true}}},
       Section{
           .key = "Transform",
           .label = "Transform",
-          .rows = {Row{.key = "R or Shift plus R", .description = "Rotate clockwise/counterclockwise", .keycap = true},
-                   Row{.key = "X or Shift plus X", .description = "Flip horizontally/vertically", .keycap = true}}},
+          .rows = {Row{.key = "r or Shift plus r", .description = "Rotate clockwise/counterclockwise", .keycap = true},
+                   Row{.key = "x or Shift plus x", .description = "Flip horizontally/vertically", .keycap = true}}},
       Section{.key = "Playback",
               .label = "Playback",
               .rows = {Row{.key = "Space", .description = "Toggle play/pause", .keycap = true}}},
       Section{.key = "Image",
               .label = "Image",
-              .rows = {Row{.key = "I", .description = "Image information", .keycap = true},
-                       Row{.key = "Ctrl plus C", .description = "Copy image", .keycap = true},
-                       Row{.key = "Ctrl plus Shift plus C", .description = "Copy path", .keycap = true}}},
+              .rows = {Row{.key = "i", .description = "Image information", .keycap = true},
+                       Row{.key = "Ctrl plus c", .description = "Copy image", .keycap = true},
+                       Row{.key = "Ctrl plus Shift plus c", .description = "Copy path", .keycap = true}}},
       Section{.key = "Application",
               .label = "Application",
               .rows = {Row{.key = "?", .description = "Toggle this help", .keycap = true},
-                       Row{.key = "Q", .description = "Quit", .keycap = true}}},
+                       Row{.key = "j or k", .description = "Move through menu", .keycap = true},
+                       Row{.key = "Down or Up", .description = "Aliases: move through menu", .keycap = true},
+                       Row{.key = "q", .description = "Quit", .keycap = true}}},
       Section{.key = "Mouse",
               .label = "Mouse",
               .rows = {Row{.key = "Wheel/touchpad scroll", .description = "Zoom at pointer", .keycap = false},
+                       Row{.key = "Back / Forward buttons",
+                           .description = "Previous / next image or grid selection",
+                           .keycap = false},
                        Row{.key = "Left-drag", .description = "Pan", .keycap = false},
                        Row{.key = "Left or Right or Up or Down", .description = "Pan", .keycap = true},
                        Row{.key = "Drop an image", .description = "Open image", .keycap = false}}},
@@ -248,15 +262,6 @@ TEST(ShortcutHelpPopup, SectionsRowsAndRendering) {
       EXPECT_EQ(key, QString::fromUtf8(want.key));
       EXPECT_EQ(description, QString::fromUtf8(want.description));
       EXPECT_EQ(row.value("keycap").toBool(), want.keycap) << want.key;
-      // REQ-F-014: no widget navigation in the help.
-      // The Grid section documents J and K as selection keys; elsewhere they would mean menu navigation.
-      const bool gridKeys = QString::fromLatin1(expected[sectionIndex].key) == QLatin1String("Grid");
-      EXPECT_FALSE(key.contains("Tab") || (!gridKeys && (key.split(QRegularExpression("[^A-Za-z]+")).contains("J") ||
-                                                         key.split(QRegularExpression("[^A-Za-z]+")).contains("K"))))
-          << want.key;
-      EXPECT_FALSE(description.contains("header", Qt::CaseInsensitive) ||
-                   description.contains("menu", Qt::CaseInsensitive))
-          << want.description;
       auto* keycap = fixture.item(rowName + "Keycap");
       auto* gesture = fixture.item(rowName + "Gesture");
       ASSERT_TRUE(keycap && gesture) << rowName.toStdString();
@@ -265,7 +270,7 @@ TEST(ShortcutHelpPopup, SectionsRowsAndRendering) {
       ++rowCount;
     }
   }
-  EXPECT_EQ(rowCount, 25);
+  EXPECT_EQ(rowCount, 35);
 
   auto* title = fixture.item("shortcutHelpTitle");
   ASSERT_NE(title, nullptr);

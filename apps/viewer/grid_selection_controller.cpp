@@ -40,7 +40,7 @@ void GridSelectionController::select(int index) {
   emit changed();
 }
 int GridSelectionController::target(int move) const {
-  if (move < 0 || move > static_cast<int>(GridNavigation::Move::PageDown)) {
+  if (move < 0 || move > static_cast<int>(GridNavigation::Move::Last)) {
     return selected_index_;
   }
   return GridNavigation::target(selected_index_, static_cast<GridNavigation::Move>(move), document_->folder()->count(),
@@ -51,7 +51,9 @@ bool GridSelectionController::canMove(int move) const {
   return !document_->scanning() && index >= 0 && index != selected_index_;
 }
 void GridSelectionController::move(int move) {
-  if (canMove(move)) {
+  // Boundary commands also reveal an already-selected item after manual scrolling.
+  if (move == static_cast<int>(GridNavigation::Move::First) || move == static_cast<int>(GridNavigation::Move::Last) ||
+      canMove(move)) {
     select(target(move));
   }
 }

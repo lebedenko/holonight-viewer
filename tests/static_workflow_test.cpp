@@ -248,9 +248,9 @@ TEST(Viewer, StaticWorkflowControls) {
   EXPECT_FALSE(canvas->hasActiveFocus());
   QTest::keyClick(window, Qt::Key_X);
   EXPECT_EQ(document.orientation(), ImageOrientation::compose(1, 4));
-  // The old H/V bindings are gone rather than aliased.
+  // H now browses; Shift+H and the old V flip bindings remain inactive.
+  QTest::keyClick(window, Qt::Key_H, Qt::ShiftModifier);
   for (const auto modifiers : {Qt::NoModifier, Qt::ShiftModifier}) {
-    QTest::keyClick(window, Qt::Key_H, modifiers);
     QTest::keyClick(window, Qt::Key_V, modifiers);
   }
   EXPECT_EQ(document.orientation(), ImageOrientation::compose(1, 4));
@@ -294,7 +294,7 @@ TEST(Viewer, StaticWorkflowControls) {
     auto* shortcut = openItem->findChild<QQuickItem*>("menuItemShortcut");
     ASSERT_NE(label, nullptr);
     ASSERT_NE(shortcut, nullptr);
-    EXPECT_EQ(shortcut->property("accessibleText").toString(), "Ctrl plus O");
+    EXPECT_EQ(shortcut->property("accessibleText").toString(), "Ctrl plus o");
     EXPECT_TRUE(shortcut->isVisible());
     const auto labelRight = label->mapToItem(openItem, {label->implicitWidth(), 0}).x();
     EXPECT_GT(shortcut->mapToItem(openItem, {0, 0}).x(), labelRight);

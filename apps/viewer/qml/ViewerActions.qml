@@ -213,7 +213,7 @@ Item {
     }
 
     Shortcut {
-        sequence: ViewerShortcuts.sequence(ViewerShortcuts.Fit)
+        sequences: ViewerShortcuts.sequences(ViewerShortcuts.Fit)
         enabled: fit.enabled
         onActivated: fit.trigger()
     }
@@ -228,18 +228,18 @@ Item {
         onActivated: zoomIn.trigger()
     }
     Shortcut {
-        sequence: ViewerShortcuts.sequence(ViewerShortcuts.ZoomOut)
+        sequences: ViewerShortcuts.sequences(ViewerShortcuts.ZoomOut)
         enabled: zoomOut.enabled
         onActivated: zoomOut.trigger()
     }
 
     Shortcut {
-        sequence: ViewerShortcuts.sequence(ViewerShortcuts.Previous)
+        sequences: root.gridMode ? [ViewerShortcuts.sequence(ViewerShortcuts.Previous)] : ViewerShortcuts.sequences(ViewerShortcuts.Previous)
         enabled: previousImage.enabled
         onActivated: previousImage.trigger()
     }
     Shortcut {
-        sequence: ViewerShortcuts.sequence(ViewerShortcuts.Next)
+        sequences: root.gridMode ? [ViewerShortcuts.sequence(ViewerShortcuts.Next)] : ViewerShortcuts.sequences(ViewerShortcuts.Next)
         enabled: nextImage.enabled
         onActivated: nextImage.trigger()
     }

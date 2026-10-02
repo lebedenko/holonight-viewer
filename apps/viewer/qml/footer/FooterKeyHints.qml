@@ -24,6 +24,17 @@ Item {
             label: qsTr("Move")
         },
         {
+            name: "First",
+            keyGroups: [],
+            text: "gg",
+            label: qsTr("First")
+        },
+        {
+            name: "Last",
+            keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.GridLast),
+            label: qsTr("Last")
+        },
+        {
             name: "GridPage",
             keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.PageUp).concat(ViewerShortcuts.keyGroups(ViewerShortcuts.PageDown)),
             label: qsTr("Page")
@@ -142,8 +153,10 @@ Item {
 
                 HnKeyHint {
                     id: keycap
+                    lowercaseLetters: true
                     objectName: hintRow.objectName + "Keycap"
                     anchors.verticalCenter: parent.verticalCenter
+                    text: hintRow.modelData.text ?? ""
                     keyGroups: hintRow.modelData.keyGroups
                     font.pointSize: hintLabel.font.pointSize
                     Accessible.ignored: true

@@ -33,6 +33,11 @@ Controls.Popup {
                     keycap: true
                 },
                 {
+                    keyGroups: ViewerShortcuts.aliasKeyGroups(ViewerShortcuts.Previous).concat(ViewerShortcuts.aliasKeyGroups(ViewerShortcuts.Next)),
+                    description: qsTr("Aliases: previous / next image (single view)"),
+                    keycap: true
+                },
+                {
                     keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Refresh),
                     description: qsTr("Refresh folder and image"),
                     keycap: true
@@ -49,6 +54,11 @@ Controls.Popup {
                     keycap: true
                 },
                 {
+                    keyGroups: ViewerShortcuts.aliasKeyGroups(ViewerShortcuts.Fit),
+                    description: qsTr("Alias: Fit"),
+                    keycap: true
+                },
+                {
                     keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.ActualSize),
                     description: qsTr("Actual size"),
                     keycap: true
@@ -56,6 +66,16 @@ Controls.Popup {
                 {
                     keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.ZoomIn).concat(ViewerShortcuts.keyGroups(ViewerShortcuts.ZoomOut)),
                     description: qsTr("Zoom"),
+                    keycap: true
+                },
+                {
+                    keyGroups: ViewerShortcuts.aliasKeyGroups(ViewerShortcuts.ZoomIn),
+                    description: qsTr("Aliases: zoom in"),
+                    keycap: true
+                },
+                {
+                    keyGroups: ViewerShortcuts.aliasKeyGroups(ViewerShortcuts.ZoomOut),
+                    description: qsTr("Alias: zoom out"),
                     keycap: true
                 },
                 {
@@ -82,6 +102,21 @@ Controls.Popup {
                 {
                     keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.GridLeft).concat(ViewerShortcuts.keyGroups(ViewerShortcuts.GridDown), ViewerShortcuts.keyGroups(ViewerShortcuts.GridUp), ViewerShortcuts.keyGroups(ViewerShortcuts.GridRight)),
                     description: qsTr("Move selection"),
+                    keycap: true
+                },
+                {
+                    keyGroups: ViewerShortcuts.aliasKeyGroups(ViewerShortcuts.GridLeft).concat(ViewerShortcuts.aliasKeyGroups(ViewerShortcuts.GridDown), ViewerShortcuts.aliasKeyGroups(ViewerShortcuts.GridUp), ViewerShortcuts.aliasKeyGroups(ViewerShortcuts.GridRight)),
+                    description: qsTr("Aliases: move selection"),
+                    keycap: true
+                },
+                {
+                    key: "gg",
+                    description: qsTr("First item"),
+                    keycap: true
+                },
+                {
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.GridLast),
+                    description: qsTr("Last item"),
                     keycap: true
                 },
                 {
@@ -159,6 +194,16 @@ Controls.Popup {
                     keycap: true
                 },
                 {
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.MenuDown).concat(ViewerShortcuts.keyGroups(ViewerShortcuts.MenuUp)),
+                    description: qsTr("Move through menu"),
+                    keycap: true
+                },
+                {
+                    keyGroups: ViewerShortcuts.aliasKeyGroups(ViewerShortcuts.MenuDown).concat(ViewerShortcuts.aliasKeyGroups(ViewerShortcuts.MenuUp)),
+                    description: qsTr("Aliases: move through menu"),
+                    keycap: true
+                },
+                {
                     keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Quit),
                     description: qsTr("Quit"),
                     keycap: true
@@ -172,6 +217,11 @@ Controls.Popup {
                 {
                     key: qsTr("Wheel/touchpad scroll"),
                     description: qsTr("Zoom at pointer"),
+                    keycap: false
+                },
+                {
+                    key: qsTr("Back / Forward buttons"),
+                    description: qsTr("Previous / next image or grid selection"),
                     keycap: false
                 },
                 {
@@ -311,10 +361,12 @@ Controls.Popup {
                                     Layout.alignment: Qt.AlignVCenter
                                     HnKeyHint {
                                         id: keycap
+                                        lowercaseLetters: true
                                         objectName: rowItem.objectName + "Keycap"
                                         visible: rowItem.modelData.keycap
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: Math.min(implicitWidth, parent.width)
+                                        text: rowItem.modelData.key ?? ""
                                         keyGroups: rowItem.modelData.keyGroups ?? []
                                         wrap: true
                                         Accessible.ignored: true

@@ -60,6 +60,7 @@ Controls.Menu {
                 Accessible.ignored: true
             }
             HnKeySequenceLabel {
+                lowercaseLetters: true
                 objectName: "menuItemShortcut"
                 font: menuLabel.font
                 color: control.enabled ? HoloniightPalette.textMuted : HoloniightPalette.textDisabled

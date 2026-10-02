@@ -5,6 +5,7 @@
 
 #include "grid_navigation.h"
 
+#include <QElapsedTimer>
 #include <QKeyEvent>
 #include <QObject>
 #include <QPointer>
@@ -22,10 +23,10 @@ class WindowKeyRouter : public QObject {
   Q_PROPERTY(QQmlListProperty<QQuickItem> headerFocusTargets READ focusTargets NOTIFY focusTargetsChanged)
   Q_PROPERTY(QQuickItem* playbackButton READ playbackButton WRITE setPlaybackButton NOTIFY focusTargetsChanged)
   Q_PROPERTY(bool imageReady MEMBER image_ready_)
-  Q_PROPERTY(bool modalActive MEMBER modal_active_)
-  Q_PROPERTY(bool menuOpen MEMBER menu_open_)
+  Q_PROPERTY(bool modalActive READ modalActive WRITE setModalActive)
+  Q_PROPERTY(bool menuOpen READ menuOpen WRITE setMenuOpen)
   Q_PROPERTY(bool playbackAvailable MEMBER playback_available_)
-  Q_PROPERTY(bool gridActive MEMBER grid_active_)
+  Q_PROPERTY(bool gridActive READ gridActive WRITE setGridActive)
 
  public:
   explicit WindowKeyRouter(QObject* parent = nullptr);
@@ -38,6 +39,30 @@ class WindowKeyRouter : public QObject {
   [[nodiscard]] QQuickItem* playbackButton() const;
   void setPlaybackButton(QQuickItem* target);
 
+  [[nodiscard]] bool modalActive() const { return modal_active_; }
+  void setModalActive(bool value) {
+    if (modal_active_ != value) {
+      first_press_.invalidate();
+      modal_active_ = value;
+    }
+  }
+
+  [[nodiscard]] bool menuOpen() const { return menu_open_; }
+  void setMenuOpen(bool value) {
+    if (menu_open_ != value) {
+      first_press_.invalidate();
+      menu_open_ = value;
+    }
+  }
+
+  [[nodiscard]] bool gridActive() const { return grid_active_; }
+  void setGridActive(bool value) {
+    if (grid_active_ != value) {
+      first_press_.invalidate();
+      grid_active_ = value;
+    }
+  }
+
  signals:
   void windowChanged();
   void focusTargetsChanged();
@@ -46,12 +71,16 @@ class WindowKeyRouter : public QObject {
   // A GridNavigation::Move value.
   void gridMoveRequested(int move);
   void gridActivateRequested();
+  void browseRequested(int direction);
 
  protected:
   bool eventFilter(QObject* object, QEvent* event) override;
 
  private:
   [[nodiscard]] bool headerOrPlaybackButtonFocused() const;
+  void resetSequenceForEvent(const QEvent& event);
+  bool routeMouse(const QEvent& event);
+  bool routeGridBoundary(const QKeyEvent& event);
   bool routeMenu(int key);
   bool routeTab(bool backwards);
   bool routeGrid(const QKeyEvent& event, bool gridPage);
@@ -65,4 +94,5 @@ class WindowKeyRouter : public QObject {
   bool playback_available_ = false;
   bool grid_active_ = false;
   bool forwarding_ = false;
+  QElapsedTimer first_press_;
 };

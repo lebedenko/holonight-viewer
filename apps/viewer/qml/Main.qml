@@ -132,6 +132,11 @@ HnApplicationWindow {
             controller.activateSelection();
             window.clearImageFocus();
         }
+        onBrowseRequested: direction => {
+            const action = direction < 0 ? viewerActions.previousImage : viewerActions.nextImage;
+            if (action.enabled)
+                action.trigger();
+        }
         onPlaybackToggleRequested: window.togglePlayback()
         onPanRequested: (horizontal, vertical) => {
             canvas.pan(Qt.point(horizontal, vertical));

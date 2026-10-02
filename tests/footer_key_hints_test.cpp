@@ -27,8 +27,8 @@ constexpr std::array<Hint, 7> kHints{{{.name = "Navigate", .key = "[ or ]", .lab
                                       {.name = "Zoom", .key = "Ctrl plus + or Ctrl plus -", .label = "Zoom"},
                                       {.name = "Fit", .key = "Ctrl plus 0", .label = "Fit"},
                                       {.name = "ActualSize", .key = "1", .label = "100%"},
-                                      {.name = "Rotate", .key = "R", .label = "Rotate"},
-                                      {.name = "Fullscreen", .key = "F", .label = "Fullscreen"},
+                                      {.name = "Rotate", .key = "r", .label = "Rotate"},
+                                      {.name = "Fullscreen", .key = "f", .label = "Fullscreen"},
                                       {.name = "Help", .key = "?", .label = "Help"}}};
 
 // Hint rows created by the Repeater inside the footer row, in layout order.
@@ -405,17 +405,20 @@ TEST(FooterKeyHints, GridModeShowsNavigationHintsOnly) {
   ASSERT_TRUE(QMetaObject::invokeMethod(viewer.window, "enterGrid"));
   ASSERT_TRUE(viewer.window->property("gridMode").toBool());
   QTest::qWait(50);
-  EXPECT_EQ(hintNames(viewer.footer), (QStringList{"footerHintGridNavigate", "footerHintGridPage", "footerHintGridOpen",
-                                                   "footerHintGridToggle", "footerHintFullscreen", "footerHintHelp"}));
+  EXPECT_EQ(hintNames(viewer.footer),
+            (QStringList{"footerHintGridNavigate", "footerHintFirst", "footerHintLast", "footerHintGridPage",
+                         "footerHintGridOpen", "footerHintGridToggle", "footerHintFullscreen", "footerHintHelp"}));
   const auto keycapText = [&](const char* name) {
     auto* row = rowNamed(viewer.footer, name);
     return row == nullptr ? QString() : part(row, "Keycap")->property("accessibleText").toString();
   };
-  EXPECT_EQ(keycapText("footerHintGridNavigate"), "H or J or K or L");
-  EXPECT_EQ(keycapText("footerHintGridPage"), "Ctrl plus U or Ctrl plus D");
+  EXPECT_EQ(keycapText("footerHintGridNavigate"), "h or j or k or l");
+  EXPECT_EQ(keycapText("footerHintFirst"), "gg");
+  EXPECT_EQ(keycapText("footerHintLast"), "Shift plus g");
+  EXPECT_EQ(keycapText("footerHintGridPage"), "Ctrl plus u or Ctrl plus d");
   EXPECT_EQ(keycapText("footerHintGridOpen"), "Enter");
   // The toggle reads Ctrl+G, with no Shift keycap.
-  EXPECT_EQ(keycapText("footerHintGridToggle"), "Ctrl plus G");
+  EXPECT_EQ(keycapText("footerHintGridToggle"), "Ctrl plus g");
   const auto labels = [&](const char* name) {
     auto* row = rowNamed(viewer.footer, name);
     return row == nullptr ? QString() : part(row, "Label")->property("text").toString();
@@ -461,7 +464,7 @@ TEST(FooterKeyHints, GridModeNeverOffersPlayPauseAndKeepsHelpWhenNarrow) {
   ASSERT_TRUE(footer->setProperty("gridMode", true));
   QTest::qWait(50);
   EXPECT_FALSE(hintNames(footer).contains(QStringLiteral("footerHintPlayPause")));
-  EXPECT_EQ(hintNames(footer).size(), 6);
+  EXPECT_EQ(hintNames(footer).size(), 8);
   for (int width = 1000; width >= 100; width -= 100) {
     footer->setWidth(width);
     QTest::qWait(30);

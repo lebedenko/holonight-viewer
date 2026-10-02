@@ -67,3 +67,11 @@ TEST(GridNavigation, EveryMoveStaysInRangeForEverySmallGrid) {
     }
   }
 }
+
+TEST(GridNavigation, FirstAndLastReachTheBoundariesAndHandleEmptyGrids) {
+  EXPECT_EQ(GridNavigation::target(5, Move::First, 20, 3, 4), 0);
+  EXPECT_EQ(GridNavigation::target(5, Move::Last, 20, 3, 4), 19);
+  EXPECT_EQ(GridNavigation::target(-1, Move::Last, 20, 0, 0), 19);
+  EXPECT_EQ(GridNavigation::target(0, Move::First, 0, 3, 4), -1);
+  EXPECT_EQ(GridNavigation::target(0, Move::Last, 0, 3, 4), -1);
+}

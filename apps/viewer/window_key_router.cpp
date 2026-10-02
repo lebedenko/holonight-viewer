@@ -5,6 +5,7 @@
 #include "viewer_shortcuts.h"
 
 #include <QCoreApplication>
+#include <QMouseEvent>
 
 #include <algorithm>
 WindowKeyRouter::WindowKeyRouter(QObject* parent) : QObject(parent) {}
@@ -16,10 +17,13 @@ void WindowKeyRouter::setWindow(QQuickWindow* window) {
   }
   if (window_) {
     window_->removeEventFilter(this);
+    disconnect(window_, &QQuickWindow::activeFocusItemChanged, this, nullptr);
   }
+  first_press_.invalidate();
   window_ = window;
   if (window_) {
     window_->installEventFilter(this);
+    connect(window_, &QQuickWindow::activeFocusItemChanged, this, [this] { first_press_.invalidate(); });
   }
   emit windowChanged();
 }
@@ -79,7 +83,14 @@ bool WindowKeyRouter::headerOrPlaybackButtonFocused() const {
   return std::ranges::any_of(header_targets_, [focused](const auto& target) { return target == focused; });
 }
 bool WindowKeyRouter::eventFilter(QObject* object, QEvent* event) {
-  if (object != window_ || event->type() != QEvent::KeyPress || modal_active_) {
+  if (object != window_) {
+    return false;
+  }
+  resetSequenceForEvent(*event);
+  if (routeMouse(*event)) {
+    return true;
+  }
+  if (event->type() != QEvent::KeyPress || modal_active_) {
     return false;
   }
   const auto* keyEvent = dynamic_cast<QKeyEvent*>(event);
@@ -105,8 +116,47 @@ bool WindowKeyRouter::eventFilter(QObject* object, QEvent* event) {
   }
   return image_ready_ && routeImage(*keyEvent);
 }
+void WindowKeyRouter::resetSequenceForEvent(const QEvent& event) {
+  switch (event.type()) {
+    case QEvent::FocusOut:
+    case QEvent::WindowDeactivate:
+    case QEvent::MouseButtonPress:
+    case QEvent::MouseButtonRelease:
+    case QEvent::MouseButtonDblClick:
+    case QEvent::MouseMove:
+    case QEvent::Wheel:
+      first_press_.invalidate();
+      break;
+    // Cancel before another shortcut consumes the key.
+    case QEvent::ShortcutOverride:
+    case QEvent::KeyPress: {
+      const auto* key = dynamic_cast<const QKeyEvent*>(&event);
+      if (key == nullptr || key->key() != ViewerShortcuts::key(ViewerShortcuts::GridFirst) ||
+          (key->modifiers() & ~Qt::KeypadModifier) != Qt::NoModifier) {
+        first_press_.invalidate();
+      }
+      break;
+    }
+    default:
+      break;
+  }
+}
+bool WindowKeyRouter::routeMouse(const QEvent& event) {
+  if (event.type() != QEvent::MouseButtonPress && event.type() != QEvent::MouseButtonRelease &&
+      event.type() != QEvent::MouseButtonDblClick) {
+    return false;
+  }
+  const auto* mouse = dynamic_cast<const QMouseEvent*>(&event);
+  if (mouse == nullptr || (mouse->button() != Qt::BackButton && mouse->button() != Qt::ForwardButton)) {
+    return false;
+  }
+  if (!modal_active_ && event.type() != QEvent::MouseButtonRelease) {
+    emit browseRequested(mouse->button() == Qt::BackButton ? -1 : 1);
+  }
+  return true;
+}
 bool WindowKeyRouter::routeMenu(int key) {
-  if (key != ViewerShortcuts::key(ViewerShortcuts::GridDown) && key != ViewerShortcuts::key(ViewerShortcuts::GridUp)) {
+  if (key != ViewerShortcuts::key(ViewerShortcuts::MenuDown) && key != ViewerShortcuts::key(ViewerShortcuts::MenuUp)) {
     return false;
   }
   if (forwarding_) {
@@ -114,7 +164,7 @@ bool WindowKeyRouter::routeMenu(int key) {
   }
   forwarding_ = true;
   QKeyEvent mapped(QEvent::KeyPress,
-                   key == ViewerShortcuts::key(ViewerShortcuts::GridDown)
+                   key == ViewerShortcuts::key(ViewerShortcuts::MenuDown)
                        ? ViewerShortcuts::key(ViewerShortcuts::PanDown)
                        : ViewerShortcuts::key(ViewerShortcuts::PanUp),
                    Qt::NoModifier);
@@ -150,6 +200,9 @@ bool WindowKeyRouter::routeGrid(const QKeyEvent& event, bool gridPage) {
   const int key = event.key();
 
   using Move = GridNavigation::Move;
+  if (routeGridBoundary(event)) {
+    return true;
+  }
   // Space is never handled here, so a focused header button keeps it.
   if (event.modifiers().testFlag(Qt::ShiftModifier)) {
     return false;
@@ -191,6 +244,31 @@ bool WindowKeyRouter::routeGrid(const QKeyEvent& event, bool gridPage) {
       return false;
   }
 
+  return true;
+}
+bool WindowKeyRouter::routeGridBoundary(const QKeyEvent& event) {
+  if (event.key() != ViewerShortcuts::key(ViewerShortcuts::GridFirst)) {
+    return false;
+  }
+  const auto modifiers = event.modifiers() & ~Qt::KeypadModifier;
+  if (modifiers == Qt::ShiftModifier) {
+    if (!event.isAutoRepeat()) {
+      emit gridMoveRequested(static_cast<int>(GridNavigation::Move::Last));
+    }
+    return true;
+  }
+  if (modifiers != Qt::NoModifier) {
+    return false;
+  }
+  if (event.isAutoRepeat()) {
+    return true;
+  }
+  if (first_press_.isValid() && first_press_.elapsed() < 1000) {
+    first_press_.invalidate();
+    emit gridMoveRequested(static_cast<int>(GridNavigation::Move::First));
+  } else {
+    first_press_.start();
+  }
   return true;
 }
 bool WindowKeyRouter::routeImage(const QKeyEvent& event) {

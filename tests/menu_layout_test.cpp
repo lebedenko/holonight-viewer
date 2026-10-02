@@ -26,9 +26,9 @@ struct Entry {
 
 // REQ-F-005: order, separators, labels and shortcut spellings.
 constexpr std::array kMenu = {
-    Entry{.label = "Open…", .shortcut = "Ctrl plus O"},
-    Entry{.label = "Refresh", .shortcut = "Ctrl plus R"},
-    Entry{.label = "Grid View", .shortcut = "Ctrl plus G"},
+    Entry{.label = "Open…", .shortcut = "Ctrl plus o"},
+    Entry{.label = "Refresh", .shortcut = "Ctrl plus r"},
+    Entry{.label = "Grid View", .shortcut = "Ctrl plus g"},
     Entry{},
     Entry{.label = "Previous", .shortcut = "["},
     Entry{.label = "Next", .shortcut = "]"},
@@ -38,20 +38,20 @@ constexpr std::array kMenu = {
     Entry{.label = "Zoom In", .shortcut = "Ctrl plus +"},
     Entry{.label = "Zoom Out", .shortcut = "Ctrl plus -"},
     Entry{},
-    Entry{.label = "Rotate Clockwise", .shortcut = "R"},
-    Entry{.label = "Rotate Counterclockwise", .shortcut = "Shift plus R"},
-    Entry{.label = "Flip Horizontally", .shortcut = "X"},
-    Entry{.label = "Flip Vertically", .shortcut = "Shift plus X"},
+    Entry{.label = "Rotate Clockwise", .shortcut = "r"},
+    Entry{.label = "Rotate Counterclockwise", .shortcut = "Shift plus r"},
+    Entry{.label = "Flip Horizontally", .shortcut = "x"},
+    Entry{.label = "Flip Vertically", .shortcut = "Shift plus x"},
     Entry{.label = "Reset Transform", .shortcut = ""},
     Entry{},
-    Entry{.label = "Copy Image", .shortcut = "Ctrl plus C"},
-    Entry{.label = "Copy Path", .shortcut = "Ctrl plus Shift plus C"},
+    Entry{.label = "Copy Image", .shortcut = "Ctrl plus c"},
+    Entry{.label = "Copy Path", .shortcut = "Ctrl plus Shift plus c"},
     Entry{},
-    Entry{.label = "Image Information", .shortcut = "I"},
+    Entry{.label = "Image Information", .shortcut = "i"},
     Entry{.label = "Shortcut Help", .shortcut = "?"},
     Entry{},
-    Entry{.label = "Fullscreen", .shortcut = "F"},
-    Entry{.label = "Quit", .shortcut = "Q"},
+    Entry{.label = "Fullscreen", .shortcut = "f"},
+    Entry{.label = "Quit", .shortcut = "q"},
 };
 constexpr int kEntries = kMenu.size();
 

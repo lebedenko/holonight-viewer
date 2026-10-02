@@ -66,6 +66,22 @@ TEST(Viewer, InspectionControlsAndLifecycle) {
     EXPECT_LT(canvas->imageRect().y(), before_keyboard_pan.y());
   }
   canvas->fit();
+  const auto aliasFit = canvas->magnification();
+  QTest::keyClick(window, Qt::Key_Plus);
+  EXPECT_DOUBLE_EQ(canvas->magnification(), aliasFit * 1.25);
+  QTest::keyClick(window, Qt::Key_Minus);
+  EXPECT_NEAR(canvas->magnification(), aliasFit, 1e-12);
+  QTest::keyClick(window, Qt::Key_0);
+  EXPECT_TRUE(canvas->fitting());
+  QTest::keyClick(window, Qt::Key_Question);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return window->property("helpOpen").toBool(); }));
+  for (const auto key : {Qt::Key_Plus, Qt::Key_Minus, Qt::Key_0}) {
+    QTest::keyClick(window, key);
+    EXPECT_DOUBLE_EQ(canvas->magnification(), aliasFit);
+  }
+  QTest::keyClick(window, Qt::Key_Escape);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !window->property("helpOpen").toBool(); }));
+  canvas->fit();
   auto* menu = window->findChild<QObject*>("actionsMenu");
   ASSERT_NE(menu, nullptr);
   ASSERT_TRUE(QMetaObject::invokeMethod(menu, "open"));

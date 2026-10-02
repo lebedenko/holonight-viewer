@@ -15,7 +15,7 @@ class GridNavigation : public QObject {
   QML_SINGLETON
 
  public:
-  enum class Move : std::uint8_t { Previous, Next, RowUp, RowDown, PageUp, PageDown };
+  enum class Move : std::uint8_t { Previous, Next, RowUp, RowDown, PageUp, PageDown, First, Last };
   Q_ENUM(Move)
 
   explicit GridNavigation(QObject* parent = nullptr) : QObject(parent) {}
@@ -32,6 +32,10 @@ class GridNavigation : public QObject {
     const int from = (current < 0 || current > last) ? 0 : current;
     const int page = std::max(1, std::max(visibleRows, 0) / 2) * width;
     switch (move) {
+      case Move::First:
+        return 0;
+      case Move::Last:
+        return last;
       case Move::Previous:
         return std::max(from - 1, 0);
       case Move::Next:

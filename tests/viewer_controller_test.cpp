@@ -10,6 +10,7 @@
 #include <QSignalSpy>
 #include <QTest>
 
+#include <functional>
 #include <gtest/gtest.h>
 
 TEST(ViewerController, SelectionSurvivesRefreshAndFallsBackWhenRemoved) {
@@ -73,7 +74,7 @@ TEST(ViewerController, GridAndModalSuspendPlaybackAndGateCommands) {
 TEST(ViewerShortcuts, StandardOpenAliasesAndDisplayGroups) {
   EXPECT_EQ(ViewerShortcuts::sequences(ViewerShortcuts::Open), QVariantList{static_cast<int>(QKeySequence::Open)});
   EXPECT_EQ(ViewerShortcuts::sequences(ViewerShortcuts::ZoomIn),
-            (QVariantList{QStringLiteral("Ctrl++"), QStringLiteral("Ctrl+=")}));
+            (QVariantList{QStringLiteral("Ctrl++"), QStringLiteral("Ctrl+="), QStringLiteral("+")}));
   EXPECT_EQ(ViewerShortcuts::keyGroups(ViewerShortcuts::RotateCounterclockwise),
             (QVariantList{QVariantList{static_cast<int>(Qt::Key_Shift), static_cast<int>(Qt::Key_R)}}));
 }
@@ -184,4 +185,99 @@ TEST(ViewerController, NamedTransformsKeepCompositionAndRejectInvalidIntegers) {
   document.transform(ImageDocument::RotateClockwise);
   document.transform(ImageDocument::RotateCounterclockwise);
   EXPECT_EQ(document.orientation(), 0);
+}
+
+TEST(ViewerShortcuts, MainBindingsAndAliasesHaveSeparateDisplays) {
+  EXPECT_EQ(ViewerShortcuts::sequence(ViewerShortcuts::Previous), "[");
+  EXPECT_EQ(ViewerShortcuts::aliasSequences(ViewerShortcuts::Previous), QVariantList{QStringLiteral("H")});
+  EXPECT_EQ(ViewerShortcuts::sequences(ViewerShortcuts::Fit),
+            (QVariantList{QStringLiteral("Ctrl+0"), QStringLiteral("0")}));
+  EXPECT_EQ(ViewerShortcuts::sequence(ViewerShortcuts::GridFirst), "G, G");
+  EXPECT_TRUE(ViewerShortcuts::keyGroups(ViewerShortcuts::GridFirst).isEmpty());
+  EXPECT_TRUE(ViewerShortcuts::aliasSequences(ViewerShortcuts::GridFirst).isEmpty());
+  EXPECT_EQ(ViewerShortcuts::aliasKeyGroups(ViewerShortcuts::MenuDown),
+            ViewerShortcuts::keyGroups(ViewerShortcuts::PanDown));
+}
+
+TEST(WindowKeyRouter, FirstSequenceRejectsRepeatAndCancelsOnInputFocusAndContextChanges) {
+  QQuickWindow window;
+  WindowKeyRouter router;
+  router.setWindow(&window);
+  router.setGridActive(true);
+  QSignalSpy moves(&router, &WindowKeyRouter::gridMoveRequested);
+  const auto press = [&](int key, Qt::KeyboardModifiers modifiers = Qt::NoModifier, bool repeat = false) {
+    QKeyEvent event(QEvent::KeyPress, key, modifiers, QString(), repeat);
+    QCoreApplication::sendEvent(&window, &event);
+  };
+  press(Qt::Key_G);
+  press(Qt::Key_G, Qt::NoModifier, true);
+  EXPECT_TRUE(moves.isEmpty());
+  press(Qt::Key_G);
+  ASSERT_EQ(moves.size(), 1);
+  EXPECT_EQ(moves.takeFirst().first().toInt(), static_cast<int>(GridNavigation::Move::First));
+  press(Qt::Key_G, Qt::ShiftModifier);
+  ASSERT_EQ(moves.size(), 1);
+  EXPECT_EQ(moves.takeFirst().first().toInt(), static_cast<int>(GridNavigation::Move::Last));
+  press(Qt::Key_G, Qt::ShiftModifier, true);
+  EXPECT_TRUE(moves.isEmpty());
+  const auto expectCancelled = [&](const std::function<void()>& cancel) {
+    press(Qt::Key_G);
+    cancel();
+    moves.clear();
+    press(Qt::Key_G);
+    EXPECT_TRUE(moves.isEmpty());
+    press(Qt::Key_G);
+    EXPECT_EQ(moves.size(), 1);
+    moves.clear();
+  };
+  expectCancelled([&] { press(Qt::Key_J); });
+  expectCancelled([&] {
+    QKeyEvent event(QEvent::ShortcutOverride, Qt::Key_Plus, Qt::ControlModifier);
+    QCoreApplication::sendEvent(&window, &event);
+  });
+  expectCancelled([&] {
+    QEvent event(QEvent::WindowDeactivate);
+    QCoreApplication::sendEvent(&window, &event);
+  });
+  expectCancelled([&] {
+    router.setModalActive(true);
+    router.setModalActive(false);
+  });
+  expectCancelled([&] {
+    router.setMenuOpen(true);
+    router.setMenuOpen(false);
+  });
+  expectCancelled([&] {
+    router.setGridActive(false);
+    router.setGridActive(true);
+  });
+  expectCancelled([&] { QTest::mouseClick(&window, Qt::LeftButton); });
+  press(Qt::Key_G);
+  QTest::qWait(1050);
+  press(Qt::Key_G);
+  EXPECT_TRUE(moves.isEmpty());
+  press(Qt::Key_G);
+  EXPECT_EQ(moves.size(), 1);
+}
+
+TEST(WindowKeyRouter, MouseButtonsEmitOncePerPressAndLeaveOtherButtonsAlone) {
+  QQuickWindow window;
+  WindowKeyRouter router;
+  router.setWindow(&window);
+  window.show();
+  ASSERT_TRUE(QTest::qWaitForWindowExposed(&window));
+  QSignalSpy browsing(&router, &WindowKeyRouter::browseRequested);
+  QTest::mouseClick(&window, Qt::BackButton);
+  ASSERT_EQ(browsing.size(), 1);
+  EXPECT_EQ(browsing.takeFirst().first().toInt(), -1);
+  QTest::mouseClick(&window, Qt::ForwardButton);
+  ASSERT_EQ(browsing.size(), 1);
+  EXPECT_EQ(browsing.takeFirst().first().toInt(), 1);
+  QTest::mouseClick(&window, Qt::LeftButton);
+  QTest::mouseClick(&window, Qt::RightButton);
+  EXPECT_TRUE(browsing.isEmpty());
+  router.setModalActive(true);
+  QTest::mouseClick(&window, Qt::BackButton);
+  QTest::mouseClick(&window, Qt::ForwardButton);
+  EXPECT_TRUE(browsing.isEmpty());
 }

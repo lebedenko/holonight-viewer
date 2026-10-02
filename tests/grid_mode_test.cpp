@@ -1,5 +1,6 @@
 #include "synthetic_thumbnails.h"
 #include "thumbnail_provider.h"
+#include "viewer_controller.h"
 
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -239,6 +240,10 @@ TEST(GridMode, PictureActionsAreDisabledInGridAndReturnInSingleView) {
   fixture.key(Qt::Key_Plus, Qt::ControlModifier);
   fixture.key(Qt::Key_Minus, Qt::ControlModifier);
   fixture.key(Qt::Key_0, Qt::ControlModifier);
+  for (const auto key : {Qt::Key_Plus, Qt::Key_Minus, Qt::Key_0}) {
+    fixture.key(key);
+    EXPECT_EQ(canvas->property("magnification").toReal(), magnification);
+  }
   fixture.key(Qt::Key_1);
   fixture.key(Qt::Key_R);
   fixture.key(Qt::Key_X);
@@ -490,13 +495,13 @@ TEST(GridKeys, CtrlDAndCtrlUPageByHalfTheVisibleRows) {
   EXPECT_EQ(selected(fixture), 0);
 }
 
-TEST(GridKeys, GridKeysAreInertInSingleView) {
+TEST(GridKeys, VerticalAndPageKeysAreInertInSingleView) {
   GridModeFixture fixture;
   fixture.imageSize = {4000, 3000};
   ASSERT_TRUE(fixture.load(12));
   ASSERT_TRUE(fixture.open(5));
   auto* canvas = fixture.find<QObject>("imageCanvas");
-  for (const auto key : {Qt::Key_H, Qt::Key_J, Qt::Key_K, Qt::Key_L}) {
+  for (const auto key : {Qt::Key_J, Qt::Key_K}) {
     fixture.key(key);
   }
   fixture.key(Qt::Key_D, Qt::ControlModifier);
@@ -776,11 +781,11 @@ void expectGridHelp(GridModeFixture& fixture) {
     auto* item = descendant(content, QStringLiteral("shortcutHelpRowGrid%1Keycap").arg(row));
     return item == nullptr ? QString() : item->property("accessibleText").toString();
   };
-  EXPECT_EQ(keycap(0), "Ctrl plus G");
-  EXPECT_EQ(keycap(1), "H or J or K or L");
-  EXPECT_EQ(keycap(2), "Ctrl plus U");
-  EXPECT_EQ(keycap(3), "Ctrl plus D");
-  EXPECT_EQ(keycap(4), "Enter");
+  EXPECT_EQ(keycap(0), "Ctrl plus g");
+  EXPECT_EQ(keycap(1), "h or j or k or l");
+  EXPECT_EQ(keycap(5), "Ctrl plus u");
+  EXPECT_EQ(keycap(6), "Ctrl plus d");
+  EXPECT_EQ(keycap(7), "Enter");
   EXPECT_NE(descendant(content, "shortcutHelpSectionLabelGrid"), nullptr);
   fixture.key(Qt::Key_Escape);
   ASSERT_TRUE(QTest::qWaitFor([&] { return !fixture.window->property("helpOpen").toBool(); }, 5000));
@@ -917,4 +922,83 @@ TEST(GridFeatures, OpenAndQuitStillWorkInGrid) {
   QSignalSpy closing(fixture.window, &QQuickWindow::closing);
   fixture.key(Qt::Key_Q);
   EXPECT_GE(closing.count(), 1);
+}
+
+TEST(GridKeys, FirstLastSelectWithoutOpeningAndStayBlockedDuringScan) {
+  GridModeFixture fixture;
+  ASSERT_TRUE(fixture.load(100));
+  ASSERT_TRUE(fixture.open(5));
+  fixture.key(Qt::Key_G, Qt::ControlModifier);
+  auto* controller = fixture.find<ViewerController>("viewerController");
+  ASSERT_NE(controller, nullptr);
+  fixture.key(Qt::Key_G, Qt::ShiftModifier);
+  EXPECT_EQ(controller->selection()->selectedIndex(), 99);
+  EXPECT_EQ(fixture.document.url(), photo(5));
+  fixture.key(Qt::Key_G);
+  fixture.key(Qt::Key_G);
+  EXPECT_EQ(controller->selection()->selectedIndex(), 0);
+  EXPECT_EQ(fixture.document.url(), photo(5));
+  fixture.blockScans(true);
+  fixture.document.refresh();
+  ASSERT_TRUE(fixture.document.scanning());
+  fixture.key(Qt::Key_G, Qt::ShiftModifier);
+  EXPECT_EQ(controller->selection()->selectedIndex(), 0);
+  fixture.blockScans(false);
+}
+
+TEST(GridBrowse, LetterAliasesAndMouseButtonsShareBrowsingAndSelectionBoundaries) {
+  GridModeFixture fixture;
+  ASSERT_TRUE(fixture.load(3));
+  ASSERT_TRUE(fixture.open(2));
+  fixture.key(Qt::Key_H);
+  ASSERT_TRUE(QTest::qWaitFor(
+      [&] { return fixture.document.url() == photo(1) && fixture.document.state() == ImageDocument::Ready; }));
+  QTest::mouseClick(fixture.window, Qt::BackButton);
+  EXPECT_EQ(fixture.document.url(), photo(1));
+  QTest::mouseClick(fixture.window, Qt::ForwardButton);
+  ASSERT_TRUE(QTest::qWaitFor(
+      [&] { return fixture.document.url() == photo(2) && fixture.document.state() == ImageDocument::Ready; }));
+  fixture.key(Qt::Key_L);
+  ASSERT_TRUE(QTest::qWaitFor(
+      [&] { return fixture.document.url() == photo(3) && fixture.document.state() == ImageDocument::Ready; }));
+  fixture.key(Qt::Key_G, Qt::ControlModifier);
+  auto* controller = fixture.find<ViewerController>("viewerController");
+  ASSERT_NE(controller, nullptr);
+  QTest::mouseClick(fixture.window, Qt::BackButton);
+  EXPECT_EQ(controller->selection()->selectedIndex(), 1);
+  fixture.key(Qt::Key_H);
+  EXPECT_EQ(controller->selection()->selectedIndex(), 0);
+  fixture.key(Qt::Key_L);
+  EXPECT_EQ(controller->selection()->selectedIndex(), 1);
+  QTest::mouseClick(fixture.window, Qt::ForwardButton);
+  EXPECT_EQ(controller->selection()->selectedIndex(), 2);
+  QTest::mouseClick(fixture.window, Qt::ForwardButton);
+  EXPECT_EQ(controller->selection()->selectedIndex(), 2);
+  EXPECT_EQ(fixture.document.url(), photo(3));
+  fixture.key(Qt::Key_Question);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return fixture.window->property("helpOpen").toBool(); }));
+  QTest::mouseClick(fixture.window, Qt::BackButton);
+  fixture.key(Qt::Key_H);
+  fixture.key(Qt::Key_G, Qt::ShiftModifier);
+  EXPECT_EQ(controller->selection()->selectedIndex(), 2);
+}
+
+TEST(GridBrowse, MenuMovementTakesPrecedenceOverSelectionAndBrowsingAliases) {
+  GridModeFixture fixture;
+  ASSERT_TRUE(fixture.load(12));
+  ASSERT_TRUE(enterGridAt(fixture, 5));
+  auto* menu = fixture.find<QObject>("actionsMenu");
+  ASSERT_NE(menu, nullptr);
+  ASSERT_TRUE(QMetaObject::invokeMethod(menu, "open"));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return menu->property("opened").toBool(); }));
+  menu->setProperty("currentIndex", 0);
+  fixture.key(Qt::Key_J);
+  EXPECT_GT(menu->property("currentIndex").toInt(), 0);
+  fixture.key(Qt::Key_H);
+  fixture.key(Qt::Key_L);
+  fixture.key(Qt::Key_G);
+  fixture.key(Qt::Key_G);
+  fixture.key(Qt::Key_G, Qt::ShiftModifier);
+  EXPECT_EQ(selected(fixture), 4);
+  EXPECT_EQ(fixture.document.url(), photo(5));
 }

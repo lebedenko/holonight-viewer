@@ -49,8 +49,10 @@ QString ViewerShortcuts::sequence(Command command) {
       return QStringLiteral("Space");
     case GridLeft:
       return QStringLiteral("H");
+    case MenuDown:
     case GridDown:
       return QStringLiteral("J");
+    case MenuUp:
     case GridUp:
       return QStringLiteral("K");
     case GridRight:
@@ -69,6 +71,10 @@ QString ViewerShortcuts::sequence(Command command) {
       return QStringLiteral("Up");
     case PanDown:
       return QStringLiteral("Down");
+    case GridFirst:
+      return QStringLiteral("G, G");
+    case GridLast:
+      return QStringLiteral("Shift+G");
   }
   return {};
 }
@@ -76,10 +82,9 @@ QVariantList ViewerShortcuts::sequences(Command command) {
   if (command == Open) {
     return {static_cast<int>(QKeySequence::Open)};
   }
-  if (command == ZoomIn) {
-    return {sequence(command), QStringLiteral("Ctrl+=")};
-  }
-  return {sequence(command)};
+  QVariantList result{sequence(command)};
+  result.append(aliasSequences(command));
+  return result;
 }
 QVariantList ViewerShortcuts::keyGroups(Command command) {
   switch (command) {
@@ -133,8 +138,10 @@ QVariantList ViewerShortcuts::keyGroups(Command command) {
       return {QVariantList{static_cast<int>(Qt::Key_Space)}};
     case GridLeft:
       return {QVariantList{static_cast<int>(Qt::Key_H)}};
+    case MenuDown:
     case GridDown:
       return {QVariantList{static_cast<int>(Qt::Key_J)}};
+    case MenuUp:
     case GridUp:
       return {QVariantList{static_cast<int>(Qt::Key_K)}};
     case GridRight:
@@ -153,6 +160,64 @@ QVariantList ViewerShortcuts::keyGroups(Command command) {
       return {QVariantList{static_cast<int>(Qt::Key_Up)}};
     case PanDown:
       return {QVariantList{static_cast<int>(Qt::Key_Down)}};
+    case GridFirst:
+      return {};  // Sequential binding is displayed as literal text, never a chord.
+    case GridLast:
+      return {QVariantList{static_cast<int>(Qt::Key_Shift), static_cast<int>(Qt::Key_G)}};
   }
   return {};
+}
+
+QVariantList ViewerShortcuts::aliasSequences(Command command) {
+  switch (command) {
+    case Previous:
+      return {QStringLiteral("H")};
+    case Next:
+      return {QStringLiteral("L")};
+    case ZoomIn:
+      return {QStringLiteral("Ctrl+="), QStringLiteral("+")};
+    case ZoomOut:
+      return {QStringLiteral("-")};
+    case Fit:
+      return {QStringLiteral("0")};
+    case GridLeft:
+      return {QStringLiteral("Left")};
+    case GridRight:
+      return {QStringLiteral("Right")};
+    case MenuDown:
+    case GridDown:
+      return {QStringLiteral("Down")};
+    case MenuUp:
+    case GridUp:
+      return {QStringLiteral("Up")};
+    default:
+      return {};
+  }
+}
+QVariantList ViewerShortcuts::aliasKeyGroups(Command command) {
+  switch (command) {
+    case Previous:
+      return keyGroups(GridLeft);
+    case Next:
+      return keyGroups(GridRight);
+    case ZoomIn:
+      return {QVariantList{static_cast<int>(Qt::Key_Control), static_cast<int>(Qt::Key_Equal)},
+              QVariantList{static_cast<int>(Qt::Key_Plus)}};
+    case ZoomOut:
+      return {QVariantList{static_cast<int>(Qt::Key_Minus)}};
+    case Fit:
+      return {QVariantList{static_cast<int>(Qt::Key_0)}};
+    case GridLeft:
+      return keyGroups(PanLeft);
+    case GridRight:
+      return keyGroups(PanRight);
+    case MenuDown:
+    case GridDown:
+      return keyGroups(PanDown);
+    case MenuUp:
+    case GridUp:
+      return keyGroups(PanUp);
+    default:
+      return {};
+  }
 }
