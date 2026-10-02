@@ -26,7 +26,8 @@ tasks:
     cmds:
       - task: build
         vars: {PRESET: '{{.PRESET}}'}
-      - build/{{.PRESET}}/apps/viewer/hn-viewer {{.CLI_ARGS}}
+      # Task preserves inherited environment variables over task-level defaults.
+      - env QML_IMPORT_PATH="{{.HOLONIGHT_QML_IMPORT_PATH}}" LD_LIBRARY_PATH="{{.HOLONIGHT_DEPENDENCY_PREFIX}}/lib" build/{{.PRESET}}/apps/viewer/hn-viewer {{.CLI_ARGS}}
   screenshot:
     desc: Launch Viewer, capture its window after an optional delay, then close it
     cmds: ['python3 scripts/screenshot.py {{.CLI_ARGS}}']
