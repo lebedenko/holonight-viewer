@@ -626,3 +626,7 @@ provenance is retained. Intentional provenance differences require one exact
 No timing gate or statistical significance is inferred. Old datasets without the
 versioned contract must be recollected. See the
 [maintenance SDD](docs/sdd/shared-image-maintenance/SPEC.md).
+
+## Standalone developer tooling
+
+See [tooling/README.md](tooling/README.md) for presets, dependencies, editor refresh and Serena.
