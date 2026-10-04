@@ -881,12 +881,17 @@ TEST(GridFeatures, PanAndPlaybackKeysAreOffInGridAndBackInSingleView) {
   ASSERT_TRUE(fixture.open(5));
   auto* router = fixture.find<QObject>("windowKeyRouter");
   ASSERT_NE(router, nullptr);
-  auto* canvas = fixture.find<QObject>("imageCanvas");
+  auto* canvas = fixture.find("imageCanvas");
+  ASSERT_NE(canvas, nullptr);
+  // Footer hints can resize the viewport; compare the image pose relative to its center.
+  const auto imageGeometry = [canvas] {
+    return canvas->property("imageRect").toRectF().translated(-canvas->width() / 2, -canvas->height() / 2);
+  };
   EXPECT_TRUE(router->property("imageReady").toBool());
   EXPECT_FALSE(router->property("gridActive").toBool());
   fixture.key(Qt::Key_1);
   ASSERT_TRUE(canvas->property("canPan").toBool());
-  const auto before = canvas->property("imageRect").toRectF();
+  const auto before = imageGeometry();
 
   fixture.key(Qt::Key_G, Qt::ControlModifier);
   ASSERT_TRUE(fixture.gridMode());
@@ -897,13 +902,13 @@ TEST(GridFeatures, PanAndPlaybackKeysAreOffInGridAndBackInSingleView) {
   fixture.key(Qt::Key_Right);
   fixture.key(Qt::Key_Space);
   fixture.key(Qt::Key_Left);
-  EXPECT_EQ(canvas->property("imageRect").toRectF(), before);
+  EXPECT_EQ(imageGeometry(), before);
 
   fixture.key(Qt::Key_G, Qt::ControlModifier);
   EXPECT_TRUE(router->property("imageReady").toBool());
   EXPECT_FALSE(router->property("gridActive").toBool());
   fixture.key(Qt::Key_Left);
-  EXPECT_NE(canvas->property("imageRect").toRectF(), before);
+  EXPECT_NE(imageGeometry(), before);
 }
 
 TEST(GridFeatures, OpenAndQuitStillWorkInGrid) {
