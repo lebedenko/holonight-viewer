@@ -37,6 +37,7 @@ const std::vector<Section>& expectedSections() {
           .key = "Navigation",
           .label = "Navigation",
           .rows = {Row{.key = "Ctrl plus o", .description = "Open image", .keycap = true},
+                   Row{.key = "Ctrl plus v", .description = "Paste image path", .keycap = true},
                    Row{.key = "[ or ]", .description = "Previous / next image", .keycap = true},
                    Row{.key = "h or l", .description = "Aliases: previous / next image (single view)", .keycap = true},
                    Row{.key = "Ctrl plus r", .description = "Refresh folder and image", .keycap = true}}},
@@ -270,7 +271,7 @@ TEST(ShortcutHelpPopup, SectionsRowsAndRendering) {
       ++rowCount;
     }
   }
-  EXPECT_EQ(rowCount, 35);
+  EXPECT_EQ(rowCount, 36);
 
   auto* title = fixture.item("shortcutHelpTitle");
   ASSERT_NE(title, nullptr);

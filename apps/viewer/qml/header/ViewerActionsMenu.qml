@@ -12,6 +12,7 @@ Controls.Menu {
     required property real windowWidth
     required property real windowHeight
     required property bool gridMode
+    required property Controls.Action pastePathAction
     required property Controls.Action openImageAction
     required property Controls.Action refreshAction
     required property Controls.Action gridToggleAction
@@ -111,6 +112,11 @@ Controls.Menu {
         objectName: "openButton"
         action: menu.openImageAction
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Open)
+    }
+    ViewerMenuItem {
+        objectName: "pastePathMenuItem"
+        action: menu.pastePathAction
+        shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Paste)
     }
     ViewerMenuItem {
         action: menu.refreshAction

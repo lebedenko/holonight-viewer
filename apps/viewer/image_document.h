@@ -138,8 +138,11 @@ class ImageDocument : public QObject {
   static bool isLocalUrl(const QUrl& url);
   Q_INVOKABLE void open(const QList<QUrl>& urls);
   Q_INVOKABLE void shutdown();
+  void tryOpenPastedPath(const QUrl& url);
+  void cancelPastedPath();
 
  signals:
+  void pastedPathOpened();
   void openingFailed(QString fileName, QString error);
   void changed();
   void imageChanged();
@@ -157,9 +160,13 @@ class ImageDocument : public QObject {
     QUrl url;
     quint64 cache_epoch;
     bool prefetch = false;
+    bool tentative = false;
   };
   void startPending();
+  void decodeRequest(const Request& request, const std::shared_ptr<std::atomic_bool>& cancel);
+  bool commitPastedPath(const Request& request, const DecodeResult& result);
   void complete(const Request& request, DecodeResult result);
+  void applyDecoded(const Request& request, DecodeResult result);
   void select(const QUrl& url);
   void navigate(int direction);
   void maybePrefetch();
@@ -188,6 +195,7 @@ class ImageDocument : public QObject {
   std::shared_ptr<std::atomic_bool> cancellation_;
   std::optional<Request> pending_;
   quint64 request_id_ = 0;
+  bool tentative_active_ = false;
   bool busy_ = false;
   bool stopping_ = false;
   State state_ = Empty;

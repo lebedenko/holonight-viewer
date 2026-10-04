@@ -28,6 +28,11 @@ Controls.Popup {
                     keycap: true
                 },
                 {
+                    keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Paste),
+                    description: qsTr("Paste image path"),
+                    keycap: true
+                },
+                {
                     keyGroups: ViewerShortcuts.keyGroups(ViewerShortcuts.Previous).concat(ViewerShortcuts.keyGroups(ViewerShortcuts.Next)),
                     description: qsTr("Previous / next image"),
                     keycap: true

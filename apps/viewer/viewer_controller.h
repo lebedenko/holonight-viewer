@@ -40,6 +40,7 @@ class ViewerController : public QObject {
   Q_INVOKABLE void open(const QList<QUrl>& urls);
   Q_INVOKABLE void browse(int direction);
   Q_INVOKABLE void refresh();
+  Q_INVOKABLE void paste();
   Q_INVOKABLE void enterGrid();
   Q_INVOKABLE void leaveGrid();
   Q_INVOKABLE void toggleGrid();

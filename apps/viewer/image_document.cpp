@@ -89,6 +89,7 @@ QStringList ImageDocument::nameFilters() {
 }
 
 void ImageDocument::open(const QList<QUrl>& urls) {
+  cancelPastedPath();
   if (stopping_) {
     return;
   }
@@ -125,6 +126,30 @@ void ImageDocument::open(const QList<QUrl>& urls) {
   directory_.scan(selected_url_);
 }
 
+void ImageDocument::cancelPastedPath() {
+  if (tentative_active_ || (pending_ && pending_->tentative)) {
+    ++request_id_;
+    pending_.reset();
+    if (cancellation_ && tentative_active_) {
+      cancellation_->store(true);
+    }
+  }
+}
+
+void ImageDocument::tryOpenPastedPath(const QUrl& url) {
+  cancelPastedPath();
+  if (stopping_ || !isLocalUrl(url)) {
+    return;
+  }
+  ++request_id_;
+  if (cancellation_ && state_ != Loading) {
+    cancellation_->store(true);
+  }
+  pending_ = Request{
+      .request_id = request_id_, .url = normalizedLocalUrl(url), .cache_epoch = cache_epoch_, .tentative = true};
+  startPending();
+}
+
 void ImageDocument::select(const QUrl& url) {
   animation_.stop();
   ++request_id_;
@@ -150,6 +175,7 @@ void ImageDocument::select(const QUrl& url) {
   startPending();
 }
 void ImageDocument::navigate(int direction) {
+  cancelPastedPath();
   if ((direction < 0 && !canPrevious()) || (direction > 0 && !canNext())) {
     return;
   }
@@ -167,6 +193,7 @@ QString ImageDocument::folderName() const {
 }
 
 void ImageDocument::openFromFolder(const QUrl& url) {
+  cancelPastedPath();
   if (stopping_ || url == selected_url_ || directory_.indexOf(url) < 0) {
     return;
   }
@@ -174,6 +201,7 @@ void ImageDocument::openFromFolder(const QUrl& url) {
 }
 
 void ImageDocument::refresh() {
+  cancelPastedPath();
   if (stopping_ || selected_url_.isEmpty()) {
     return;
   }
@@ -191,92 +219,177 @@ void ImageDocument::startPending() {
   const auto request = *pending_;
   pending_.reset();
   busy_ = true;
+  tentative_active_ = request.tentative;
   cancellation_ = std::make_shared<std::atomic_bool>(false);
   const auto cancel = cancellation_;
+  QMetaObject::invokeMethod(worker_, [this, request, cancel] { decodeRequest(request, cancel); }, Qt::QueuedConnection);
+}
+
+void ImageDocument::decodeRequest(const Request& request, const std::shared_ptr<std::atomic_bool>& cancel) {
+  if (request.tentative) {
+    DecodeResult result;
+    const QFileInfo info(request.url.toLocalFile());
+    if (!cancel->load() && info.isFile() && info.isReadable()) {
+      result = decoder_(request.url, *cancel);
+    }
+    QMetaObject::invokeMethod(
+        this, [this, request, result = std::move(result)] mutable { complete(request, std::move(result)); },
+        Qt::QueuedConnection);
+    return;
+  }
+  if (worker_cache_epoch_ != request.cache_epoch) {
+    cache_.clear();
+    displayed_.reset();
+    worker_cache_epoch_ = request.cache_epoch;
+  }
+  auto entry = cache_.take(request.url);
+  if (!request.prefetch && displayed_) {
+    cache_.put(std::move(*displayed_));
+    displayed_.reset();
+  }
+  DecodeResult result;
+  if (entry) {
+    result.outcome = HolonightImages::Outcome::Success;
+    result.image = entry->image;
+    result.information = entry->information;
+  } else {
+    entry = DecodedImageCache::metadata(request.url);
+    result = decoder_(request.url, *cancel);
+    entry->image = result.image;
+    entry->information = result.information;
+  }
+  const bool gif = result.information.format == QLatin1String("GIF");
+  if (!request.prefetch) {
+    // Playback holds the displayed frame and one look-ahead; the cache gets what remains of the shared budget.
+    // A neighbor's format and size must never change the foreground reservation.
+    cache_.setLimit(retained_budget_ - ((gif ? 2 : 1) * result.image.sizeInBytes()));
+  }
+  if (!cancel->load() && !result.image.isNull()) {
+    if (request.prefetch || gif) {
+      // Frame zero may be reused, but it must fit in the LRU rather than stay alive as an extra displayed frame.
+      cache_.put(std::move(*entry));
+    } else {
+      displayed_ = std::move(entry);
+    }
+  }
+  if (request.prefetch) {
+    result = {};
+  }
+  QMetaObject::invokeMethod(
+      this, [this, request, result = std::move(result)] mutable { complete(request, std::move(result)); },
+      Qt::QueuedConnection);
+}
+
+bool ImageDocument::commitPastedPath(const Request& request, const DecodeResult& result) {
+  bool valid = request.request_id == request_id_ && result.error.isEmpty() &&
+               (!result.outcome || *result.outcome == HolonightImages::Outcome::Success) &&
+               (!result.image.isNull() || !result.svg_data.isEmpty());
+  if (valid && !result.svg_data.isEmpty()) {
+    QSvgRenderer validation;
+    validation.setOptions(QtSvg::DisableAnimations);
+    valid = result.svg_local_images ? validation.load(request.url.toLocalFile()) : validation.load(result.svg_data);
+  }
+  if (!valid) {
+    return false;
+  }
+  animation_.stop();
+  orientation_ = 0;
+  emit orientationChanged();
+  selected_url_ = request.url;
+  selected_index_ = -1;
+  file_name_ = request.url.fileName();
+  direction_ = 1;
+  // Reset canvas content only after validation succeeds, including same-sized images and SVGs.
+  information_ = {};
+  image_ = {};
+  svg_preview_ = {};
+  svg_data_.clear();
+  svg_size_ = {};
+  error_.clear();
+  state_ = Loading;
+  emit imageChanged();
+  emit previewImageChanged();
+  emit changed();
+  ++cache_epoch_;
+  ++thumbnail_generation_;
+  emit thumbnailGenerationChanged();
+  const auto epoch = cache_epoch_;
+  auto entry = DecodedImageCache::metadata(request.url);
+  entry.image = result.image;
+  entry.information = result.information;
   QMetaObject::invokeMethod(
       worker_,
-      [this, request, cancel] {
-        if (worker_cache_epoch_ != request.cache_epoch) {
-          cache_.clear();
-          displayed_.reset();
-          worker_cache_epoch_ = request.cache_epoch;
-        }
-        auto entry = cache_.take(request.url);
-        if (!request.prefetch && displayed_) {
-          cache_.put(std::move(*displayed_));
-          displayed_.reset();
-        }
-        DecodeResult result;
-        if (entry) {
-          result.outcome = HolonightImages::Outcome::Success;
-          result.image = entry->image;
-          result.information = entry->information;
-        } else {
-          entry = DecodedImageCache::metadata(request.url);
-          result = decoder_(request.url, *cancel);
-          entry->image = result.image;
-          entry->information = result.information;
-        }
-        const bool gif = result.information.format == QLatin1String("GIF");
-        if (!request.prefetch) {
-          // Playback holds the displayed frame and one look-ahead; the cache gets what remains of the shared budget.
-          // A neighbor's format and size must never change the foreground reservation.
-          cache_.setLimit(retained_budget_ - ((gif ? 2 : 1) * result.image.sizeInBytes()));
-        }
-        if (!cancel->load() && !result.image.isNull()) {
-          if (request.prefetch || gif) {
-            // Frame zero may be reused, but it must fit in the LRU rather than stay alive as an extra displayed frame.
-            cache_.put(std::move(*entry));
+      [this, epoch, entry = std::move(entry)] mutable {
+        cache_.clear();
+        displayed_.reset();
+        worker_cache_epoch_ = epoch;
+        const bool gif = entry.information.format == QLatin1String("GIF");
+        cache_.setLimit(retained_budget_ - ((gif ? 2 : 1) * entry.image.sizeInBytes()));
+        if (!entry.image.isNull()) {
+          if (gif) {
+            cache_.put(std::move(entry));
           } else {
             displayed_ = std::move(entry);
           }
         }
-        if (request.prefetch) {
-          result = {};
-        }
-        QMetaObject::invokeMethod(
-            this, [this, request, result = std::move(result)] mutable { complete(request, std::move(result)); },
-            Qt::QueuedConnection);
       },
       Qt::QueuedConnection);
+  return true;
+}
+
+void ImageDocument::applyDecoded(const Request& request, DecodeResult result) {
+  information_ = std::move(result.information);
+  image_ = std::move(result.image);
+  svg_preview_ = std::move(result.svg_preview);
+  svg_data_ = std::move(result.svg_data);
+  svg_size_ = result.svg_size;
+  svg_local_images_ = result.svg_local_images;
+  svg_renderer_.setOptions(QtSvg::DisableAnimations);
+  error_ = result.outcome ? rasterError(*result.outcome) : std::move(result.error);
+  if (error_.isEmpty() && information_.format == QLatin1String("SVG") &&
+      !(svg_local_images_ ? svg_renderer_.load(request.url.toLocalFile()) : svg_renderer_.load(svg_data_))) {
+    svg_data_.clear();
+    svg_size_ = {};
+    error_ = tr("The SVG file is damaged or could not be parsed.");
+  }
+  state_ = (image_.isNull() && svg_data_.isEmpty()) ? Error : Ready;
+  if (state_ == Error && error_.isEmpty()) {
+    error_ = tr("The image could not be decoded.");
+  }
+  if (state_ == Error) {
+    svg_preview_ = {};
+    emit openingFailed(file_name_, error_);
+  }
+  emit imageChanged();
+  emit previewImageChanged();
+  emit changed();
+  if (state_ == Ready && information_.format == QLatin1String("GIF")) {
+    animation_.start(localPath(), image_.size());
+  }
 }
 
 void ImageDocument::complete(const Request& request, DecodeResult result) {
   busy_ = false;
+  tentative_active_ = false;
   cancellation_.reset();
   if (stopping_) {
     thread_.quit();
     return;
   }
-  if (!request.prefetch && request.request_id == request_id_ && result.outcome != HolonightImages::Outcome::Cancelled) {
-    information_ = std::move(result.information);
-    image_ = std::move(result.image);
-    svg_preview_ = std::move(result.svg_preview);
-    svg_data_ = std::move(result.svg_data);
-    svg_size_ = result.svg_size;
-    svg_local_images_ = result.svg_local_images;
-    svg_renderer_.setOptions(QtSvg::DisableAnimations);
-    error_ = result.outcome ? rasterError(*result.outcome) : std::move(result.error);
-    if (error_.isEmpty() && information_.format == QLatin1String("SVG") &&
-        !(svg_local_images_ ? svg_renderer_.load(request.url.toLocalFile()) : svg_renderer_.load(svg_data_))) {
-      svg_data_.clear();
-      svg_size_ = {};
-      error_ = tr("The SVG file is damaged or could not be parsed.");
-    }
-    state_ = (image_.isNull() && svg_data_.isEmpty()) ? Error : Ready;
-    if (state_ == Error && error_.isEmpty()) {
-      error_ = tr("The image could not be decoded.");
-    }
-    if (state_ == Error) {
-      svg_preview_ = {};
-      emit openingFailed(file_name_, error_);
-    }
-    emit imageChanged();
-    emit previewImageChanged();
-    emit changed();
-    if (state_ == Ready && information_.format == QLatin1String("GIF")) {
-      animation_.start(localPath(), image_.size());
-    }
+  if (request.tentative && !commitPastedPath(request, result)) {
+    startPending();
+    maybePrefetch();
+    return;
+  }
+  if (!request.prefetch &&
+      (request.request_id == request_id_ || (!request.tentative && state_ == Loading && selected_url_ == request.url &&
+                                             (!pending_ || pending_->tentative))) &&
+      result.outcome != HolonightImages::Outcome::Cancelled) {
+    applyDecoded(request, std::move(result));
+  }
+  if (request.tentative) {
+    directory_.scan(selected_url_);
+    emit pastedPathOpened();
   }
   startPending();
   maybePrefetch();

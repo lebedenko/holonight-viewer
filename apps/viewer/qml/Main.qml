@@ -199,6 +199,7 @@ HnApplicationWindow {
         actionsMenuOpen: window.actionsMenuOpen
         canPrevious: window.canBrowse(-1)
         canNext: window.canBrowse(1)
+        onPasteRequested: controller.paste()
         onOpenRequested: window.dialogRequested = true
         onInformationRequested: window.informationOpen = true
         onHelpRequested: window.helpOpen = true
@@ -366,6 +367,7 @@ HnApplicationWindow {
             windowWidth: window.width
             windowHeight: window.height
             gridMode: window.gridMode
+            pastePathAction: viewerActions.pastePath
             openImageAction: viewerActions.openImage
             refreshAction: viewerActions.refresh
             gridToggleAction: viewerActions.gridToggle

@@ -1,14 +1,17 @@
 #include "image_document.h"
 
 #include <QAccessible>
+#include <QClipboard>
 #include <QColor>
 #include <QDir>
 #include <QFont>
+#include <QGuiApplication>
 #include <QImage>
 #include <QQmlApplicationEngine>
 #include <QQuickItem>
 #include <QQuickItemGrabResult>
 #include <QQuickWindow>
+#include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -27,6 +30,7 @@ struct Entry {
 // REQ-F-005: order, separators, labels and shortcut spellings.
 constexpr std::array kMenu = {
     Entry{.label = "Open…", .shortcut = "Ctrl plus o"},
+    Entry{.label = "Paste Image Path", .shortcut = "Ctrl plus v"},
     Entry{.label = "Refresh", .shortcut = "Ctrl plus r"},
     Entry{.label = "Grid View", .shortcut = "Ctrl plus g"},
     Entry{},
@@ -165,7 +169,7 @@ TEST(MenuLayout, OrderLabelsShortcutsAndDisabledColors) {
     EXPECT_EQ(shortcut->property("accessibleText").toString(), text(expected.shortcut)) << index;
     EXPECT_EQ(shortcut->isVisible(), !expected.shortcut.empty()) << index;
   }
-  EXPECT_EQ(commands, 20);
+  EXPECT_EQ(commands, 21);
   EXPECT_EQ(separators, 6);
   EXPECT_FALSE(isSeparator(fixture.entry(0)));
   EXPECT_FALSE(isSeparator(fixture.entry(kEntries - 1)));
@@ -258,7 +262,7 @@ TEST(MenuLayout, KeyboardNavigationSkipsSeparators) {
     return item ? item->property("text").toString() : QString();
   };
   for (const auto& [down, upward] : {std::pair{Qt::Key_Down, Qt::Key_Up}, std::pair{Qt::Key_J, Qt::Key_K}}) {
-    fixture.menu->setProperty("currentIndex", 1);
+    fixture.menu->setProperty("currentIndex", 2);
     ASSERT_EQ(labelAt(fixture.current()), "Refresh");
     QTest::keyClick(fixture.window, down);
     EXPECT_EQ(labelAt(fixture.current()), "Grid View");
@@ -268,7 +272,7 @@ TEST(MenuLayout, KeyboardNavigationSkipsSeparators) {
 
   fixture.menu->setProperty("currentIndex", 0);
   QStringList visited{labelAt(0)};
-  for (int step = 0; step < 19; ++step) {
+  for (int step = 0; step < 20; ++step) {
     QTest::keyClick(fixture.window, Qt::Key_Down);
     ASSERT_FALSE(isSeparator(fixture.entry(fixture.current()))) << step;
     visited.append(labelAt(fixture.current()));
@@ -346,7 +350,7 @@ TEST(MenuLayout, FramelessSequencesFollowLabelTypographyAndState) {
   ASSERT_TRUE(fixture.openMenu());
   auto* palette = fixture.engine.singletonInstance<QObject*>("Holonight.Core", "HoloniightPalette");
   ASSERT_NE(palette, nullptr);
-  for (int index : {0, 7, 13, 19}) {
+  for (int index : {0, 8, 14, 20}) {
     auto* item = fixture.entry(index);
     ASSERT_NE(item, nullptr);
     auto* label = item->findChild<QQuickItem*>("menuItemLabel");
@@ -368,4 +372,29 @@ TEST(MenuLayout, FramelessSequencesFollowLabelTypographyAndState) {
     EXPECT_EQ(shortcut->property("font").value<QFont>(), label->property("font").value<QFont>());
     EXPECT_EQ(shortcut->property("accessibleText").toString(), text(kMenu.at(index).shortcut));
   }
+}
+
+TEST(MenuLayout, PasteShortcutAndActionOpenFromEmptyWindow) {
+  QTemporaryDir folder;
+  ASSERT_TRUE(folder.isValid());
+  QImage image(4, 3, QImage::Format_RGB32);
+  image.fill(Qt::green);
+  const auto path = folder.filePath("pasted.png");
+  ASSERT_TRUE(image.save(path));
+  MenuFixture fixture;
+  ASSERT_TRUE(fixture.load());
+  auto* action = fixture.window->findChild<QObject*>("pastePathAction");
+  ASSERT_NE(action, nullptr);
+  EXPECT_TRUE(action->property("enabled").toBool());
+  QSignalSpy success(&fixture.document, &ImageDocument::pastedPathOpened);
+  QGuiApplication::clipboard()->setText(path);
+  QTest::keyClick(fixture.window, Qt::Key_V, Qt::ControlModifier);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return success.count() == 1; }));
+  EXPECT_EQ(fixture.document.localPath(), path);
+  ASSERT_TRUE(QMetaObject::invokeMethod(action, "trigger"));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return success.count() == 2; }));
+  fixture.window->setProperty("helpOpen", true);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !action->property("enabled").toBool(); }));
+  QTest::keyClick(fixture.window, Qt::Key_V, Qt::ControlModifier);
+  EXPECT_EQ(success.count(), 2);
 }

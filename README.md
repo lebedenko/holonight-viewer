@@ -661,3 +661,12 @@ versioned contract must be recollected. See the
 ## Standalone developer tooling
 
 See [tooling/README.md](tooling/README.md) for presets, dependencies, editor refresh and Serena.
+
+Paste Image Path (Ctrl+V) opens clipboard text containing one absolute `/…` or
+home-relative `~/…` path. Escape spaces as `\ ` and backslashes as `\\`.
+Do not quote the path or add whitespace, newlines, URLs, or other text. Other
+characters, including `%` and `#`, are literal. A missing, unreadable, or invalid
+image leaves the current image and grid unchanged. Validation runs asynchronously
+with the usual image resource limits. Clipboard images and file-manager URL lists
+are not accepted. Copy Path still copies the raw absolute path; escape any spaces
+or backslashes before pasting it.

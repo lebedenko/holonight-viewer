@@ -5,6 +5,8 @@
 #include <QKeySequence>
 QString ViewerShortcuts::sequence(Command command) {
   switch (command) {
+    case Paste:
+      return QStringLiteral("Ctrl+V");
     case Open:
       return QStringLiteral("Ctrl+O");
     case Refresh:
@@ -79,6 +81,9 @@ QString ViewerShortcuts::sequence(Command command) {
   return {};
 }
 QVariantList ViewerShortcuts::sequences(Command command) {
+  if (command == Paste) {
+    return {static_cast<int>(QKeySequence::Paste)};
+  }
   if (command == Open) {
     return {static_cast<int>(QKeySequence::Open)};
   }
@@ -88,6 +93,8 @@ QVariantList ViewerShortcuts::sequences(Command command) {
 }
 QVariantList ViewerShortcuts::keyGroups(Command command) {
   switch (command) {
+    case Paste:
+      return {QVariantList{static_cast<int>(Qt::Key_Control), static_cast<int>(Qt::Key_V)}};
     case Open:
       return {QVariantList{static_cast<int>(Qt::Key_Control), static_cast<int>(Qt::Key_O)}};
     case Refresh:

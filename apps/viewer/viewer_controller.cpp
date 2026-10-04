@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Andrii L <lebeden@gmail.com>
 #include "viewer_controller.h"
+
+#include "pasted_path_p.h"
+
+#include <QClipboard>
+#include <QGuiApplication>
 void ViewerController::setDocument(ImageDocument* document) {
   if (document_ == document) {
     return;
@@ -15,6 +20,11 @@ void ViewerController::setDocument(ImageDocument* document) {
   selection_ = (document != nullptr) ? new GridSelectionController(document, this) : nullptr;
   grid_mode_ = false;
   if (document != nullptr) {
+    connect(document, &ImageDocument::pastedPathOpened, this, [this] {
+      grid_mode_ = false;
+      updateSuspension();
+      emit changed();
+    });
     connect(document, &ImageDocument::changed, this, &ViewerController::changed);
     connect(selection_, &GridSelectionController::changed, this, &ViewerController::changed);
   }
@@ -75,12 +85,20 @@ void ViewerController::browse(int direction) {
     return;
   }
   if (grid_mode_) {
+    document_->cancelPastedPath();
     selection_->move(static_cast<int>(direction < 0 ? GridNavigation::Move::Previous : GridNavigation::Move::Next));
   } else if (direction < 0) {
     document_->previous();
   } else {
     document_->next();
   }
+}
+void ViewerController::paste() {
+  if (!document_ || modal_active_ || QGuiApplication::clipboard() == nullptr) {
+    return;
+  }
+  const auto url = parsePastedPath(QGuiApplication::clipboard()->text(QClipboard::Clipboard));
+  document_->tryOpenPastedPath(url.value_or(QUrl{}));
 }
 void ViewerController::refresh() {
   if (hasPath()) {
@@ -113,6 +131,7 @@ void ViewerController::toggleGrid() {
 }
 void ViewerController::moveSelection(int move) {
   if (grid_mode_ && !modal_active_) {
+    document_->cancelPastedPath();
     selection_->move(move);
   }
 }

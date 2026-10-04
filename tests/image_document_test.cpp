@@ -6,17 +6,23 @@
 #include "image_canvas.h"
 #include "image_limits.h"
 #include "manual_playback_clock.h"
+#include "pasted_path_p.h"
+#include "viewer_controller.h"
 
 #include <QBuffer>
+#include <QClipboard>
 #include <QCryptographicHash>
 #include <QDataStream>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QImageReader>
 #include <QPainter>
 #include <QScopeGuard>
+#include <QSemaphore>
 #include <QSignalSpy>
+#include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
 #include <QTransform>
@@ -990,4 +996,198 @@ TEST(Document, ReopeningAReplacedSourceUsesFreshPixels) {
   document.open({url});
   ASSERT_TRUE(settled(document));
   EXPECT_EQ(document.previewImage().pixelColor(20, 20), QColor(Qt::blue));
+}
+
+TEST(PastedPath, StrictTextGrammar) {
+  for (const auto& path : {QStringLiteral("/tmp/image.png"), QStringLiteral("/tmp/雪%#.png"),
+                           QStringLiteral("/tmp/a\\ b\\\\c.png"), QStringLiteral("~/image.png")}) {
+    const auto result = parsePastedPath(path);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_TRUE(result->isLocalFile());
+    EXPECT_FALSE(result->hasFragment());
+    EXPECT_FALSE(result->hasQuery());
+  }
+  EXPECT_EQ(parsePastedPath(QStringLiteral("/tmp/a\\ b\\\\c.png"))->toLocalFile(), QStringLiteral("/tmp/a b\\c.png"));
+  EXPECT_EQ(parsePastedPath(QStringLiteral("~/image.png"))->toLocalFile(), QDir::homePath() + "/image.png");
+  for (const auto* text :
+       {"", " /tmp/a", "/tmp/a ", "/tmp/a\n", "/tmp/a\t", "/tmp/a b", "'/tmp/a'", "/tmp/a\"", "/tmp/a\\q", "/tmp/a\\",
+        "file:///tmp/a", "https://example.org/a", "image.png", "~other/a", "/tmp/a /tmp/b"}) {
+    EXPECT_FALSE(parsePastedPath(QString::fromUtf8(text))) << text;
+  }
+  EXPECT_FALSE(parsePastedPath(QStringLiteral("/tmp/a") + QChar(0)));
+}
+
+TEST(Document, PastedFilesPreserveViewOnFailure) {
+  QTemporaryDir folder;
+  ASSERT_TRUE(folder.isValid());
+  const auto original = writeFixture("paste-original.png", encodedImage("PNG"));
+  ImageDocument document;
+  document.open({original});
+  ASSERT_TRUE(settled(document));
+  document.transform(ImageDocument::RotateClockwise);
+  const auto image = document.image();
+  const auto budget = ImageDocumentTestAccess::cacheBudget(document);
+  QSignalSpy success(&document, &ImageDocument::pastedPathOpened);
+  QSignalSpy failure(&document, &ImageDocument::openingFailed);
+  const auto unreadable = writeFixture("paste-unreadable.png", encodedImage("PNG"));
+  ASSERT_TRUE(QFile::setPermissions(unreadable.toLocalFile(), {}));
+  const auto restore =
+      qScopeGuard([&] { QFile::setPermissions(unreadable.toLocalFile(), QFile::ReadOwner | QFile::WriteOwner); });
+  QImage oversized(32769, 1, QImage::Format_RGB32);
+  oversized.fill(Qt::red);
+  const auto limited = QUrl::fromLocalFile(folder.filePath("too-wide.png"));
+  ASSERT_TRUE(oversized.save(limited.toLocalFile()));
+  const auto corrupt = writeFixture("paste-corrupt.png", "not an image");
+  const auto svg = writeFixture("paste-corrupt.svg", "<svg>broken");
+  for (const auto& url : {QUrl::fromLocalFile(folder.path()), QUrl::fromLocalFile(folder.filePath("missing")), corrupt,
+                          svg, unreadable, limited}) {
+    document.tryOpenPastedPath(url);
+    EXPECT_EQ(document.url(), original);
+    ASSERT_TRUE(QTest::qWaitFor([&] { return !ImageDocumentTestAccess::busy(document); }));
+    EXPECT_EQ(document.url(), original);
+    EXPECT_EQ(document.state(), ImageDocument::Ready);
+    EXPECT_EQ(document.orientation(), 1);
+    EXPECT_EQ(document.image(), image);
+    EXPECT_EQ(ImageDocumentTestAccess::cacheBudget(document), budget);
+  }
+  EXPECT_EQ(success.count(), 0);
+  EXPECT_EQ(failure.count(), 0);
+  const auto valid =
+      writeFixture("paste-valid.svg", R"(<svg xmlns="http://www.w3.org/2000/svg" width="10" height="20"/>)");
+  document.tryOpenPastedPath(valid);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return success.count() == 1; }));
+  EXPECT_EQ(document.url(), valid);
+  EXPECT_EQ(document.orientation(), 0);
+  EXPECT_NE(document.svgRenderer(), nullptr);
+  const auto link = QUrl::fromLocalFile(folder.filePath("link.png"));
+  ASSERT_TRUE(QFile::link(original.toLocalFile(), link.toLocalFile()));
+  document.tryOpenPastedPath(link);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return success.count() == 2; }));
+  EXPECT_EQ(document.url(), link);
+  EXPECT_EQ(document.image(), image);
+}
+
+TEST(Document, PastedValidationIsDecodedOnceAndStaleResultsAreDiscarded) {
+  const auto first = writeFixture("paste-first.png", encodedImage("PNG"));
+  const auto second = writeFixture("paste-second.png", encodedImage("PNG"));
+  QSemaphore entered;
+  QSemaphore release;
+  std::atomic_int calls = 0;
+  ImageDocument document(
+      [&](const QUrl&, const std::atomic_bool&) {
+        ++calls;
+        entered.release();
+        release.acquire();
+        return solidResult();
+      },
+      [](const QUrl&, const std::atomic_bool&) { return DirectoryResult{}; });
+  const auto unblock = qScopeGuard([&] { release.release(10); });
+  QSignalSpy success(&document, &ImageDocument::pastedPathOpened);
+  document.tryOpenPastedPath(first);
+  ASSERT_TRUE(entered.tryAcquire(1, 1000));
+  document.tryOpenPastedPath(second);
+  release.release();
+  ASSERT_TRUE(QTest::qWaitFor([&] { return entered.available() == 1; }));
+  EXPECT_EQ(document.state(), ImageDocument::Empty);
+  release.release();
+  ASSERT_TRUE(QTest::qWaitFor([&] { return success.count() == 1; }));
+  EXPECT_EQ(document.url(), second);
+  EXPECT_EQ(calls.load(), 2);
+}
+
+TEST(PastedPath, ControllerClipboardAndModalGating) {
+  const auto url = writeFixture("paste-controller.png", encodedImage("PNG"));
+  ImageDocument document;
+  ViewerController controller;
+  controller.setDocument(&document);
+  QGuiApplication::clipboard()->setText(url.toLocalFile());
+  controller.setModalActive(true);
+  controller.paste();
+  EXPECT_EQ(document.state(), ImageDocument::Empty);
+  controller.setModalActive(false);
+  QSignalSpy success(&document, &ImageDocument::pastedPathOpened);
+  controller.paste();
+  ASSERT_TRUE(QTest::qWaitFor([&] { return success.count() == 1; }));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !document.scanning(); }));
+  controller.enterGrid();
+  ASSERT_TRUE(controller.gridMode());
+  QGuiApplication::clipboard()->setText("invalid");
+  controller.paste();
+  EXPECT_TRUE(controller.gridMode());
+  QGuiApplication::clipboard()->setText(url.toLocalFile());
+  controller.paste();
+  ASSERT_TRUE(QTest::qWaitFor([&] { return success.count() == 2; }));
+  EXPECT_FALSE(controller.gridMode());
+}
+
+TEST(Document, InterveningCommandsAndShutdownCancelPastes) {
+  const auto url = writeFixture("paste-cancel.png", encodedImage("PNG"));
+  for (int command = 0; command < 4; ++command) {
+    QSemaphore entered;
+    QSemaphore release;
+    ImageDocument document([&](const QUrl&, const std::atomic_bool&) {
+      entered.release();
+      release.acquire();
+      return solidResult();
+    });
+    const auto unblock = qScopeGuard([&] { release.release(10); });
+    QSignalSpy success(&document, &ImageDocument::pastedPathOpened);
+    QSignalSpy shutdown(&document, &ImageDocument::shutdownFinished);
+    document.tryOpenPastedPath(url);
+    ASSERT_TRUE(entered.tryAcquire(1, 1000));
+    switch (command) {
+      case 0:
+        document.refresh();
+        break;
+      case 1:
+        document.next();
+        break;
+      case 2:
+        document.open({});
+        break;
+      case 3:
+        document.shutdown();
+        break;
+    }
+    release.release();
+    ASSERT_TRUE(QTest::qWaitFor([&] { return !ImageDocumentTestAccess::busy(document); }));
+    EXPECT_EQ(success.count(), 0);
+    EXPECT_TRUE(document.url().isEmpty());
+    if (command == 3) {
+      ASSERT_TRUE(QTest::qWaitFor([&] { return shutdown.count() == 1; }));
+    }
+  }
+}
+
+TEST(PastedPath, GridNavigationDiscardsPendingValidation) {
+  const auto url = writeFixture("paste-grid-cancel.png", encodedImage("PNG"));
+  QSemaphore entered;
+  QSemaphore release;
+  std::atomic_bool block = false;
+  ImageDocument document(
+      [&](const QUrl&, const std::atomic_bool&) {
+        if (block.load()) {
+          entered.release();
+          release.acquire();
+        }
+        return solidResult();
+      },
+      [url](const QUrl&, const std::atomic_bool&) { return DirectoryResult{.urls = {url}, .error = {}}; });
+  const auto unblock = qScopeGuard([&] { release.release(10); });
+  ViewerController controller;
+  controller.setDocument(&document);
+  document.open({url});
+  ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready && !document.scanning(); }));
+  controller.enterGrid();
+  ASSERT_TRUE(controller.gridMode());
+  block.store(true);
+  QSignalSpy success(&document, &ImageDocument::pastedPathOpened);
+  document.tryOpenPastedPath(url);
+  ASSERT_TRUE(entered.tryAcquire(1, 1000));
+  controller.moveSelection(static_cast<int>(GridNavigation::Move::Next));
+  release.release();
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !ImageDocumentTestAccess::busy(document); }));
+  EXPECT_EQ(success.count(), 0);
+  EXPECT_TRUE(controller.gridMode());
+  EXPECT_EQ(document.url(), url);
 }

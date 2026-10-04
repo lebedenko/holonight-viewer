@@ -12,6 +12,7 @@ class ViewerShortcuts : public QObject {
   // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,performance-enum-size)
   enum Command {
     Open,
+    Paste,
     Refresh,
     Grid,
     Previous,

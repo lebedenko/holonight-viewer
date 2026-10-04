@@ -16,6 +16,7 @@ Item {
     required property bool actionsMenuOpen
     required property bool canPrevious
     required property bool canNext
+    property alias pastePath: pastePath
     property alias openImage: openImage
     property alias refresh: refresh
     property alias gridToggle: gridToggle
@@ -36,6 +37,7 @@ Item {
     property alias copyPath: copyPath
     property alias imageInformation: imageInformation
     property alias shortcutHelp: shortcutHelp
+    signal pasteRequested
     signal openRequested
     signal informationRequested
     signal helpRequested
@@ -58,6 +60,18 @@ Item {
         text: qsTranslate("Main", "Open…")
         enabled: !root.modalActive
         onTriggered: root.openRequested()
+    }
+    Controls.Action {
+        id: pastePath
+        objectName: "pastePathAction"
+        text: qsTranslate("Main", "Paste Image Path")
+        enabled: !root.modalActive
+        onTriggered: root.pasteRequested()
+    }
+    Shortcut {
+        sequences: ViewerShortcuts.sequences(ViewerShortcuts.Paste)
+        enabled: pastePath.enabled
+        onActivated: pastePath.trigger()
     }
     Controls.Action {
         id: refresh
