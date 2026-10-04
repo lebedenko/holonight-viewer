@@ -14,7 +14,7 @@
 #include <utility>
 
 namespace {
-ThumbnailResult failure(QString error) { return {.image = {}, .sourceSize = {}, .error = std::move(error)}; }
+ThumbnailResult failure(QString error) { return {.image = {}, .source_size = {}, .error = std::move(error)}; }
 
 QString outcomeError(HolonightImages::Outcome outcome) {
   using HolonightImages::Outcome;
@@ -41,7 +41,7 @@ ThumbnailResult finish(QImage image, QSize sourceSize) {
     return failure(QStringLiteral("There is not enough memory to display this image."));
   }
   image.setDevicePixelRatio(1);
-  return {.image = std::move(image), .sourceSize = sourceSize, .error = {}};
+  return {.image = std::move(image), .source_size = sourceSize, .error = {}};
 }
 
 HolonightThumbnails::Request cacheRequest(const QFileInfo& info, QSize required, HolonightThumbnails::Kind kind) {
@@ -66,7 +66,7 @@ ThumbnailResult decodeSvg(QFile& file, const QFileInfo& info, int boxPixels, con
     const auto size = inspection.facts.documentSize;
     auto result = finish(renderLocalSvg(renderer, size, {boxPixels, boxPixels}, cancelled),
                          HolonightImages::svgPixelSize(size, {kThumbnailBoxLogical, kThumbnailBoxLogical}));
-    result.cacheEligible = false;
+    result.cache_eligible = false;
     return result;
   }
   if (inspection.outcome != HolonightImages::Outcome::Success) {
@@ -110,30 +110,30 @@ ThumbnailResult decodeThumbnail(const ThumbnailRequest& request, const std::atom
     return failure(QStringLiteral("The file could not be opened for reading."));
   }
   if (info.suffix().compare(QLatin1String("svg"), Qt::CaseInsensitive) == 0) {
-    return decodeSvg(file, info, request.boxPixels, cancelled);
+    return decodeSvg(file, info, request.box_pixels, cancelled);
   }
   const auto inspection = HolonightImages::inspect(file, kRasterLimits, cancelled);
   if (inspection.outcome != HolonightImages::Outcome::Success) {
     return failure(outcomeError(inspection.outcome));
   }
-  const QSize pixelBox(request.boxPixels, request.boxPixels);
+  const QSize pixelBox(request.box_pixels, request.box_pixels);
   const auto required =
-      inspection.orientedSize.width() <= request.boxPixels && inspection.orientedSize.height() <= request.boxPixels
+      inspection.orientedSize.width() <= request.box_pixels && inspection.orientedSize.height() <= request.box_pixels
           ? inspection.orientedSize
           : inspection.orientedSize.scaled(pixelBox, Qt::KeepAspectRatio);
   const auto cache = cacheRequest(info, required, HolonightThumbnails::Kind::Raster);
-  if (useDiskCache(request.boxPixels)) {
+  if (useDiskCache(request.box_pixels)) {
     if (auto hit = HolonightThumbnails::lookup(cache, cancelled)) {
       return finish(std::move(*hit), inspection.orientedSize);
     }
   }
   auto decoded = HolonightImages::decode(
-      file, {.limits = kRasterLimits, .bound = {request.boxPixels, request.boxPixels}}, cancelled);
+      file, {.limits = kRasterLimits, .bound = {request.box_pixels, request.box_pixels}}, cancelled);
   if (decoded.outcome != HolonightImages::Outcome::Success || decoded.image.isNull()) {
     return failure(outcomeError(decoded.outcome));
   }
   auto result = finish(std::move(decoded.image), decoded.inspection.orientedSize);
-  if (!result.image.isNull() && useDiskCache(request.boxPixels) && !cancelled.load() &&
+  if (!result.image.isNull() && useDiskCache(request.box_pixels) && !cancelled.load() &&
       QFileInfo(info.absoluteFilePath()).size() == info.size() &&
       QFileInfo(info.absoluteFilePath()).lastModified() == info.lastModified()) {
     HolonightThumbnails::store(cache, result.image, cancelled);

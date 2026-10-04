@@ -188,21 +188,21 @@ void AnimationController::handle(StreamEvent event) {
         active_ = false;  // not readable as a sequence: remains an ordinary still image
         return;
       }
-      current_delay_ms_ = clampFrameDelay(event.delayMs);
+      current_delay_ms_ = clampFrameDelay(event.delay_ms);
       prime_deadline_ = start_ms_ + current_delay_ms_;
       return;
     case Kind::Info:
-      loop_ = LoopPolicy::fromQt(event.info.loopCount);
-      if (event.info.frameCount > 1 && frame_count_ == 0) {
-        frame_count_ = event.info.frameCount;
+      loop_ = LoopPolicy::fromQt(event.info.loop_count);
+      if (event.info.frame_count > 1 && frame_count_ == 0) {
+        frame_count_ = event.info.frame_count;
         emit stateChanged();
       }
       return;
     case Kind::Frame: {
       next_ = Pending{.image = std::move(event.image),
-                      .delayMs = clampFrameDelay(event.delayMs),
+                      .delay_ms = clampFrameDelay(event.delay_ms),
                       .index = read_index_++,
-                      .readyAt = clock_->nowMs()};
+                      .ready_at = clock_->nowMs()};
       if (!animated_) {
         animated_ = true;
         remaining_ = std::max<qint64>(0, prime_deadline_ - clock_->nowMs());
@@ -263,13 +263,13 @@ void AnimationController::step() {
   if (next_) {
     auto frame = std::move(*next_);
     next_.reset();
-    auto next_deadline = deadline_ + frame.delayMs;
-    if (frame.readyAt > deadline_ || next_deadline < now) {
-      next_deadline = now + frame.delayMs;
+    auto next_deadline = deadline_ + frame.delay_ms;
+    if (frame.ready_at > deadline_ || next_deadline < now) {
+      next_deadline = now + frame.delay_ms;
     }
     deadline_ = next_deadline;
     frame_index_ = frame.index;
-    current_delay_ms_ = frame.delayMs;
+    current_delay_ms_ = frame.delay_ms;
     arm();
     emit frameReady(frame.image);
     emit stateChanged();

@@ -43,18 +43,18 @@ QSize svgClipboardSize(QSizeF intrinsic) {
 
 namespace {
 QImage rasterizeClipboardSvg(const SvgClipboardSource& source) {
-  const auto size = svgClipboardSize(source.intrinsicSize);
+  const auto size = svgClipboardSize(source.intrinsic_size);
   if (size.isEmpty()) {
     return {};
   }
-  if (!source.localImages) {
+  if (!source.local_images) {
     const std::atomic_bool cancelled{false};
     return HolonightImages::rasterizeSvg(source.bytes, {.bound = size, .outputBytes = kImageLimitBytes}, cancelled)
         .image;
   }
   QSvgRenderer renderer;
   renderer.setOptions(QtSvg::DisableAnimations);
-  if (!renderer.load(source.localPath)) {
+  if (!renderer.load(source.local_path)) {
     return {};
   }
   QImage image(size, QImage::Format_ARGB32_Premultiplied);

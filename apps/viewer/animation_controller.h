@@ -73,9 +73,9 @@ class AnimationController : public QObject {
  private:
   struct Pending {
     QImage image;
-    int delayMs;
+    int delay_ms;
     int index;
-    qint64 readyAt;
+    qint64 ready_at;
   };
   [[nodiscard]] bool shouldRun() const {
     return animated_ && !failed_ && !finished_ && !user_paused_ && !suspended_by_modal_ && !suspended_by_window_;

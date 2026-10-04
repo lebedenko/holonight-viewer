@@ -45,7 +45,7 @@ bool settled(ImageDocument& document) {
 DecodeResult solid() {
   QImage image(20, 10, QImage::Format_ARGB32_Premultiplied);
   image.fill(Qt::blue);
-  return {.image = image, .error = {}, .information = {}, .svgData = {}};
+  return {.image = image, .error = {}, .information = {}, .svg_data = {}};
 }
 }  // namespace
 
@@ -192,7 +192,7 @@ TEST(Browsing, RapidRequestsForegroundPriorityCacheAndSilentPrefetch) {
       while (!release.load()) {
         QThread::msleep(1);
       }
-      return DecodeResult{.image = {}, .error = "broken neighbor", .information = {}, .svgData = {}};
+      return DecodeResult{.image = {}, .error = "broken neighbor", .information = {}, .svg_data = {}};
     }
     return solid();
   });

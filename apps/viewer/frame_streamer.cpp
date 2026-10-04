@@ -22,7 +22,7 @@ void FrameStreamer::open(quint64 generation, const QString& path, QSize firstFra
   if (stale(generation)) {
     return;
   }
-  post({.kind = StreamEvent::Kind::Opened, .generation = generation, .ok = opened, .delayMs = first.delayMs});
+  post({.kind = StreamEvent::Kind::Opened, .generation = generation, .ok = opened, .delay_ms = first.delay_ms});
   if (!opened) {
     source_.reset();
     return;
@@ -66,7 +66,7 @@ void FrameStreamer::readOne(quint64 generation) {
       post({.kind = StreamEvent::Kind::Frame,
             .generation = generation,
             .image = std::move(frame.image),
-            .delayMs = frame.delayMs});
+            .delay_ms = frame.delay_ms});
       break;
     case FrameResult::Status::EndOfSequence:
       post({.kind = StreamEvent::Kind::End, .generation = generation});

@@ -34,7 +34,7 @@ ExifDetails format(const HolonightImages::ExifFacts& facts) {
     details.iso = QStringLiteral("ISO %1").arg(*facts.iso);
   }
   if (facts.focalLengthMm && *facts.focalLengthMm > 0) {
-    details.focalLength = QStringLiteral("%1 mm").arg(decimal(*facts.focalLengthMm, 1));
+    details.focal_length = QStringLiteral("%1 mm").arg(decimal(*facts.focalLengthMm, 1));
   }
   if (facts.latitude && facts.longitude) {
     details.location = QStringLiteral("%1° %2, %3° %4")

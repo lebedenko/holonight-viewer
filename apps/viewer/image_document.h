@@ -79,7 +79,7 @@ class ImageDocument : public QObject {
     std::unique_ptr<PlaybackClock> clock = std::make_unique<QtPlaybackClock>();
     FrameSourceFactory source = makeQtGifFrameSource;
     AnimationController::Execution execution = AnimationController::Execution::Threaded;
-    qint64 retainedBytes = 256 * 1024 * 1024;
+    qint64 retained_bytes = 256 * 1024 * 1024;
   };
   explicit ImageDocument(QObject* parent = nullptr);
   explicit ImageDocument(Decoder decoder, QObject* parent = nullptr);
@@ -89,7 +89,7 @@ class ImageDocument : public QObject {
   [[nodiscard]] int thumbnailGeneration() const { return thumbnail_generation_; }
   [[nodiscard]] int orientation() const { return orientation_; }
   [[nodiscard]] QSize transformedDimensions() const {
-    return ImageOrientation::dimensions(orientation_, information_.decodedSize);
+    return ImageOrientation::dimensions(orientation_, information_.decoded_size);
   }
   [[nodiscard]] QString localPath() const { return selected_url_.toLocalFile(); }
   [[nodiscard]] QUrl url() const { return selected_url_; }
@@ -153,9 +153,9 @@ class ImageDocument : public QObject {
  private:
   friend struct ImageDocumentTestAccess;
   struct Request {
-    quint64 requestId;
+    quint64 request_id;
     QUrl url;
-    quint64 cacheEpoch;
+    quint64 cache_epoch;
     bool prefetch = false;
   };
   void startPending();

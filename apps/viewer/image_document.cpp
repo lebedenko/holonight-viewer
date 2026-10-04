@@ -35,7 +35,7 @@ ImageDocument::ImageDocument(Decoder decoder, DirectoryModel::Scanner scanner, P
     : QObject(parent),
       animation_(std::move(playback.clock), std::move(playback.source), playback.execution),
       directory_(std::move(scanner)),
-      retained_budget_(playback.retainedBytes),
+      retained_budget_(playback.retained_bytes),
       worker_(new QObject),
       decoder_(std::move(decoder)) {
   worker_->moveToThread(&thread_);
@@ -143,7 +143,7 @@ void ImageDocument::select(const QUrl& url) {
   error_.clear();
   file_name_ = url.fileName();
   state_ = Loading;
-  pending_ = Request{.requestId = request_id_, .url = url, .cacheEpoch = cache_epoch_};
+  pending_ = Request{.request_id = request_id_, .url = url, .cache_epoch = cache_epoch_};
   emit imageChanged();
   emit previewImageChanged();
   emit changed();
@@ -196,10 +196,10 @@ void ImageDocument::startPending() {
   QMetaObject::invokeMethod(
       worker_,
       [this, request, cancel] {
-        if (worker_cache_epoch_ != request.cacheEpoch) {
+        if (worker_cache_epoch_ != request.cache_epoch) {
           cache_.clear();
           displayed_.reset();
-          worker_cache_epoch_ = request.cacheEpoch;
+          worker_cache_epoch_ = request.cache_epoch;
         }
         auto entry = cache_.take(request.url);
         if (!request.prefetch && displayed_) {
@@ -248,13 +248,13 @@ void ImageDocument::complete(const Request& request, DecodeResult result) {
     thread_.quit();
     return;
   }
-  if (!request.prefetch && request.requestId == request_id_ && result.outcome != HolonightImages::Outcome::Cancelled) {
+  if (!request.prefetch && request.request_id == request_id_ && result.outcome != HolonightImages::Outcome::Cancelled) {
     information_ = std::move(result.information);
     image_ = std::move(result.image);
-    svg_preview_ = std::move(result.svgPreview);
-    svg_data_ = std::move(result.svgData);
-    svg_size_ = result.svgSize;
-    svg_local_images_ = result.svgLocalImages;
+    svg_preview_ = std::move(result.svg_preview);
+    svg_data_ = std::move(result.svg_data);
+    svg_size_ = result.svg_size;
+    svg_local_images_ = result.svg_local_images;
     svg_renderer_.setOptions(QtSvg::DisableAnimations);
     error_ = result.outcome ? rasterError(*result.outcome) : std::move(result.error);
     if (error_.isEmpty() && information_.format == QLatin1String("SVG") &&
@@ -292,7 +292,7 @@ void ImageDocument::maybePrefetch() {
   if (neighbor.isEmpty()) {
     return;
   }
-  pending_ = Request{.requestId = request_id_, .url = neighbor, .cacheEpoch = cache_epoch_, .prefetch = true};
+  pending_ = Request{.request_id = request_id_, .url = neighbor, .cache_epoch = cache_epoch_, .prefetch = true};
   startPending();
 }
 
@@ -339,9 +339,11 @@ void ImageDocument::resetTransform() {
 void ImageDocument::copyImage() {
   if (state_ == Ready && !stopping_) {
     if (information_.format == QLatin1String("SVG")) {
-      clipboard_.copySvg(
-          {.bytes = svg_data_, .localPath = localPath(), .intrinsicSize = svg_size_, .localImages = svg_local_images_},
-          orientation_, file_name_);
+      clipboard_.copySvg({.bytes = svg_data_,
+                          .local_path = localPath(),
+                          .intrinsic_size = svg_size_,
+                          .local_images = svg_local_images_},
+                         orientation_, file_name_);
     } else {
       clipboard_.copyImage(image_, orientation_, file_name_);
     }
@@ -354,13 +356,13 @@ void ImageDocument::copyPath() {
 }
 QVariantList ImageDocument::informationSections() const { return formatInformationSections(information_, localPath()); }
 
-QString ImageDocument::formattedFileSize() const { return formatFileSize(information_.encodedSize); }
+QString ImageDocument::formattedFileSize() const { return formatFileSize(information_.encoded_size); }
 
 QString ImageDocument::summaryLine() const {
-  return formatSummaryLine(information_.format, information_.decodedSize, information_.encodedSize);
+  return formatSummaryLine(information_.format, information_.decoded_size, information_.encoded_size);
 }
 QString ImageDocument::transformedLine() const {
-  return formatTransformedLine(information_.decodedSize, transformedDimensions());
+  return formatTransformedLine(information_.decoded_size, transformedDimensions());
 }
 QString ImageDocument::modifiedText() const { return formatModifiedText(information_.modified); }
 QString ImageDocument::displayPath() const { return abbreviateHomePath(localPath()); }

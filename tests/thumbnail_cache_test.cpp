@@ -4,7 +4,8 @@
 
 namespace {
 ThumbnailKey key(int number, int box = 256, int generation = 0) {
-  return ThumbnailKey{.path = QStringLiteral("/photos/%1.png").arg(number), .boxPixels = box, .generation = generation};
+  return ThumbnailKey{
+      .path = QStringLiteral("/photos/%1.png").arg(number), .box_pixels = box, .generation = generation};
 }
 
 QImage image(int side = 4) {

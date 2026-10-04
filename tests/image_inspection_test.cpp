@@ -344,7 +344,7 @@ TEST(Viewer, IndependentOverlayTimers) {
   ASSERT_TRUE(QTest::qWaitFor([&] { return stripShown(); }));
   EXPECT_FALSE(arrowsShown());
   EXPECT_EQ(document.formattedFileSize(),
-            QLocale().formattedDataSize(document.information().encodedSize, 1, QLocale::DataSizeSIFormat));
+            QLocale().formattedDataSize(document.information().encoded_size, 1, QLocale::DataSizeSIFormat));
   ASSERT_TRUE(QTest::qWaitFor([&] { return !document.scanning(); }));
   const auto originalPosition = document.position();
   QSignalSpy renders(canvas, &ImageCanvas::firstRendered);

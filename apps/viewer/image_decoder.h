@@ -11,11 +11,11 @@ struct DecodeResult {
   QImage image;
   QString error;
   ImageInformation information;
-  QByteArray svgData;  // Non-empty only for a successfully validated SVG.
+  QByteArray svg_data;  // Non-empty only for a successfully validated SVG.
   std::optional<HolonightImages::Outcome> outcome = std::nullopt;
-  QSizeF svgSize = {};
-  bool svgLocalImages = false;
-  QImage svgPreview = {};
+  QSizeF svg_size = {};
+  bool svg_local_images = false;
+  QImage svg_preview = {};
 };
 
 DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled);

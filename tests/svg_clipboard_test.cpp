@@ -108,7 +108,7 @@ TEST(SvgClipboard, ResolvesLocalImagesAndKeepsClipboardOnPreparationFailure) {
   ASSERT_EQ(image.size(), QSize(4, 2));
   EXPECT_EQ(image.pixelColor(0, 0), linked.pixelColor(0, 0));
   QGuiApplication::clipboard()->setText("preserve me");
-  document.clipboard()->copySvg({.bytes = "invalid SVG", .localPath = {}, .intrinsicSize = {4, 2}}, 0, "invalid.svg");
+  document.clipboard()->copySvg({.bytes = "invalid SVG", .local_path = {}, .intrinsic_size = {4, 2}}, 0, "invalid.svg");
   ASSERT_TRUE(QTest::qWaitFor([&] { return !document.clipboard()->busy(); }));
   EXPECT_EQ(QGuiApplication::clipboard()->text(), "preserve me");
   EXPECT_TRUE(document.clipboard()->feedback().startsWith("Could not prepare"));

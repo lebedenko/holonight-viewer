@@ -70,7 +70,7 @@ QVariantList formatInformationSections(const ImageInformation& information, cons
   const std::array<Section, 3> sections{{
       {.key = "Camera",
        .label = QCoreApplication::translate("ImageDocument", "Camera"),
-       .lines = {exif.camera, joinNonEmpty({exif.lens, exif.focalLength, exif.aperture}),
+       .lines = {exif.camera, joinNonEmpty({exif.lens, exif.focal_length, exif.aperture}),
                  joinNonEmpty({exif.shutter, exif.iso})}},
       {.key = "Location",
        .label = QCoreApplication::translate("ImageDocument", "Location"),

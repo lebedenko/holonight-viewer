@@ -11,8 +11,8 @@ class ManualPlaybackClock final : public PlaybackClock {
   void arm(qint64 delayMs) override { deadline_ = now_ + (delayMs < 0 ? 0 : delayMs); }
   void disarm() override { deadline_.reset(); }
   [[nodiscard]] bool armed() const { return deadline_.has_value(); }
-  void advance(qint64 ms) {
-    const auto target = now_ + ms;
+  void advance(qint64 elapsedMs) {
+    const auto target = now_ + elapsedMs;
     while (deadline_ && *deadline_ <= target) {
       now_ = *deadline_;
       deadline_.reset();

@@ -25,10 +25,10 @@ class QtGifFrameSource final : public FrameSource {
     const int delay = reader_->nextImageDelay();
     if (image.isNull()) {
       // A null read is a clean end only when the file declared no further frames.
-      if (info_.frameCount <= 0) {
-        info_.frameCount = reader_->imageCount();
+      if (info_.frame_count <= 0) {
+        info_.frame_count = reader_->imageCount();
       }
-      const bool ended = info_.frameCount > 0 && frames_read_ >= info_.frameCount;
+      const bool ended = info_.frame_count > 0 && frames_read_ >= info_.frame_count;
       return {.status = ended ? FrameResult::Status::EndOfSequence : FrameResult::Status::Damaged};
     }
     image.convertTo(QImage::Format_ARGB32_Premultiplied);
@@ -37,7 +37,7 @@ class QtGifFrameSource final : public FrameSource {
     }
     image.setDevicePixelRatio(1);
     ++frames_read_;
-    return {.status = FrameResult::Status::Ok, .image = std::move(image), .delayMs = delay};
+    return {.status = FrameResult::Status::Ok, .image = std::move(image), .delay_ms = delay};
   }
   bool rewind() override {
     if (!file_.isOpen() || !file_.seek(0)) {
@@ -49,7 +49,7 @@ class QtGifFrameSource final : public FrameSource {
     if (!reader_) {
       return {};
     }
-    info_ = {.frameCount = reader_->imageCount(), .loopCount = reader_->loopCount()};
+    info_ = {.frame_count = reader_->imageCount(), .loop_count = reader_->loopCount()};
     return info_;
   }
   void close() override {

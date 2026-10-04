@@ -11,9 +11,9 @@
 
 struct ImageInformation {
   QString format;
-  qint64 encodedSize = -1;
+  qint64 encoded_size = -1;
   QDateTime modified;
-  QSize decodedSize;
+  QSize decoded_size;
   ExifDetails exif;
 };
 

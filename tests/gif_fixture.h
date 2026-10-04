@@ -16,15 +16,20 @@ struct Frame {
 inline QByteArray bytes(const QByteArray& version, const QList<Frame>& frames, int loopField = -1, int width = 1,
                         int height = 1) {
   QByteArray bytes(version);
-  bytes.append(char(width & 255)).append(char(width >> 8)).append(char(height & 255)).append(char(height >> 8));
+  bytes.append(static_cast<char>(width & 255))
+      .append(static_cast<char>(width >> 8))
+      .append(static_cast<char>(height & 255))
+      .append(static_cast<char>(height >> 8));
   bytes += QByteArray::fromHex("800000") + QByteArray::fromHex("000000ffffff");
   if (loopField >= 0) {
     bytes += QByteArray::fromHex("21ff0b") + "NETSCAPE2.0" + QByteArray::fromHex("0301");
-    bytes.append(char(loopField & 255)).append(char(loopField >> 8)).append(char(0));
+    bytes.append(static_cast<char>(loopField & 255))
+        .append(static_cast<char>(loopField >> 8))
+        .append(static_cast<char>(0));
   }
   for (const auto& frame : frames) {
     bytes += QByteArray::fromHex("21f90401");
-    bytes.append(char(frame.delayCs & 255)).append(char(frame.delayCs >> 8));
+    bytes.append(static_cast<char>(frame.delayCs & 255)).append(static_cast<char>(frame.delayCs >> 8));
     bytes += QByteArray::fromHex("0000") + QByteArray::fromHex("2c0000000001000100000202");
     bytes += QByteArray::fromHex(frame.second ? "4c0100" : "440100");
   }

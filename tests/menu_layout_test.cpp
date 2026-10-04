@@ -313,7 +313,8 @@ TEST(MenuLayout, SeparatorsRenderAsPhysicalHairlines) {
           const auto position = item->mapToItem(list, {0, 0}).y() + list->property("contentY").toReal();
           const auto maximum = list->property("contentHeight").toReal() - list->height();
           ASSERT_GT(maximum, 0);
-          ASSERT_TRUE(list->setProperty("contentY", std::clamp(position - list->height() / 2, 0.0, maximum) + offset));
+          ASSERT_TRUE(
+              list->setProperty("contentY", std::clamp(position - (list->height() / 2), 0.0, maximum) + offset));
         }
         // Allow the scene-position observer and render loop to settle after movement.
         QTest::qWait(50);

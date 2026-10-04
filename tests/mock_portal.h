@@ -5,6 +5,7 @@
 #include <QStringList>
 #include <QVariantMap>
 
+#include <cstdint>
 #include <gtest/gtest.h>
 #include <optional>
 
@@ -12,7 +13,7 @@
 // connection so Response routing and request-path prediction cross a real bus hop.
 class MockPortal : public QDBusVirtualObject {
  public:
-  enum class Reply { Handle, Error, Never };
+  enum class Reply : std::uint8_t { Handle, Error, Never };
   struct Response {
     uint code = 0;
     QVariantMap results;

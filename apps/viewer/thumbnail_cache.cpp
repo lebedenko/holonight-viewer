@@ -2,7 +2,9 @@
 
 #include <utility>
 
-size_t qHash(const ThumbnailKey& key, size_t seed) { return qHashMulti(seed, key.path, key.boxPixels, key.generation); }
+size_t qHash(const ThumbnailKey& key, size_t seed) {
+  return qHashMulti(seed, key.path, key.box_pixels, key.generation);
+}
 
 ThumbnailCache::ThumbnailCache(qsizetype maxEntries, qint64 maxBytes) : maxEntries_(maxEntries), maxBytes_(maxBytes) {}
 

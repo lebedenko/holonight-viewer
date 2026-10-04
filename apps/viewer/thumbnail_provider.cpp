@@ -58,7 +58,7 @@ struct RequestState {
 
 struct ParsedId {
   QString path;
-  int boxPixels = 0;
+  int box_pixels = 0;
   int generation = 0;
   bool valid = false;
 };
@@ -76,7 +76,7 @@ ParsedId parseId(const QString& identifier) {
   if (!boxOk || !generationOk || box < 1 || path.isEmpty()) {
     return {};
   }
-  return {.path = QString::fromUtf8(path), .boxPixels = box, .generation = generation, .valid = true};
+  return {.path = QString::fromUtf8(path), .box_pixels = box, .generation = generation, .valid = true};
 }
 }  // namespace
 
@@ -90,7 +90,7 @@ class ThumbnailResponse : public QQuickImageResponse {
       finishLater();
       return;
     }
-    key_ = {.path = parsed.path, .boxPixels = parsed.boxPixels, .generation = parsed.generation};
+    key_ = {.path = parsed.path, .box_pixels = parsed.box_pixels, .generation = parsed.generation};
     if (auto hit = owner_.cachedImage(key_)) {
       image_ = std::move(*hit);
       finishLater();
@@ -115,8 +115,8 @@ class ThumbnailResponse : public QQuickImageResponse {
     if (result.image.isNull()) {
       error_ = result.error.isEmpty() ? QStringLiteral("The image could not be decoded.") : result.error;
     } else {
-      image_ = tagged(std::move(result.image), result.sourceSize);
-      if (result.cacheEligible && source_.size >= 0 && sourceFacts(key_.path) == source_) {
+      image_ = tagged(std::move(result.image), result.source_size);
+      if (result.cache_eligible && source_.size >= 0 && sourceFacts(key_.path) == source_) {
         owner_.storeImage(key_, image_, source_);
       }
     }
@@ -184,7 +184,7 @@ void ThumbnailResponse::cancel() {
 }
 
 void ThumbnailResponse::start() {
-  auto* task = new ThumbnailTask(owner_, {.path = key_.path, .boxPixels = key_.boxPixels}, state_);
+  auto* task = new ThumbnailTask(owner_, {.path = key_.path, .box_pixels = key_.box_pixels}, state_);
   // Queued, so the result is handled on this response's thread; the connection ends with the response.
   connect(
       task, &ThumbnailTask::decoded, this, [this](ThumbnailResult result) { complete(std::move(result)); },

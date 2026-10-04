@@ -25,7 +25,7 @@ class Harness {
  public:
   explicit Harness(std::vector<int> delays, int loopCount = 0) {
     script.delaysMs = std::move(delays);
-    script.info = {.frameCount = static_cast<int>(script.delaysMs.size()), .loopCount = loopCount};
+    script.info = {.frame_count = static_cast<int>(script.delaysMs.size()), .loop_count = loopCount};
     auto manual = std::make_unique<ManualPlaybackClock>();
     clock = manual.get();
     controller = std::make_unique<AnimationController>(

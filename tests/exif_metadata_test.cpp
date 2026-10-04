@@ -59,7 +59,7 @@ TEST(ExifMetadata, FormatsCameraExposureAndLocation) {
   EXPECT_EQ(details.aperture, "f/8.0");
   EXPECT_EQ(details.shutter, "1/100 s");
   EXPECT_EQ(details.iso, "ISO 100");
-  EXPECT_EQ(details.focalLength, "32 mm");
+  EXPECT_EQ(details.focal_length, "32 mm");
   EXPECT_EQ(details.location, QStringLiteral("50.45000° N, 30.52000° W"));
   EXPECT_EQ(details.altitude, "179 m");
 }
@@ -76,7 +76,7 @@ TEST(ExifMetadata, OmitsRepeatedMakeInvalidGpsAndZeroDenominators) {
   EXPECT_TRUE(details.aperture.isEmpty());
   EXPECT_TRUE(details.shutter.isEmpty());
   EXPECT_EQ(details.iso, "ISO 400");
-  EXPECT_TRUE(details.focalLength.isEmpty());
+  EXPECT_TRUE(details.focal_length.isEmpty());
   EXPECT_TRUE(details.hasCamera());
   EXPECT_TRUE(details.location.isEmpty());
   EXPECT_EQ(details.altitude, "-12 m");

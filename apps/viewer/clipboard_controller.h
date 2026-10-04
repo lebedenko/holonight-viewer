@@ -9,9 +9,9 @@
 
 struct SvgClipboardSource {
   QByteArray bytes;
-  QString localPath;
-  QSizeF intrinsicSize;
-  bool localImages = false;
+  QString local_path;
+  QSizeF intrinsic_size;
+  bool local_images = false;
 };
 
 // Intrinsic pixels, proportionally reduced to the application's decoded-image limits.

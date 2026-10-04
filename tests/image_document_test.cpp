@@ -70,7 +70,7 @@ bool settled(ImageDocument& document) {
 DecodeResult solidResult() {
   QImage image(4, 2, QImage::Format_ARGB32_Premultiplied);
   image.fill(Qt::red);
-  return {.image = image, .error = {}, .information = {}, .svgData = {}};
+  return {.image = image, .error = {}, .information = {}, .svg_data = {}};
 }
 }  // namespace
 
@@ -133,7 +133,7 @@ TEST(Document, Orientation) {
         writeFixture(QStringLiteral("orientation-%1.jpg").arg(orientation), jpeg.left(2) + exif + jpeg.mid(2));
     const auto result = decodeImage(url, cancel);
     ASSERT_FALSE(result.image.isNull()) << result.error.toStdString();
-    EXPECT_EQ(result.information.decodedSize, result.image.size());
+    EXPECT_EQ(result.information.decoded_size, result.image.size());
     EXPECT_EQ(result.information.format, "JPEG");
     for (int temporary = 0; temporary < 8; ++temporary) {
       EXPECT_EQ(ImageOrientation::apply(result.image, temporary).size(),
@@ -253,7 +253,7 @@ TEST(Document, StaleErrorAndValidationCannotReplaceNewestState) {
       while (!release.load()) {
         QThread::msleep(1);
       }
-      return DecodeResult{.image = {}, .error = "stale failure", .information = {}, .svgData = {}};
+      return DecodeResult{.image = {}, .error = "stale failure", .information = {}, .svg_data = {}};
     }
     return solidResult();
   });
@@ -284,7 +284,7 @@ TEST(Document, ShutdownDrainsWithoutBlockingEventLoop) {
     while (!release.load()) {
       QThread::msleep(1);
     }
-    return DecodeResult{.image = {}, .error = "canceled failure", .information = {}, .svgData = {}};
+    return DecodeResult{.image = {}, .error = "canceled failure", .information = {}, .svg_data = {}};
   });
   const auto cleanup = qScopeGuard([&] { release.store(true); });
   QSignalSpy failures(&document, &ImageDocument::openingFailed);
@@ -329,7 +329,7 @@ TEST(Document, FailureEventsIgnoreDirectoryChangesAndRepeatPerRequest) {
   std::atomic_bool scan_started{false};
   ImageDocument document(
       [](const QUrl&, const std::atomic_bool&) {
-        return DecodeResult{.image = {}, .error = "expected failure", .information = {}, .svgData = {}};
+        return DecodeResult{.image = {}, .error = "expected failure", .information = {}, .svg_data = {}};
       },
       [&](const QUrl&, const std::atomic_bool&) {
         scan_started.store(true);
@@ -377,8 +377,11 @@ TEST(Document, SuccessfulTransformsAndPrefetchFailuresDoNotReportOpeningFailures
           return solidResult();
         }
         prefetched.store(true);
-        return DecodeResult{
-            .image = {}, .error = {}, .information = {}, .svgData = {}, .outcome = HolonightImages::Outcome::IoFailure};
+        return DecodeResult{.image = {},
+                            .error = {},
+                            .information = {},
+                            .svg_data = {},
+                            .outcome = HolonightImages::Outcome::IoFailure};
       },
       [&](const QUrl&, const std::atomic_bool&) { return DirectoryResult{.urls = {selected, neighbor}, .error = {}}; });
   QSignalSpy failures(&document, &ImageDocument::openingFailed);
@@ -504,7 +507,7 @@ TEST(Document, CopyWhilePlayingUsesTheCurrentFrameAndKeepsPlaying) {
 TEST(Document, GifReservationSurvivesStillNeighborPrefetchAndReleasesFrameZero) {
   FakeScript script;
   script.delaysMs = {100, 100, 100};
-  script.info = {.frameCount = 3, .loopCount = -1};
+  script.info = {.frame_count = 3, .loop_count = -1};
   auto clock = std::make_unique<ManualPlaybackClock>();
   auto* manual = clock.get();
   const auto gifUrl = writeFixture("budget-a.gif", "fake gif");
@@ -515,17 +518,17 @@ TEST(Document, GifReservationSurvivesStillNeighborPrefetchAndReleasesFrameZero) 
         return DecodeResult{.image = std::move(image),
                             .error = {},
                             .information = {.format = url == gifUrl ? QStringLiteral("GIF") : QStringLiteral("PNG"),
-                                            .encodedSize = -1,
+                                            .encoded_size = -1,
                                             .modified = {},
-                                            .decodedSize = {2, 2},
+                                            .decoded_size = {2, 2},
                                             .exif = {}},
-                            .svgData = {}};
+                            .svg_data = {}};
       },
       [&](const QUrl&, const std::atomic_bool&) { return DirectoryResult{.urls = {gifUrl, pngUrl}, .error = {}}; },
       {.clock = std::move(clock),
        .source = [&] { return std::make_unique<FakeFrameSource>(script); },
        .execution = AnimationController::Execution::Inline,
-       .retainedBytes = 48});
+       .retained_bytes = 48});
   document.open({gifUrl});
   ASSERT_TRUE(settled(document));
   ASSERT_TRUE(QTest::qWaitFor([&] { return !document.scanning() && !ImageDocumentTestAccess::busy(document); }));
@@ -554,7 +557,7 @@ TEST(Document, GifReservationSurvivesStillNeighborPrefetchAndReleasesFrameZero) 
 TEST(Document, GifFrameZeroIsReusedWhenItFitsTheRetainedBudget) {
   FakeScript script;
   script.delaysMs = {100, 100};
-  script.info = {.frameCount = 2, .loopCount = -1};
+  script.info = {.frame_count = 2, .loop_count = -1};
   const auto gifUrl = writeFixture("reuse-a.gif", "fake gif");
   const auto pngUrl = writeFixture("reuse-b.png", "fake png");
   std::atomic_int gifDecodes{0};
@@ -569,17 +572,17 @@ TEST(Document, GifFrameZeroIsReusedWhenItFitsTheRetainedBudget) {
         return DecodeResult{.image = std::move(image),
                             .error = {},
                             .information = {.format = gif ? QStringLiteral("GIF") : QStringLiteral("PNG"),
-                                            .encodedSize = -1,
+                                            .encoded_size = -1,
                                             .modified = {},
-                                            .decodedSize = {2, 2},
+                                            .decoded_size = {2, 2},
                                             .exif = {}},
-                            .svgData = {}};
+                            .svg_data = {}};
       },
       [&](const QUrl&, const std::atomic_bool&) { return DirectoryResult{.urls = {gifUrl, pngUrl}, .error = {}}; },
       {.clock = std::make_unique<ManualPlaybackClock>(),
        .source = [&] { return std::make_unique<FakeFrameSource>(script); },
        .execution = AnimationController::Execution::Inline,
-       .retainedBytes = 64});
+       .retained_bytes = 64});
   document.open({gifUrl});
   ASSERT_TRUE(settled(document));
   ASSERT_TRUE(QTest::qWaitFor([&] { return !document.scanning() && !ImageDocumentTestAccess::busy(document); }));
@@ -674,7 +677,7 @@ TEST(Document, SvgWithViewBoxDecodesToViewBoxSize) {
   ASSERT_TRUE(settled(document));
   ASSERT_EQ(document.state(), ImageDocument::Ready) << document.error().toStdString();
   EXPECT_EQ(document.information().format, "SVG");
-  EXPECT_EQ(document.information().decodedSize, QSize(100, 200));
+  EXPECT_EQ(document.information().decoded_size, QSize(100, 200));
   EXPECT_TRUE(document.image().isNull());
   ASSERT_NE(document.svgRenderer(), nullptr);
   EXPECT_TRUE(document.svgRenderer()->isValid());
@@ -705,7 +708,7 @@ TEST(Document, SvgWithoutViewBoxFallsBackToDefaultSize) {
   document.open({writeFixture("valid-without-viewBox.svg", svgWithoutViewBox())});
   ASSERT_TRUE(settled(document));
   ASSERT_EQ(document.state(), ImageDocument::Ready) << document.error().toStdString();
-  EXPECT_EQ(document.information().decodedSize, QSize(60, 40));
+  EXPECT_EQ(document.information().decoded_size, QSize(60, 40));
 }
 
 TEST(Document, MalformedSvgFailsThroughTheGenericErrorPath) {
@@ -882,7 +885,7 @@ TEST(Document, SvgUsesDefaultSizeForInformationAndPreview) {
                               "<rect width='10' height='30' fill='red'/></svg>")});
   ASSERT_TRUE(settled(document));
   ASSERT_EQ(document.state(), ImageDocument::Ready);
-  EXPECT_EQ(document.information().decodedSize, QSize(80, 40));
+  EXPECT_EQ(document.information().decoded_size, QSize(80, 40));
   EXPECT_EQ(document.svgSize(), QSizeF(80, 40));
   EXPECT_EQ(document.previewImage().size(), QSize(256, 128));
 }

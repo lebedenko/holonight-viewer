@@ -11,13 +11,13 @@ struct FrameResult {
   enum class Status : std::uint8_t { Ok, EndOfSequence, Damaged };
   Status status = Status::Damaged;
   QImage image = {};  // ARGB32_Premultiplied, DPR 1, fresh per frame and within the viewing limits
-  int delayMs = 0;    // raw QImageReader::nextImageDelay() read right after the frame; not clamped
+  int delay_ms = 0;   // raw QImageReader::nextImageDelay() read right after the frame; not clamped
 };
 
-// Raw Qt values; a frameCount <= 0 means unknown. loopCount follows Qt: -1 infinite, N repeats after the first play.
+// Raw Qt values; a frame_count <= 0 means unknown. loop_count follows Qt: -1 infinite, N repeats after the first play.
 struct SequenceInfo {
-  int frameCount = 0;
-  int loopCount = 0;
+  int frame_count = 0;
+  int loop_count = 0;
 };
 
 // Sequential access to the frames of one file. Used from a single thread; one reader per source.
@@ -46,11 +46,11 @@ constexpr int clampFrameDelay(int rawMs) { return rawMs <= 10 ? 100 : rawMs; }
 struct LoopPolicy {
   static LoopPolicy fromQt(int rawLoopCount) {
     if (rawLoopCount < 0) {
-      return {.infinite = true, .totalPlays = 1};
+      return {.infinite = true, .total_plays = 1};
     }
-    return {.infinite = false, .totalPlays = rawLoopCount + 1};
+    return {.infinite = false, .total_plays = rawLoopCount + 1};
   }
   bool infinite = false;
-  int totalPlays = 1;
-  [[nodiscard]] bool morePlays(int playsDone) const { return infinite || playsDone < totalPlays; }
+  int total_plays = 1;
+  [[nodiscard]] bool morePlays(int playsDone) const { return infinite || playsDone < total_plays; }
 };

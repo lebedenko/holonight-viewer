@@ -26,10 +26,10 @@ DecodeResult decodeSvg(QFile& file, const std::atomic_bool& cancelled, ImageInfo
   QSvgRenderer renderer;
   const auto inspection = inspectViewerSvg(source.bytes, file.fileName(), renderer, cancelled);
   if (inspection.outcome == HolonightImages::Outcome::Unsupported && renderer.isValid()) {
-    result.svgSize = inspection.facts.documentSize;
-    result.svgLocalImages = true;
+    result.svg_size = inspection.facts.documentSize;
+    result.svg_local_images = true;
   } else if (inspection.outcome == HolonightImages::Outcome::Success) {
-    result.svgSize = inspection.facts.documentSize;
+    result.svg_size = inspection.facts.documentSize;
   } else if (inspection.outcome == HolonightImages::Outcome::Cancelled) {
     result.outcome = inspection.outcome;
     return result;
@@ -38,7 +38,7 @@ DecodeResult decodeSvg(QFile& file, const std::atomic_bool& cancelled, ImageInfo
     result.outcome = HolonightImages::Outcome::Cancelled;
     return result;
   }
-  if (result.svgSize.isEmpty()) {
+  if (result.svg_size.isEmpty()) {
     result.error =
         inspection.outcome == HolonightImages::Outcome::Unsupported
             ? QCoreApplication::translate("ImageDocument", "The SVG contains unsupported resource references.")
@@ -46,14 +46,14 @@ DecodeResult decodeSvg(QFile& file, const std::atomic_bool& cancelled, ImageInfo
     return result;
   }
   result.information.format = QStringLiteral("SVG");
-  result.information.decodedSize = result.svgSize.toSize().expandedTo(QSize(1, 1));
-  result.svgData = source.bytes;
+  result.information.decoded_size = result.svg_size.toSize().expandedTo(QSize(1, 1));
+  result.svg_data = source.bytes;
   const QSize previewBound(256, 256);
-  result.svgPreview = result.svgLocalImages
-                          ? renderLocalSvg(renderer, result.svgSize, previewBound, cancelled)
-                          : HolonightImages::rasterizeSvg(
-                                source.bytes, {.bound = previewBound, .outputBytes = kImageLimitBytes}, cancelled)
-                                .image;
+  result.svg_preview = result.svg_local_images
+                           ? renderLocalSvg(renderer, result.svg_size, previewBound, cancelled)
+                           : HolonightImages::rasterizeSvg(
+                                 source.bytes, {.bound = previewBound, .outputBytes = kImageLimitBytes}, cancelled)
+                                 .image;
   return result;
 }
 QString limitError() {
@@ -84,7 +84,7 @@ DecodeResult readImage(QFile& file, const std::atomic_bool& cancelled, ImageInfo
   auto result = HolonightImages::decode(file, {.limits = kRasterLimits, .bound = {}}, cancelled);
   facts.format = QString::fromLatin1(result.inspection.format).toUpper();
   return {
-      .image = std::move(result.image), .error = {}, .information = facts, .svgData = {}, .outcome = result.outcome};
+      .image = std::move(result.image), .error = {}, .information = facts, .svg_data = {}, .outcome = result.outcome};
 }
 }  // namespace
 
@@ -95,28 +95,28 @@ DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
   const QFileInfo info(url.toLocalFile());
   ImageInformation facts;
   if (info.isFile()) {
-    facts.encodedSize = info.size();
+    facts.encoded_size = info.size();
     facts.modified = info.lastModified();
   }
   if (!info.exists()) {
     return {.image = {},
             .error = QCoreApplication::translate("ImageDocument", "The file no longer exists."),
             .information = facts,
-            .svgData = {}};
+            .svg_data = {}};
   }
   if (!info.isFile()) {
     return {.image = {},
             .error = QCoreApplication::translate("ImageDocument",
                                                  "Choose a regular image file, not a folder or special file."),
             .information = facts,
-            .svgData = {}};
+            .svg_data = {}};
   }
   QFile file(info.absoluteFilePath());
   if (!file.open(QIODevice::ReadOnly)) {
     return {.image = {},
             .error = QCoreApplication::translate("ImageDocument", "The file could not be opened for reading."),
             .information = facts,
-            .svgData = {}};
+            .svg_data = {}};
   }
   // SVG is dispatched by extension, not content-sniffing: it has no reliable magic-byte signature, and this is the
   // same signal REQ-F-001..003 already use for format registration and directory scanning. It skips EXIF entirely
@@ -128,7 +128,7 @@ DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
     return {.image = {},
             .error = QCoreApplication::translate("ImageDocument", "The file exceeds the 256 MiB input limit."),
             .information = facts,
-            .svgData = {}};
+            .svg_data = {}};
   }
   facts.exif = ExifMetadata::read(file, cancelled);
   if (cancelled.load() || !file.seek(0)) {
@@ -141,20 +141,20 @@ DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
   auto image = std::move(decoded.image);
   facts = std::move(decoded.information);
   if (!acceptableImage(image)) {
-    return {.image = {}, .error = limitError(), .information = facts, .svgData = {}};
+    return {.image = {}, .error = limitError(), .information = facts, .svg_data = {}};
   }
   image.convertTo(QImage::Format_ARGB32_Premultiplied);
   if (image.isNull()) {
     return {.image = {},
             .error = QCoreApplication::translate("ImageDocument", "There is not enough memory to display this image."),
             .information = facts,
-            .svgData = {}};
+            .svg_data = {}};
   }
   image.setDevicePixelRatio(1);
-  facts.decodedSize = image.size();
+  facts.decoded_size = image.size();
   return {.image = std::move(image),
           .error = {},
           .information = facts,
-          .svgData = {},
+          .svg_data = {},
           .outcome = HolonightImages::Outcome::Success};
 }

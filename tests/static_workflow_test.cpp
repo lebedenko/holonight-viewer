@@ -126,11 +126,11 @@ TEST(Workflow, InformationCacheRefreshAndUnchangedSource) {
   file.close();
   ImageDocument document;
   document.open({QUrl::fromLocalFile(path)});
-  EXPECT_EQ(document.information().encodedSize, -1);
+  EXPECT_EQ(document.information().encoded_size, -1);
   ASSERT_TRUE(ready(document));
   EXPECT_EQ(document.information().format, "PNG");
-  EXPECT_EQ(document.information().encodedSize, bytes.size());
-  EXPECT_EQ(document.information().decodedSize, QSize(3, 2));
+  EXPECT_EQ(document.information().encoded_size, bytes.size());
+  EXPECT_EQ(document.information().decoded_size, QSize(3, 2));
   EXPECT_TRUE(document.information().modified.isValid());
   document.transform(1);
   EXPECT_EQ(document.transformedDimensions(), QSize(2, 3));
@@ -151,7 +151,7 @@ TEST(Workflow, InformationCacheRefreshAndUnchangedSource) {
     document.next();
   }
   ASSERT_TRUE(ready(document));
-  EXPECT_EQ(document.information().encodedSize, bytes.size());
+  EXPECT_EQ(document.information().encoded_size, bytes.size());
   EXPECT_EQ(document.information().format, "PNG");
   ASSERT_TRUE(file.open(QIODevice::ReadOnly));
   EXPECT_EQ(file.readAll(), bytes);
@@ -163,12 +163,12 @@ TEST(Workflow, InformationCacheRefreshAndUnchangedSource) {
   document.refresh();
   EXPECT_EQ(document.orientation(), 0);
   ASSERT_TRUE(ready(document));
-  EXPECT_EQ(document.information().decodedSize, QSize(7, 5));
+  EXPECT_EQ(document.information().decoded_size, QSize(7, 5));
   ASSERT_TRUE(QFile::remove(path));
   document.refresh();
   ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Error; }));
   EXPECT_EQ(document.localPath(), path);
-  EXPECT_EQ(document.information().encodedSize, -1);
+  EXPECT_EQ(document.information().encoded_size, -1);
   EXPECT_EQ(document.summaryLine(), "Details unavailable");
   ASSERT_EQ(document.informationSections().size(), 1);
   EXPECT_EQ(document.informationSections().first().toMap().value("key"), "File");
@@ -531,11 +531,11 @@ TEST(Workflow, InformationRejectsStaleRequestsAndKeepsErrorFacts) {
     return DecodeResult{.image = asymmetric(),
                         .error = {},
                         .information = {.format = url.fileName(),
-                                        .encodedSize = 123,
+                                        .encoded_size = 123,
                                         .modified = {},
-                                        .decodedSize = {3, 2},
+                                        .decoded_size = {3, 2},
                                         .exif = {}},
-                        .svgData = {}};
+                        .svg_data = {}};
   });
   const auto cleanup = qScopeGuard([&] { release.store(true); });
   document.open({QUrl::fromLocalFile(QStringLiteral(VIEWER_FIXTURE_DIR) + "/old.missing")});
@@ -553,9 +553,9 @@ TEST(Workflow, InformationRejectsStaleRequestsAndKeepsErrorFacts) {
   broken.close();
   const auto decoded = decodeImage(QUrl::fromLocalFile(broken.fileName()), std::atomic_bool{false});
   EXPECT_TRUE(decoded.image.isNull());
-  EXPECT_EQ(decoded.information.encodedSize, 6);
+  EXPECT_EQ(decoded.information.encoded_size, 6);
   EXPECT_TRUE(decoded.information.modified.isValid());
-  EXPECT_FALSE(decoded.information.decodedSize.isValid());
+  EXPECT_FALSE(decoded.information.decoded_size.isValid());
 }
 
 TEST(Workflow, ClipboardPngOrientationsAndNavigation) {

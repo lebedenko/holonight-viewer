@@ -43,9 +43,9 @@ struct FakeDecoder {
       cancelledSeen = cancelledSeen || cancelled.load();
     }
     if (failing) {
-      return {.image = {}, .sourceSize = {}, .error = QStringLiteral("boom")};
+      return {.image = {}, .source_size = {}, .error = QStringLiteral("boom")};
     }
-    return {.image = solid(decodedSize), .sourceSize = sourceSize, .error = {}, .cacheEligible = cacheEligible};
+    return {.image = solid(decodedSize), .source_size = sourceSize, .error = {}, .cache_eligible = cacheEligible};
   }
   void block() {
     QMutexLocker lock(&mutex);

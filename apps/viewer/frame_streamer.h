@@ -16,7 +16,7 @@ struct StreamEvent {
   quint64 generation = 0;
   bool ok = false;    // Opened only: the file is readable and frame 0 matches the displayed size
   QImage image = {};  // Frame
-  int delayMs = 0;    // Opened (frame 0) and Frame: raw delay
+  int delay_ms = 0;   // Opened (frame 0) and Frame: raw delay
   SequenceInfo info = {};
 };
 

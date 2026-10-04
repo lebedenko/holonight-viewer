@@ -30,7 +30,7 @@ struct SyntheticDecoder {
     {
       QMutexLocker lock(&mutex);
       paths.append(request.path);
-      boxes.append(request.boxPixels);
+      boxes.append(request.box_pixels);
     }
     if (QThread::currentThread() == guiThread) {
       ++guiThreadCalls;
@@ -42,11 +42,11 @@ struct SyntheticDecoder {
       }
     }
     if (failing) {
-      return {.image = {}, .sourceSize = {}, .error = QStringLiteral("boom")};
+      return {.image = {}, .source_size = {}, .error = QStringLiteral("boom")};
     }
     QImage image(decodedSize, QImage::Format_ARGB32_Premultiplied);
     image.fill(Qt::red);
-    return {.image = image, .sourceSize = sourceSize, .error = {}};
+    return {.image = image, .source_size = sourceSize, .error = {}};
   }
   QStringList decodedPaths() {
     QMutexLocker lock(&mutex);
@@ -80,7 +80,9 @@ inline QList<QUrl> photos(int count) {
 inline DecodeResult solidDecodeSized(QSize size) {
   QImage image(size, QImage::Format_ARGB32_Premultiplied);
   image.fill(Qt::blue);
-  return {.image = image, .error = {}, .information = {}, .svgData = {}};
+  return {.image = image, .error = {}, .information = {}, .svg_data = {}};
 }
 
-inline DecodeResult solidDecode(const QUrl&, const std::atomic_bool&) { return solidDecodeSized({20, 10}); }
+inline DecodeResult solidDecode(const QUrl& /*url*/, const std::atomic_bool& /*cancelled*/) {
+  return solidDecodeSized({20, 10});
+}

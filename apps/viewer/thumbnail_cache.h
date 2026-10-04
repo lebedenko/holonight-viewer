@@ -18,7 +18,7 @@ struct ThumbnailSource {
 
 struct ThumbnailKey {
   QString path;
-  int boxPixels = 0;
+  int box_pixels = 0;
   int generation = 0;
   bool operator==(const ThumbnailKey&) const = default;
 };
