@@ -226,5 +226,29 @@
     "version": "3.10.2-1",
     "sha256": "fa1a132d0d9cd8c58d90605e2b64b63503e89f398912a653ed05abd0f2dd0a3e",
     "url": "https://archive.archlinux.org/packages/n/nettle/nettle-3.10.2-1-x86_64.pkg.tar.zst"
+  },
+  {
+    "name": "appstream",
+    "version": "1.1.6-1",
+    "sha256": "d8ed44d733eff16125833b5553fc2c291c2df0c5d3ce85de95121a36fa3126bc",
+    "url": "https://archive.archlinux.org/packages/a/appstream/appstream-1.1.6-1-x86_64.pkg.tar.zst"
+  },
+  {
+    "name": "libfyaml",
+    "version": "0.9.6-3",
+    "sha256": "0638641908b9474cd343045e36569efe52ac668331f973c8c07b76ef3a934be9",
+    "url": "https://archive.archlinux.org/packages/l/libfyaml/libfyaml-0.9.6-3-x86_64.pkg.tar.zst"
+  },
+  {
+    "name": "libxmlb",
+    "version": "0.3.29-1",
+    "sha256": "f1e20abcdd8c72c67c3dc731c108395542b8744300b466008b266f0a90b1be2c",
+    "url": "https://archive.archlinux.org/packages/l/libxmlb/libxmlb-0.3.29-1-x86_64.pkg.tar.zst"
+  },
+  {
+    "name": "libstemmer",
+    "version": "3.0.1-1",
+    "sha256": "9af954560324177f88bfb16f6e0ac67b60a245a0f9aa7fed5683be6187439c9a",
+    "url": "https://archive.archlinux.org/packages/l/libstemmer/libstemmer-3.0.1-1-x86_64.pkg.tar.zst"
   }
 ]

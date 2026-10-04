@@ -7,11 +7,14 @@ stage=$(mktemp -d "$build_dir/install-check.XXXXXX")
 DESTDIR="$stage" cmake --install "$build_dir"
 for file in bin/hn-viewer share/applications/org.holonight.Viewer.desktop \
   share/icons/hicolor/scalable/apps/org.holonight.Viewer.svg \
+  share/metainfo/org.holonight.Viewer.metainfo.xml \
+  share/licenses/holonight-viewer/CC0-1.0.txt \
   share/licenses/holonight-viewer/LICENSE share/licenses/holonight-viewer/GPL-3.0-or-later.txt; do
   test -s "$stage/usr/$file"
 done
 test ! -e "$stage/usr/bin/holonight-viewer"
 desktop-file-validate "$stage/usr/share/applications/org.holonight.Viewer.desktop"
+python3 "$root/scripts/check-metadata.py" "$stage/usr/share/applications/org.holonight.Viewer.desktop" "$stage/usr/share/metainfo/org.holonight.Viewer.metainfo.xml" --validate
 # Only installed provider imports are available; no source or build QML paths.
 export QML_IMPORT_PATH="${HOLONIGHT_QML_IMPORT_PATH:-${HOLONIGHT_DEPENDENCY_PREFIX:-$root/build/deps/prefix}/lib/qt6/qml}"
 export LD_LIBRARY_PATH="${HOLONIGHT_DEPENDENCY_PREFIX:-$root/build/deps/prefix}/lib"

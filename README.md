@@ -1,8 +1,10 @@
 # HoloNight Viewer
 
-A standalone, keyboard-first static-image viewer for native Wayland, built on the
+A standalone, keyboard-first image viewer for native Wayland, built on the
 HoloNight theme and controls ([holonight-config](https://github.com/lebedenko/holonight-config),
-[holonight-qt](https://github.com/lebedenko/holonight-qt)). X11 and XWayland are
+[holonight-qt](https://github.com/lebedenko/holonight-qt)), with
+[holonight-images](https://github.com/lebedenko/holonight-images) and
+[holonight-thumbnails](https://github.com/lebedenko/holonight-thumbnails). X11 and XWayland are
 outside the supported scope.
 
 Open one local image, inspect it with fit, actual size, zoom, pan and temporary
@@ -10,17 +12,29 @@ transforms, then browse the supported images in its folder. Images decode in the
 background, honor embedded orientation, and fit the window. Original files are
 opened read-only and never changed.
 
+![HoloNight Viewer displaying an original landscape in its dark theme](docs/images/viewer-dark.png)
+
+- Open local images through the portal, file drops or `hn-viewer`.
+- Browse folders in natural order or use a thumbnail grid.
+- Inspect PNG, JPEG, BMP, WebP, TIFF and crisp vector SVG.
+- Play and pause animated GIFs.
+- Zoom, pan, rotate and flip without changing originals.
+- Inspect image information and copy images or paths.
+
+See [Unreleased notes](docs/releases/unreleased.md) for the current source contract.
+
 ## Requirements
 
 - **Build:** C++23, Qt 6.11+ (including Qt DBus and the Qt GUI private module),
   CMake 3.25+, Ninja, Task, tomlplusplus, pkg-config, libwebp, libexif,
   wayland-client, wayland-protocols, wayland-scanner, and installed
-  HolonightQt::Core / HolonightQt::Controls.
+  HoloNightConfig, HolonightQt::Core / HolonightQt::Controls,
+  HolonightImages and HolonightThumbnails.
 - **Tests:** Qt Test, GTest and `dbus-run-session`.
 - **Checks:** clang-format, clang-tidy (run-clang-tidy), REUSE, desktop-file-utils,
-  GIO and Python 3.
-- **Codecs:** Qt Base's PNG/BMP support and JPEG plugin, plus Qt Image Formats' WebP,
-  GIF and TIFF plugins (Arch: `qt6-base qt6-imageformats`), plus Qt's own `Qt6::Svg`
+  GIO, AppStream (`appstreamcli`) and Python 3.
+- **Codecs:** Qt Base's PNG/BMP support and JPEG/GIF plugins, plus Qt Image
+  Formats' WebP and TIFF plugins (Arch: `qt6-base qt6-imageformats`), plus Qt's own `Qt6::Svg`
   module for vector SVG rendering (not a `QImageReader` plugin). See
   [Supported formats](#supported-formats-and-limits).
 
@@ -37,7 +51,8 @@ task check                # sequential builds, tests, formatting, lint, licenses
 task --list               # individual checks and build commands
 ```
 
-`task deps` expects the providers in `../holonight-config` and `../holonight-qt`; see
+`task deps` expects the providers in `../holonight-config`, `../holonight-qt`,
+`../holonight-images` and `../holonight-thumbnails`; see
 [Providers and presets](#providers-and-presets) to change that.
 
 ## Usage
@@ -300,7 +315,9 @@ exclude.
 
 Version **0.1.0** is a source release with CMake installation; no distribution
 packages, portable binaries or bundled providers are supplied. The
-[release notes](docs/releases/v0.1.0.md) list tested provider revisions.
+[historical release notes](docs/releases/v0.1.0.md) list the providers tested for
+that tag. Those records do not qualify current source; current changes are documented
+in [Unreleased notes](docs/releases/unreleased.md).
 
 ### Installation and ownership
 
@@ -327,7 +344,8 @@ permissions and refresh the desktop database. Keep the install manifest and file
 hashes for later ownership review. Prefer the umbrella installer for managed system
 ownership. CMake installation alone does not provide safe uninstall tracking.
 
-The payload contains hn-viewer, the desktop entry, icon and license files. Runtime
+The payload contains hn-viewer, the desktop entry, AppStream metainfo, icon and
+license files. Runtime
 providers must be discoverable through Qt's normal module paths, or explicit
 `QML_IMPORT_PATH` and `LD_LIBRARY_PATH` for a custom prefix. The desktop entry opens
 one file via `hn-viewer -- %f` without changing the default image application.
@@ -358,8 +376,10 @@ See the [contributor workflow](CONTRIBUTING.md) for conventions.
 
 ### Providers and presets
 
-`task deps` builds providers from `../holonight-config` and `../holonight-qt`;
-override them with `HOLONIGHT_CONFIG_SOURCE` and `HOLONIGHT_QT_SOURCE`, and set `JOBS`
+`task deps` builds providers from `../holonight-config`, `../holonight-qt`,
+`../holonight-images` and `../holonight-thumbnails`;
+override them with `HOLONIGHT_CONFIG_SOURCE`, `HOLONIGHT_QT_SOURCE`, `HOLONIGHT_IMAGES_SOURCE`
+and `HOLONIGHT_THUMBNAILS_SOURCE`, and set `JOBS`
 to control parallelism. Builds and the staging prefix live under `build/deps`.
 
 To use an existing installation, override `HOLONIGHT_DEPENDENCY_PREFIX` and

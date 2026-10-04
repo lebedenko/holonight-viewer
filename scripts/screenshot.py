@@ -20,6 +20,7 @@ import subprocess
 import sys
 import time
 import math
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
@@ -36,6 +37,7 @@ def parse_args(argv: Sequence[str]) -> Tuple[argparse.Namespace, List[str]]:
         run_args = []
 
     parser = argparse.ArgumentParser(description="Capture Viewer screenshot")
+    parser.add_argument("--size", help="Resize the started window to WIDTHxHEIGHT logical pixels")
     parser.add_argument(
         "--delay",
         type=float,
@@ -187,7 +189,7 @@ def capture_region(output: Path, window: Dict[str, Any], margin: int) -> None:
     geometry = f"{x},{y} {w}x{h}"
     output.parent.mkdir(parents=True, exist_ok=True)
     result = subprocess.run(
-        ["grim", "-g", geometry, str(output)],
+        ["grim", "-s", "1", "-g", geometry, str(output)],
         check=False,
         text=True,
         capture_output=True,
@@ -199,13 +201,29 @@ def capture_region(output: Path, window: Dict[str, Any], margin: int) -> None:
         )
 
 
+def dispatch_window(command: str, argument: str, check: bool = True) -> None:
+    # Lua-configured Hyprland accepts dispatch arguments through eval; older
+    # compositors retain the original CLI dispatch syntax.
+    version = subprocess.check_output(['hyprctl', 'version'], text=True)
+    match = re.search(r'Hyprland (\d+)\.(\d+)', version)
+    lua = bool(match and tuple(map(int, match.groups())) >= (0, 55))
+    if lua:
+        if command == 'resizewindowpixel':
+            dimensions, target = argument.split(',')
+            _, width, height = dimensions.split()
+            expression = f'hl.dsp.window.resize({{window={json.dumps(target)}, x={int(width)}, y={int(height)}, relative=false}})'
+        elif command == 'setfloating':
+            expression = f'hl.dsp.window.float({{window={json.dumps(argument)}, action="on"}})'
+        else:
+            expression = f'hl.dsp.window.close({{window={json.dumps(argument)}}})'
+        argv = ['hyprctl', 'eval', f'hl.dispatch({expression})']
+    else:
+        argv = ['hyprctl', 'dispatch', command, argument]
+    subprocess.run(argv, check=check, text=True, capture_output=True)
+
+
 def close_window_by_address(address: str) -> None:
-    subprocess.run(
-        ["hyprctl", "dispatch", "closewindow", f"address:{address}"],
-        check=False,
-        text=True,
-        capture_output=True,
-    )
+    dispatch_window('closewindow', f'address:{address}', check=False)
 
 
 def main() -> int:
@@ -271,6 +289,13 @@ def main() -> int:
         target_address = client_identifier(window)
         if not target_address:
             raise RuntimeError("Selected client has no address")
+
+        if args.size:
+            width, height = (int(value) for value in args.size.split('x'))
+            if width < 420 or height < 280:
+                raise ValueError('--size must be at least 420x280')
+            dispatch_window('setfloating', f'address:{target_address}')
+            dispatch_window('resizewindowpixel', f'exact {width} {height},address:{target_address}')
 
         if args.delay > 0:
             time.sleep(args.delay)

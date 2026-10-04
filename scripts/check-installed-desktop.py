@@ -10,10 +10,13 @@ import tempfile
 
 root = Path(__file__).resolve().parent.parent
 fixtures = Path(tempfile.mkdtemp(prefix='installed-desktop.', dir=Path(sys.argv[2]) if len(sys.argv) > 2 else None))
-formats = runpy.run_path(str(Path(__file__).with_name('format-fixtures.py')))['FORMATS']
+formats = runpy.run_path(str(Path(__file__).with_name('format-fixtures.py')))['DESKTOP_FORMATS']
 entry = Path(sys.argv[1]).resolve(strict=True)
 subprocess.run(['desktop-file-validate', str(entry)], check=True)
-for extension, data in formats.items():
+declared = next(line.removeprefix('MimeType=').strip().strip(';').split(';')
+                for line in entry.read_text().splitlines() if line.startswith('MimeType='))
+assert set(declared) == {mime for mime, _ in formats.values()}, 'Desktop MIME guarantees differ'
+for extension, (_, data) in formats.items():
     path = fixtures / ('-фото 100% space.' + extension)
     path.write_bytes(data)
     process = subprocess.Popen(['gio', 'launch', str(entry), str(path)],
@@ -34,4 +37,4 @@ for extension, data in formats.items():
     if any(word in err.lower() for word in [b'error', b'failed', b'not installed', b'not found']):
         raise RuntimeError(err.decode(errors='replace'))
     assert path.read_bytes() == data
-print(f'Installed GIO launch passed for four formats: {fixtures}')
+print(f'Installed GIO launch passed for {len(formats)} formats: {fixtures}')

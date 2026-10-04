@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.holonight.Viewer</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>HoloNight Viewer</name>
+  <summary>Browse local images with keyboard controls</summary>
+  <developer id="io.github.lebedenko"><name>Andrii L</name></developer>
+  <description>
+    <p>HoloNight Viewer is a keyboard-first image viewer for native Wayland. Browse
+    local folders, inspect images with zoom and temporary transforms, and explore
+    a thumbnail grid without changing your original files.</p>
+    <p>View PNG, JPEG, BMP, WebP, TIFF and vector SVG images, play animated GIFs,
+    inspect image information, and copy images or paths to the clipboard.</p>
+  </description>
+  <launchable type="desktop-id">org.holonight.Viewer.desktop</launchable>
+  <categories><category>Graphics</category><category>Viewer</category></categories>
+  <provides>
+    <binary>hn-viewer</binary>
+    <mediatype>image/png</mediatype><mediatype>image/jpeg</mediatype>
+    <mediatype>image/bmp</mediatype><mediatype>image/webp</mediatype>
+    <mediatype>image/tiff</mediatype><mediatype>image/svg+xml</mediatype>
+    <mediatype>image/gif</mediatype>
+  </provides>
+  <url type="homepage">https://github.com/lebedenko/holonight-viewer</url>
+  <url type="vcs-browser">https://github.com/lebedenko/holonight-viewer</url>
+  <url type="bugtracker">https://github.com/lebedenko/holonight-viewer/issues</url>
+  <screenshots><screenshot type="default">
+    <caption>A landscape illustration in the dark Viewer theme</caption>
+    <image width="1200" height="800">https://raw.githubusercontent.com/lebedenko/holonight-viewer/main/docs/images/viewer-dark.png</image>
+  </screenshot></screenshots>
+  <content_rating type="oars-1.1"/>
+  <releases><release version="0.1.0" date="2026-09-10">
+    <description><p>First source release with static PNG, JPEG, BMP and WebP viewing,
+    folder browsing, temporary transforms and image copying.</p></description>
+    <url>https://github.com/lebedenko/holonight-viewer/releases/tag/v0.1.0</url>
+  </release></releases>
+</component>

@@ -17,6 +17,7 @@ while IFS= read -r -d '' file; do
   fi
 done < <(find /usr/bin/hn-viewer /usr/lib -type f \( -name 'hn-viewer' -o -iname '*holonight*' -o -path '*/Holonight/*' \) -print0)
 python3 scripts/format-fixtures.py build/fixtures
+python3 scripts/check-metadata.py /usr/share/applications/org.holonight.Viewer.desktop /usr/share/metainfo/org.holonight.Viewer.metainfo.xml --validate
 /usr/libexec/holonight-viewer/installed-runtime-probe /opt/check/build/fixtures
 python3 scripts/check-opening.py /usr/bin/hn-viewer
 python3 scripts/check-installed-desktop.py /usr/share/applications/org.holonight.Viewer.desktop

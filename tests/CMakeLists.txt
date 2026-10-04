@@ -27,6 +27,7 @@ set_tests_properties(viewer-qml-failure PROPERTIES WILL_FAIL TRUE TIMEOUT 5)
 target_compile_definitions(viewer-smoke PRIVATE VIEWER_FIXTURE_DIR="${CMAKE_CURRENT_BINARY_DIR}/fixtures/images")
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME viewer-metadata-contract COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-metadata.py")
 add_test(NAME viewer-performance-runner COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-measure-release.py")
 add_test(NAME viewer-tiff-fixtures-deterministic COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/format-fixtures.py" --self-check)
 add_test(NAME viewer-uninstall-policy COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-uninstall.py")

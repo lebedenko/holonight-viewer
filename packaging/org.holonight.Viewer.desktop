@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
 Name=HoloNight Viewer
-Comment=Open, inspect and browse local static images
+Comment=Open, inspect and browse local images
 Exec=hn-viewer -- %f
 Icon=org.holonight.Viewer
 Terminal=false
 Categories=Graphics;Viewer;
 StartupNotify=true
-MimeType=image/png;image/jpeg;image/bmp;image/webp;
+MimeType=image/png;image/jpeg;image/bmp;image/webp;image/tiff;image/svg+xml;image/gif;

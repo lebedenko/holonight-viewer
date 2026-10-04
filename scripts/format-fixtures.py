@@ -250,6 +250,17 @@ GIF_FIXTURES = {
 
 FORMATS = {'png': png, 'jpg': jpeg, 'bmp': bmp, 'webp': webp}
 
+# Desktop guarantees are deliberately separate from the historical four-format fixtures.
+DESKTOP_FORMATS = {
+    'png': ('image/png', png),
+    'jpg': ('image/jpeg', jpeg),
+    'bmp': ('image/bmp', bmp),
+    'webp': ('image/webp', webp),
+    'tif': ('image/tiff', TIFF_FIXTURES['tiff-rgb8.tif']),
+    'svg': ('image/svg+xml', b'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="red"/></svg>'),
+    'gif': ('image/gif', GIF_FIXTURES['sample.gif']),
+}
+
 if __name__ == '__main__':
     destination = Path(sys.argv[1])
     destination.mkdir(parents=True, exist_ok=True)

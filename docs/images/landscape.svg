@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <defs>
+    <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#182b51"/><stop offset=".65" stop-color="#798aaa"/><stop offset="1" stop-color="#edb899"/></linearGradient>
+    <linearGradient id="water" x2="0" y2="1"><stop stop-color="#829aab"/><stop offset="1" stop-color="#213f59"/></linearGradient>
+  </defs>
+  <path fill="url(#sky)" d="M0 0h1600v1000H0z"/>
+  <circle cx="1160" cy="240" r="82" fill="#ffe3bd"/>
+  <path fill="#74859f" d="M0 550 250 245 450 440 760 175 1030 490 1330 280 1600 525v475H0z"/>
+  <path fill="#d0d9df" d="m250 245-90 110 93-30 78 27zm510-70-134 171 130-52 91 28zm570 105-78 112 76-24 63 20z"/>
+  <path fill="#405c77" d="M0 635 190 460 440 640 665 420 920 635 1190 480 1440 650 1600 560v440H0z"/>
+  <path fill="url(#water)" d="M0 685h1600v315H0z"/>
+  <path fill="#c0b3a2" opacity=".4" d="m1070 735 185 0-40 12h-130zm-80 62h370l-80 13h-250zm-90 68h560l-100 12h-390z"/>
+  <path fill="#243f4c" d="M0 650q220-25 450 95l260 255H0zm1600 35q-230-20-390 110l-200 205h590z"/>
+  <g fill="#152f3a">
+    <path d="m115 450-80 185h48l-68 135h200l-68-135h48zm180 135-65 150h40l-57 120h164l-58-120h41zm1160-90-70 164h43l-60 127h178l-60-127h43z"/>
+  </g>
+  <path fill="#385462" d="m0 905 175-44 155 70 155-5 155 74H0zm1600-10-185-20-115 70-130 55h430z"/>
+</svg>
