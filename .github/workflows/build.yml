@@ -12,57 +12,12 @@ jobs:
         check: [standard, sanitizer]
     steps:
       - uses: actions/checkout@v4
-        with:
-          path: viewer
-      - uses: actions/checkout@v4
-        with:
-          repository: lebedenko/holonight-config
-          ref: 03fa635cedc506e101a148fc54f7eb46d17c6de5
-          path: holonight-config
-      - uses: actions/checkout@v4
-        with:
-          repository: lebedenko/holonight-qt
-          ref: 61d0c16af689e960367fd0f631f2c88afa169441
-          path: holonight-qt
-      - uses: actions/checkout@v4
-        with:
-          repository: lebedenko/holonight-images
-          ref: ac11f23e9ff2d70b1c142b643bc2abb6dd69f6c1
-          path: holonight-images
-      - uses: actions/checkout@v4
-        with:
-          repository: lebedenko/holonight-thumbnails
-          ref: d27addc044f277686850588147ec825c40c0f252
-          path: holonight-thumbnails
-      - name: Build CI image locally
-        run: docker build -t viewer-ci -f viewer/packaging/Dockerfile.ci viewer
-      - name: Build and verify
-        if: matrix.check == 'standard'
-        run: >-
-          docker run --rm --user "$(id -u):$(id -g)" -v "$GITHUB_WORKSPACE:/work" viewer-ci
-          bash -euc 'bash scripts/record-toolchain.sh; task deps; task check;
-          bash scripts/prepare-runtime-check.sh'
-
-      - name: Sanitizer build and tests
-        if: matrix.check == 'sanitizer'
-        run: >-
-          docker run --rm --user "$(id -u):$(id -g)" -v "$GITHUB_WORKSPACE:/work" viewer-ci
-          bash -euc 'bash scripts/record-toolchain.sh; task deps; task sanitizer-check'
-
-      - name: Isolated installed runtime (no workspace mount)
-        if: matrix.check == 'standard'
-        run: |
-          context=$(cat viewer/build/runtime-check-context)
-          context="viewer/build/$(basename "$context")"
-          docker build -t viewer-runtime-check "$context"
-          docker run --rm --network none viewer-runtime-check
-
+      - run: python3 scripts/ci/run.py --lane ${{ matrix.check }}
       - name: Toolchain and test evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: viewer-${{ matrix.check }}-evidence
           path: |
-            viewer/build/ci-provenance/
-            viewer/build/test/Testing/Temporary/
-            viewer/build/sanitizer/Testing/Temporary/
+            build/ci/
+            !build/ci/**/artifacts/**/runtime-context/**

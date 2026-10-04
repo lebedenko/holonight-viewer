@@ -422,19 +422,25 @@ task screenshot -- --delay 5 --margin 16
 
 ### CI and Docker reproduction
 
-CI runs `task deps` and `task check` with the required codecs and contributor tools,
-stages Viewer and providers under `/usr`, then launches a second container with the
-installed payloads only: no workspace mount, no network and no development runtime
-overrides. To reproduce with Docker and the provider checkouts used by CI:
+Run `task ci` with Python 3 and Docker (Podman fallback). Local and hosted jobs use
+`scripts/ci/run.py`, the immutable build image and checksum-pinned supplements in
+`scripts/ci/`. Network access fetches exact provider commits and required images.
+The launcher runs standard, sanitizer and REUSE 6.2.0 lanes on Linux amd64 (native
+or runtime emulation), starting with fresh application/provider build trees.
 
-```sh
-docker build -t viewer-ci -f packaging/Dockerfile.ci .
-# First run CI's Build and verify step in the parent checkout layout:
-# task deps, task check, then task runtime-context, which writes
-# build/runtime-check-context and the disposable context under build/.
-docker build -t viewer-runtime-check "$(cat build/runtime-check-context)"
-docker run --rm --network none viewer-runtime-check
-```
+Tracked edits, deletions and non-ignored new files enter isolated snapshots that
+retain real Git HEAD and preserve executable modes/symlinks. Add reported new inputs
+before pushing. Host source is read-only; normal development builds are unchanged.
+Complete logs, versions, source state, lane results, pixel captures and installed
+runtime image identity remain in ignored `build/ci/`, including on failures.
+
+Standard verification preserves `task deps`/`task check`, stages providers and
+Viewer under `/usr`, then runs a second installed-runtime container without a
+workspace mount, networking or development runtime overrides. The launcher keeps
+the Docker daemon on the host. Publication and artifact uploads remain remote.
+
+The existing `packaging/Dockerfile.ci` and `task runtime-context` remain available
+for development experiments with local provider checkouts. CI parity uses `task ci`.
 
 ### Native clipboard qualification
 

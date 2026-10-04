@@ -47,3 +47,7 @@ Bash indexing requires Node.js, bash-language-server and shellcheck on PATH. Ver
 `scripts/status` in Hyprlock explicitly; a running Bash server alone is not proof of recognition.
 
 Qt package tests select qmllint from Qt6::qmllint and qml from its sibling directory or the configured Qt binary directory, without searching PATH. Set QML and QMLLINT to executable paths to override these test tools (paths with spaces are supported). Direct CMake HOLONIGHT_QML_EXECUTABLE and HOLONIGHT_QMLLINT_EXECUTABLE overrides are also supported. Automatic test-tool paths are not cached; explicit cache overrides persist. QMLLINT continues to populate the generic QMLLINT CMake variable for other modules.
+
+For a fresh isolated compiler context, set `HOLONIGHT_TIDY_DATABASE` to its
+`compile_commands.json` before running `task tidy`, `tidy-src` or `tidy-tests`.
+The normal merge default remains available; selected sources need compiler coverage.
