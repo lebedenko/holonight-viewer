@@ -58,7 +58,7 @@ DecodeResult decodeSvg(QFile& file, const std::atomic_bool& cancelled, ImageInfo
 }
 QString limitError() {
   return QCoreApplication::translate("ImageDocument",
-                                     "This image exceeds the viewing limit (32 million pixels or 128 MiB decoded).");
+                                     "This image exceeds the viewing limit (64 million pixels or 256 MiB decoded).");
 }
 }  // namespace
 

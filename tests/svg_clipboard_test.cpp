@@ -70,8 +70,9 @@ TEST(SvgClipboard, IntrinsicSizeIsRoundedAndOversizedDimensionsAreBounded) {
   EXPECT_EQ(svgClipboardSize({0.25, 0.5}), QSize(1, 1));
   EXPECT_EQ(svgClipboardSize({2.4, 3.6}), QSize(2, 4));
   EXPECT_EQ(svgClipboardSize({40000, 1}), QSize(32768, 1));
+  EXPECT_EQ(svgClipboardSize({8000, 8000}), QSize(8000, 8000));
   const auto large = svgClipboardSize({40000, 80000});
-  EXPECT_LE(static_cast<qint64>(large.width()) * large.height(), 32000000);
+  EXPECT_LE(static_cast<qint64>(large.width()) * large.height(), 64000000);
   EXPECT_NEAR(static_cast<double>(large.height()) / large.width(), 2, 0.001);
   EXPECT_TRUE(svgClipboardSize({0, 10}).isEmpty());
   EXPECT_TRUE(svgClipboardSize({std::numeric_limits<double>::infinity(), 10}).isEmpty());

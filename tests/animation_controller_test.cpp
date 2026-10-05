@@ -184,12 +184,22 @@ TEST(AnimationController, DamagedFrameStopsPlaybackOnTheLastGoodFrame) {
 }
 
 TEST(AnimationController, FrameLimitsMatchTheStaticPath) {
-  EXPECT_TRUE(acceptableSize({8000, 4000}));  // exactly 32 million pixels
-  EXPECT_FALSE(acceptableSize({8001, 4000}));
+  EXPECT_TRUE(acceptableSize({8000, 8000}));  // exactly 64 million pixels
+  EXPECT_FALSE(acceptableSize({8001, 8000}));
   EXPECT_FALSE(acceptableSize({32769, 1}));
   EXPECT_FALSE(acceptableSize({0, 10}));
   EXPECT_FALSE(acceptableImage(QImage()));
   EXPECT_TRUE(acceptableImage(QImage(4, 4, QImage::Format_ARGB32_Premultiplied)));
+}
+
+TEST(AnimationController, HighBitDepthFramesRespectTheDecodedByteLimit) {
+  for (const int height : {4096, 4097}) {
+    const QImage image(8192, height, QImage::Format_RGBA64);
+    ASSERT_FALSE(image.isNull());
+    ASSERT_TRUE(acceptableSize(image.size()));
+    EXPECT_EQ(image.sizeInBytes(), 8192LL * height * 8);
+    EXPECT_EQ(acceptableImage(image), height == 4096);
+  }
 }
 
 TEST(AnimationController, SingleFrameSourceNeverBecomesAnimated) {

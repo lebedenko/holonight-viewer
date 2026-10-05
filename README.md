@@ -298,13 +298,13 @@ Installed runtimes need libwebp, libexif and the Qt plugins.
 | Limit | Value |
 | --- | --- |
 | Encoded input | 256 MiB |
-| Decoded pixels | 32 million, and 32,768 on either axis |
-| Decoded image | 128 MiB |
-| Displayed image plus decode cache | 256 MiB |
+| Decoded pixels | 64 million, and 32,768 on either axis |
+| Decoded image | 256 MiB |
+| Displayed image plus decode cache | 512 MiB |
 
 Every frame of a GIF is checked against the same decoded-pixel and decoded-image
 limits as a still image. While a GIF plays, the displayed frame and one look-ahead
-frame count toward the 256 MiB, and the decode cache gets what remains, so the
+frame count toward the 512 MiB, and the decode cache gets what remains, so the
 frame count never changes memory use.
 
 Oversized images and unsupported dimensions produce an error instead of a
@@ -549,7 +549,7 @@ Performance acceptance requires explicit user review of the measured tradeoffs.
   direction is prefetched, initially forward. A separate scan worker likewise keeps
   one active and one newest pending scan.
 - **Cache:** the decoded LRU holds at most two entries and 128 MiB, excluding the
-  displayed image; display plus cache stays within 256 MiB. Hits are checked on the
+  displayed image; display plus cache stays within 512 MiB. Hits are checked on the
   worker by absolute path, file size and modification time, so edits that preserve
   both need Ctrl+R. GIF frame zero may be retained only as a budgeted LRU entry;
   neighbor prefetch never changes the foreground document's cache allowance.
@@ -568,9 +568,9 @@ Performance acceptance requires explicit user review of the measured tradeoffs.
   memory, and codec-private allocations are not covered, so the limits are not a
   whole-process guarantee. Zoom, pan and transforms reuse the decoded image and a
   canvas-sized surface without allocating another full-size image.
-- **Clipboard memory** is outside the 256 MiB bound. A copy first shares its decoded
-  snapshot but may retain another image (up to 128 MiB) after navigation; a
-  transformed output can add another 128 MiB, and PNG encoding needs temporary
+- **Clipboard memory** is outside the 512 MiB bound. A copy first shares its decoded
+  snapshot but may retain another image (up to 256 MiB) after navigation; a
+  transformed output can add another 256 MiB, and PNG encoding needs temporary
   storage plus its payload. Qt, transport, receivers and clipboard managers may
   retain more. A dedicated worker transforms and encodes one copy at a time, with no
   queue, and publishes explicit `image/png` without Qt's private image representation.

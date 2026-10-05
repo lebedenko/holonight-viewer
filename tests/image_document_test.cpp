@@ -84,7 +84,7 @@ TEST(Document, FormatsAlphaPathsAndRecovery) {
   ImageDocument document;
   ASSERT_TRUE(QImageReader::supportedImageFormats().contains("png"));
   ASSERT_TRUE(QImageReader::supportedImageFormats().contains("jpeg"));
-  EXPECT_EQ(QImageReader::allocationLimit(), 128);
+  EXPECT_EQ(QImageReader::allocationLimit(), 256);
   for (const auto* format : {"PNG", "JPEG"}) {
     const auto bytes = encodedImage(format);
     ASSERT_FALSE(bytes.isEmpty());
@@ -198,12 +198,12 @@ TEST(Document, LimitsAndCancellation) {
   QByteArray bitmap;
   QDataStream header(&bitmap, QIODevice::WriteOnly);
   header.setByteOrder(QDataStream::LittleEndian);
-  header << quint16{0x4d42} << quint32{54} << quint32{0} << quint32{54} << quint32{40} << qint32{6000} << qint32{6000}
+  header << quint16{0x4d42} << quint32{54} << quint32{0} << quint32{54} << quint32{40} << qint32{8000} << qint32{8001}
          << quint16{1} << quint16{24} << quint32{0} << quint32{0} << qint32{0} << qint32{0} << quint32{0} << quint32{0};
   document.open({writeFixture("too-many-pixels.bmp", bitmap)});
   ASSERT_TRUE(settled(document));
   EXPECT_EQ(document.state(), ImageDocument::Error);
-  EXPECT_TRUE(document.error().contains("32 million"));
+  EXPECT_TRUE(document.error().contains("64 million"));
   QFile sparse(fixturePath("too-big.png"));
   ASSERT_TRUE(sparse.open(QIODevice::WriteOnly));
   ASSERT_TRUE(sparse.resize((256LL * 1024 * 1024) + 1));
@@ -508,6 +508,10 @@ TEST(Document, CopyWhilePlayingUsesTheCurrentFrameAndKeepsPlaying) {
   EXPECT_TRUE(QTest::qWaitFor([&] { return !document.clipboard()->busy(); }));
   EXPECT_TRUE(document.animation()->playing());
   EXPECT_EQ(document.state(), ImageDocument::Ready);
+}
+
+TEST(Document, DefaultRetainedBudgetIs512MiB) {
+  EXPECT_EQ(ImageDocument::PlaybackOptions{}.retained_bytes, 512LL * 1024 * 1024);
 }
 
 TEST(Document, GifReservationSurvivesStillNeighborPrefetchAndReleasesFrameZero) {

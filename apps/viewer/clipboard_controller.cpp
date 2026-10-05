@@ -24,7 +24,7 @@ QSize svgClipboardSize(QSizeF intrinsic) {
   if (!std::isfinite(width) || !std::isfinite(height) || width <= 0 || height <= 0) {
     return {};
   }
-  constexpr qint64 pixels = std::min<qint64>(32000000, kImageLimitBytes / 4);
+  constexpr qint64 pixels = std::min<qint64>(kImageLimitPixels, kImageLimitBytes / 4);
   const auto scale = std::min({1.0, 32768.0 / width, 32768.0 / height, std::sqrt(pixels / width / height)});
   if (scale <= 0) {
     return {};

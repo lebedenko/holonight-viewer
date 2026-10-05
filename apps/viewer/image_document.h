@@ -79,7 +79,7 @@ class ImageDocument : public QObject {
     std::unique_ptr<PlaybackClock> clock = std::make_unique<QtPlaybackClock>();
     FrameSourceFactory source = makeQtGifFrameSource;
     AnimationController::Execution execution = AnimationController::Execution::Threaded;
-    qint64 retained_bytes = 256 * 1024 * 1024;
+    qint64 retained_bytes = 512 * 1024 * 1024;
   };
   explicit ImageDocument(QObject* parent = nullptr);
   explicit ImageDocument(Decoder decoder, QObject* parent = nullptr);

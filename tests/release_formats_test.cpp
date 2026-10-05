@@ -228,7 +228,7 @@ TEST(Release, TiffLimitsApply) {
   };
   const auto accepted = patched(1, 1);
   ASSERT_FALSE(accepted.image.isNull()) << accepted.error.toStdString();
-  for (const auto& [width, height] : {std::pair<quint32, quint32>{32769, 1}, {1, 32769}, {6000, 6000}}) {
+  for (const auto& [width, height] : {std::pair<quint32, quint32>{32769, 1}, {1, 32769}, {8000, 8001}}) {
     const auto result = patched(width, height);
     EXPECT_TRUE(result.image.isNull()) << width << "x" << height;
     EXPECT_EQ(result.outcome, HolonightImages::Outcome::ResourceLimit) << width << "x" << height;
