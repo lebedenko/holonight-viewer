@@ -559,6 +559,11 @@ HnApplicationWindow {
                 availableHeight: canvasArea.height
                 devicePixelRatio: window.devicePixelRatio
             }
+            ViewerLoadingIndicator {
+                anchors.centerIn: parent
+                loading: window.document.state === ImageDocument.Loading && !window.gridMode
+                suppressed: window.gridMode || window.document.state === ImageDocument.Error
+            }
             HnLabel {
                 objectName: "documentFeedback"
                 textFormat: Text.PlainText
@@ -566,8 +571,8 @@ HnApplicationWindow {
                 width: canvasArea.width
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
-                visible: !window.gridMode && (window.document.state === ImageDocument.Loading || window.document.state === ImageDocument.Error)
-                rawText: window.document.state === ImageDocument.Loading ? qsTr("Loading %1…").arg(window.document.fileName) : window.document.error
+                visible: !window.gridMode && window.document.state === ImageDocument.Error
+                rawText: window.document.error
                 Accessible.role: Accessible.StaticText
                 Accessible.name: rawText
             }
