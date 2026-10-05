@@ -604,11 +604,6 @@ HnApplicationWindow {
                 elide: Text.ElideMiddle
                 Accessible.name: rawText
             }
-            HnSeparator {
-                objectName: "footerSeparator"
-                Layout.fillWidth: true
-                fadeMode: HnSeparator.Solid
-            }
             FooterKeyHints {
                 gridMode: window.gridMode
                 animated: window.document.animation.canToggle

@@ -47,6 +47,7 @@ HnHeaderBar {
     }
     objectName: "viewerHeader"
     sizeRole: HnControlSize.Xs
+    dividerVisible: false
     HoverHandler {
         id: headerHover
     }
