@@ -36,6 +36,10 @@ HnApplicationWindow {
             radius: control.cornerRadius
         }
     }
+    HnWindowDecoration {
+        id: decoration
+        window: window
+    }
     property bool rendered: false
     property bool actionsMenuOpen: false
     readonly property bool fullscreen: visibility === Window.FullScreen
@@ -354,6 +358,7 @@ HnApplicationWindow {
             anchors.right: parent.right
             anchors.top: parent.top
             title: window.headerTitle
+            titleVisible: window.fullscreen || !decoration.externalDecorationPresent
             informationAction: viewerActions.imageInformation
             fullscreenAction: viewerActions.fullscreenCommand
             modalActive: window.modalActive

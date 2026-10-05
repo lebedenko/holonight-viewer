@@ -7,6 +7,7 @@ import Holonight.Controls
 
 HnHeaderBar {
     id: header
+    property bool titleVisible: true
     required property string title
     required property Controls.Action informationAction
     required property Controls.Action fullscreenAction
@@ -55,6 +56,7 @@ HnHeaderBar {
         readonly property list<Item> focusTargets: [informationButton, fullscreenButton, actionsButton]
         HnLabel {
             objectName: "headerTitle"
+            visible: header.titleVisible
             anchors.centerIn: parent
             width: Math.max(0, parent.width - headerActions.width * 2)
             horizontalAlignment: Text.AlignHCenter

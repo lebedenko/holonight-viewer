@@ -17,7 +17,10 @@
     {
       "module": "holonight-qt",
       "package": "HolonightQt",
-      "source_variable": "HOLONIGHT_QT_SOURCE"
+      "source_variable": "HOLONIGHT_QT_SOURCE",
+      "options": [
+        "-DBUILD_WAYLAND=ON"
+      ]
     },
     {
       "module": "holonight-images",
