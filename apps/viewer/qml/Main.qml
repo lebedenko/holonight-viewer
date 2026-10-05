@@ -36,8 +36,8 @@ HnApplicationWindow {
             radius: control.cornerRadius
         }
     }
-    HnWindowDecoration {
-        id: decoration
+    HnWindowPresentation {
+        id: presentation
         window: window
     }
     property bool rendered: false
@@ -358,7 +358,7 @@ HnApplicationWindow {
             anchors.right: parent.right
             anchors.top: parent.top
             title: window.headerTitle
-            titleVisible: window.fullscreen || !decoration.externalDecorationPresent
+            titleVisible: window.fullscreen || presentation.externalTitleBarState !== HnWindowPresentation.Present
             informationAction: viewerActions.imageInformation
             fullscreenAction: viewerActions.fullscreenCommand
             modalActive: window.modalActive

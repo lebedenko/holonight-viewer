@@ -19,14 +19,14 @@ TEST(ViewerHeader, HiddenTitlesPreserveGeometryActionsNavigationAndMenuAnchor) {
   ASSERT_NE(window, nullptr);
   QObject* decoration = nullptr;
   for (auto* child : window->findChildren<QObject*>()) {
-    if (child->inherits("HnWindowDecoration")) {
+    if (child->inherits("HnWindowPresentation")) {
       decoration = child;
       break;
     }
   }
   ASSERT_NE(decoration, nullptr);
   EXPECT_EQ(decoration->property("window").value<QObject*>(), window);
-  EXPECT_FALSE(decoration->property("externalDecorationPresent").toBool());
+  EXPECT_EQ(decoration->property("externalTitleBarState").toInt(), 0);
   auto* header = window->findChild<QQuickItem*>("viewerHeader");
   auto* title = window->findChild<QQuickItem*>("headerTitle");
   auto* information = window->findChild<QQuickItem*>("informationButton");
