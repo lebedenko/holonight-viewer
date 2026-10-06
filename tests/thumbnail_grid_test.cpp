@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <functional>
 #include <gtest/gtest.h>
 #include <memory>
@@ -280,7 +281,8 @@ Item {
     const auto cellWidth = grid->property("cellWidth").toReal();
     const auto cellHeight = grid->property("cellHeight").toReal();
     const auto side = width > 0 ? width : (3 * cellWidth) + (cellWidth / 2);
-    root->setSize({side, (rows * cellHeight) + (cellHeight / 3)});
+    // Use a pixel-aligned viewport, matching the integer-sized test window.
+    root->setSize({side, std::ceil((rows * cellHeight) + (cellHeight / 3))});
     window.resize(static_cast<int>(root->width()), static_cast<int>(root->height()));
     window.show();
     if (!QTest::qWaitForWindowExposed(&window)) {

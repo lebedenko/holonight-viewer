@@ -1,11 +1,13 @@
 #include "image_document.h"
 #include "viewer_controller.h"
 
+#include <QFile>
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
 #include <QQmlExpression>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QTemporaryDir>
 #include <QTest>
 
 #include <gtest/gtest.h>
@@ -28,8 +30,8 @@ struct IndicatorFixture {
     }
     return item != nullptr;
   }
-  void loading(bool value) { object->setProperty("loading", value); }
-  bool running() const { return object->property("running").toBool(); }
+  void loading(bool value) const { object->setProperty("loading", value); }
+  [[nodiscard]] bool running() const { return object->property("running").toBool(); }
 };
 }  // namespace
 
@@ -91,6 +93,12 @@ TEST(LoadingIndicator, CompletionDuringFadeInSettlesHidden) {
 }
 
 TEST(LoadingIndicator, MainBindingNotificationsGridAndImmediateError) {
+  // The folder scan must find an image so grid entry does not depend on /tmp contents.
+  QTemporaryDir folder;
+  ASSERT_TRUE(folder.isValid());
+  QFile image(folder.filePath(QStringLiteral("loading-indicator.png")));
+  ASSERT_TRUE(image.open(QIODevice::WriteOnly));
+  image.close();
   // Keep decoding pending until the test cancels it; no image-size timing dependency.
   ImageDocument document([](const QUrl&, const std::atomic_bool& cancelled) {
     while (!cancelled.load()) {
@@ -108,7 +116,7 @@ TEST(LoadingIndicator, MainBindingNotificationsGridAndImmediateError) {
   auto* feedback = window->findChild<QQuickItem*>("documentFeedback");
   ASSERT_TRUE(indicator && feedback);
   EXPECT_FALSE(indicator->property("loading").toBool());
-  document.open({QUrl::fromLocalFile("/tmp/loading-indicator.png")});
+  document.open({QUrl::fromLocalFile(image.fileName())});
   ASSERT_EQ(document.state(), ImageDocument::Loading);
   EXPECT_TRUE(indicator->property("loading").toBool());
   EXPECT_FALSE(feedback->isVisible());
