@@ -17,16 +17,6 @@ TEST(ViewerHeader, HiddenTitlesPreserveGeometryActionsNavigationAndMenuAnchor) {
   ASSERT_EQ(engine.rootObjects().size(), 1);
   auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
   ASSERT_NE(window, nullptr);
-  QObject* decoration = nullptr;
-  for (auto* child : window->findChildren<QObject*>()) {
-    if (child->inherits("HnWindowPresentation")) {
-      decoration = child;
-      break;
-    }
-  }
-  ASSERT_NE(decoration, nullptr);
-  EXPECT_EQ(decoration->property("window").value<QObject*>(), window);
-  EXPECT_EQ(decoration->property("externalTitleBarState").toInt(), 0);
   auto* header = window->findChild<QQuickItem*>("viewerHeader");
   auto* title = window->findChild<QQuickItem*>("headerTitle");
   auto* information = window->findChild<QQuickItem*>("informationButton");
@@ -38,7 +28,7 @@ TEST(ViewerHeader, HiddenTitlesPreserveGeometryActionsNavigationAndMenuAnchor) {
   ASSERT_NE(fullscreen, nullptr);
   ASSERT_NE(menu, nullptr);
   ASSERT_TRUE(QTest::qWaitFor([&] { return header->height() > 0 && header->width() > 900 && menu->width() > 0; }));
-  EXPECT_TRUE(header->property("titleVisible").toBool());
+  EXPECT_FALSE(header->property("titleVisible").toBool());
   const auto height = header->height();
   const auto menuPosition = menu->mapToItem(header, QPointF());
   const auto nativeTitle = window->title();
@@ -53,13 +43,11 @@ TEST(ViewerHeader, HiddenTitlesPreserveGeometryActionsNavigationAndMenuAnchor) {
   const auto informationGeometry = QRectF(information->position(), information->size());
   const auto fullscreenGeometry = QRectF(fullscreen->position(), fullscreen->size());
   const auto titleWidth = title->width();
-  for (const auto& text : {QString(), QStringLiteral("image.png"), QStringLiteral("Pictures — 12 images")}) {
-    ASSERT_TRUE(header->setProperty("title", text));
-    ASSERT_TRUE(header->setProperty("titleVisible", true));
-    EXPECT_TRUE(title->isVisible());
-    ASSERT_TRUE(header->setProperty("titleVisible", false));
-    EXPECT_FALSE(title->isVisible());
-    EXPECT_EQ(title->property("rawText").toString(), text);
+  for (const auto visibility : {QWindow::FullScreen, QWindow::Windowed, QWindow::FullScreen, QWindow::Windowed}) {
+    window->setVisibility(visibility);
+    ASSERT_TRUE(QTest::qWaitFor(
+        [&] { return header->property("titleVisible").toBool() == (visibility == QWindow::FullScreen); }));
+    EXPECT_EQ(title->isVisible(), visibility == QWindow::FullScreen);
     EXPECT_EQ(title->width(), titleWidth);
     EXPECT_EQ(QRectF(information->position(), information->size()), informationGeometry);
     EXPECT_EQ(QRectF(fullscreen->position(), fullscreen->size()), fullscreenGeometry);

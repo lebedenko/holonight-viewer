@@ -393,7 +393,7 @@ TEST(GridMode, DroppingAFileLeavesTheGrid) {
   QMimeData mime;
   mime.setUrls({photo(9)});
   const QPoint point(fixture.window->width() / 2, fixture.window->height() / 2);
-  QDragEnterEvent enter(point, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+  QDragEnterEvent enter(QPointF(point), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
   QCoreApplication::sendEvent(fixture.window, &enter);
   QDropEvent drop(point, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
   QCoreApplication::sendEvent(fixture.window, &drop);
@@ -1006,4 +1006,50 @@ TEST(GridBrowse, MenuMovementTakesPrecedenceOverSelectionAndBrowsingAliases) {
   fixture.key(Qt::Key_G, Qt::ShiftModifier);
   EXPECT_EQ(selected(fixture), 4);
   EXPECT_EQ(fixture.document.url(), photo(5));
+}
+
+TEST(GridMode, NativeTitlesAndHeadingFollowContentAndFullscreenTransitions) {
+  GridModeFixture fixture;
+  ASSERT_TRUE(fixture.load(3));
+  auto* header = fixture.find("viewerHeader");
+  auto* heading = fixture.find("headerTitle");
+  ASSERT_NE(header, nullptr);
+  ASSERT_NE(heading, nullptr);
+  const auto checkModes = [&] {
+    const auto title = fixture.window->title();
+    for (const auto mode : {QWindow::Windowed, QWindow::FullScreen, QWindow::Windowed}) {
+      fixture.window->setVisibility(mode);
+      EXPECT_TRUE(
+          QTest::qWaitFor([&] { return header->property("titleVisible").toBool() == (mode == QWindow::FullScreen); }));
+      QMetaObject::invokeMethod(fixture.window, "showArrows");
+      EXPECT_TRUE(header->isVisible());
+      EXPECT_EQ(heading->isVisible(), mode == QWindow::FullScreen);
+      EXPECT_EQ(fixture.window->title(), title);
+    }
+  };
+  EXPECT_EQ(fixture.window->title(), "HoloNight Viewer");
+  checkModes();
+  ASSERT_TRUE(fixture.open(1));
+  EXPECT_EQ(fixture.window->title(), fixture.document.fileName() + " — HoloNight Viewer");
+  checkModes();
+  fixture.document.next();
+  ASSERT_TRUE(QTest::qWaitFor([&] { return fixture.document.url() == photo(2); }));
+  EXPECT_EQ(fixture.window->title(), fixture.document.fileName() + " — HoloNight Viewer");
+  fixture.key(Qt::Key_G, Qt::ControlModifier);
+  ASSERT_TRUE(fixture.gridMode());
+  EXPECT_EQ(fixture.window->title(), "photos — 3 images — HoloNight Viewer");
+  checkModes();
+  fixture.blockScans(true);
+  fixture.document.refresh();
+  ASSERT_TRUE(fixture.document.scanning());
+  EXPECT_EQ(fixture.window->title(), "photos — HoloNight Viewer");
+  checkModes();
+  *fixture.urls = {photo(2)};
+  fixture.blockScans(false);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !fixture.document.scanning(); }));
+  EXPECT_EQ(fixture.window->title(), "photos — 1 image — HoloNight Viewer");
+  fixture.key(Qt::Key_G, Qt::ControlModifier);
+  EXPECT_EQ(fixture.window->title(), fixture.document.fileName() + " — HoloNight Viewer");
+  fixture.window->setVisibility(QWindow::Maximized);
+  EXPECT_FALSE(header->property("titleVisible").toBool());
 }

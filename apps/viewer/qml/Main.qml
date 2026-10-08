@@ -22,7 +22,7 @@ HnApplicationWindow {
     minimumWidth: 420
     minimumHeight: 280
     visible: true
-    title: document.fileName ? qsTr("%1 — HoloNight Viewer").arg(document.fileName) : qsTr("HoloNight Viewer")
+    title: gridMode || document.fileName ? qsTr("%1 — HoloNight Viewer").arg(headerTitle) : qsTr("HoloNight Viewer")
 
     component ViewerButton: Controls.Button {
         id: control
@@ -35,10 +35,6 @@ HnApplicationWindow {
             border.color: control.visualFocus ? HoloniightPalette.borderFocus : control.floating ? HoloniightPalette.borderPassive : "transparent"
             radius: control.cornerRadius
         }
-    }
-    HnWindowPresentation {
-        id: presentation
-        window: window
     }
     property bool rendered: false
     property bool actionsMenuOpen: false
@@ -358,7 +354,7 @@ HnApplicationWindow {
             anchors.right: parent.right
             anchors.top: parent.top
             title: window.headerTitle
-            titleVisible: window.fullscreen || presentation.externalTitleBarState !== HnWindowPresentation.Present
+            titleVisible: window.fullscreen
             informationAction: viewerActions.imageInformation
             fullscreenAction: viewerActions.fullscreenCommand
             modalActive: window.modalActive

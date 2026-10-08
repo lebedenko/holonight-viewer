@@ -1,5 +1,7 @@
 # External window title presentation
 
+Archived: replaced by [Decoration-independent Viewer](../decoration-independent-viewer/README.md). The requirements below describe historical work, not the current API.
+
 Work package: I-004. Baseline: `bcfdf7fa7324952dd749f8170fee00413b48d59a`.
 
 See the umbrella initiative for settled contracts and scope. Implementation remains local; publication and integration are pending.

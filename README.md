@@ -119,7 +119,7 @@ Mouse Back/Forward buttons trigger previous/next once per click, browsing images
 Viewer shortcuts pause while Open, Image Information or Shortcut Help is active.
 Escape closes a card or dialog before leaving fullscreen; closing clears the focus
 ring. Fullscreen restores the previous normal/maximized state, including
-compositor-managed tiling. Native decorations belong to Qt and the compositor.
+compositor-managed tiling. Native decorations belong to Qt and the compositor. The windowed toolbar shows actions only; fullscreen shows the content heading while the toolbar is visible. Native titles identify the current image or folder (and the completed image count).
 
 Tab and Shift+Tab cycle through the enabled header buttons (Information, Fullscreen,
 Menu); the empty window skips Information. Image actions clear the focus ring. In the

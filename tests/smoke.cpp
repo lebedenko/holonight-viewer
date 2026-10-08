@@ -313,7 +313,7 @@ TEST(Viewer, OpeningCanvasAndAdapters) {
     QMimeData mime;
     mime.setUrls(urls);
     const QPoint point(window->width() / 2, window->height() / 2);
-    QDragEnterEvent enter(point, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QDragEnterEvent enter(QPointF(point), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
     QCoreApplication::sendEvent(window, &enter);
     QDropEvent drop(point, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
     QCoreApplication::sendEvent(window, &drop);
