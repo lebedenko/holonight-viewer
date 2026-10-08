@@ -43,10 +43,10 @@ fetch_provider() {
   git -C "/work/$name" checkout --detach FETCH_HEAD
   [ "$(git -C "/work/$name" rev-parse HEAD)" = "$revision" ]
 }
-fetch_provider holonight-config 03fa635cedc506e101a148fc54f7eb46d17c6de5
-fetch_provider holonight-qt f10e8c8ba57282e953f8ddc4a6b0c1109e05a3bf
-fetch_provider holonight-images ac11f23e9ff2d70b1c142b643bc2abb6dd69f6c1
-fetch_provider holonight-thumbnails d27addc044f277686850588147ec825c40c0f252
+fetch_provider holonight-config d6a392b41991f70a004d58f7694c7b6115cb7280
+fetch_provider holonight-qt 6c7ac33004702e166b8c152dcde918296be54286
+fetch_provider holonight-images d834984dc413dc9e56f7f3157fa605d6a8667088
+fetch_provider holonight-thumbnails 2284b1822b0f8f856677e14d21d91e8fa10bd98c
 task deps
 export LD_LIBRARY_PATH="$PWD/build/deps/prefix/lib"
 if [ "$lane" = sanitizer ]; then

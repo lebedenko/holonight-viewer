@@ -21,3 +21,7 @@ Tests now exercise actual window bindings through empty/image/grid/scanning tran
 - Full logs: /tmp/decoration-viewer-final-check.log. Final diff review and removed-API source scan passed.
 
 Native checks passed, confirmed by the user on 2026-10-08 after the requested Hyprland/Sway decoration-enabled/disabled title, toolbar and fullscreen checklist. Publication, deployment and pin updates remain separate and pending.
+
+## Publication preparation
+
+CI provider fetches now match the exact provider revisions used for local acceptance above. Shell syntax and CI launcher regression checks passed before publication.
