@@ -8,7 +8,7 @@ import Holonight.Core
 import Holonight.Controls
 
 // Modal card listing the viewer's shortcuts; Main.qml owns when it is open.
-Controls.Popup {
+HnPopupCard {
     id: root
     objectName: "shortcutHelpPopup"
     // The popup is centered in its parent (the window overlay), so the parent stands in for the window.
@@ -247,24 +247,7 @@ Controls.Popup {
             ]
         }
     ]
-    anchors.centerIn: parent
-    width: Math.min(480, windowWidth - 24)
-    height: Math.min(implicitHeight, windowHeight - 24)
-    padding: 16
-    modal: true
-    focus: true
-    closePolicy: Controls.Popup.CloseOnEscape | Controls.Popup.CloseOnPressOutside
-    // Same light dimming as Image Information, so the image stays visible.
-    Controls.Overlay.modal: Rectangle {
-        objectName: "shortcutHelpDimmer"
-        color: Qt.alpha(HoloniightPalette.shadow, 0.22)
-    }
-    background: Rectangle {
-        color: HoloniightPalette.surfaceRaised
-        border.width: HnMetrics.borderWidth
-        border.color: HoloniightPalette.borderPassive
-        radius: HnMetrics.internalSpacing(HnControlSize.Compact)
-    }
+    dimmerObjectName: "shortcutHelpDimmer"
     // Popup is not an Item, so the dialog's accessible identity lives on its content.
     contentItem: ColumnLayout {
         objectName: "shortcutHelpContent"
@@ -293,23 +276,10 @@ Controls.Popup {
                 rawText: qsTr("Shortcuts")
                 elide: Text.ElideRight
             }
-            Controls.Button {
-                id: closeButton
+            HnPopupCloseButton {
                 objectName: "shortcutHelpCloseButton"
                 Layout.alignment: Qt.AlignTop
-                display: Controls.AbstractButton.IconOnly
-                icon.source: "../icons/close.svg"
-                icon.width: HnMetrics.iconSize(HnControlSize.Normal)
-                icon.height: HnMetrics.iconSize(HnControlSize.Normal)
-                implicitWidth: HnMetrics.controlHeight(HnControlSize.Normal)
-                implicitHeight: HnMetrics.controlHeight(HnControlSize.Normal)
                 Accessible.name: qsTr("Close Shortcut Help")
-                background: Rectangle {
-                    color: closeButton.down ? HoloniightPalette.surface : closeButton.hovered ? HoloniightPalette.surfaceHover : "transparent"
-                    border.width: closeButton.visualFocus ? HnMetrics.focusBorderWidth : 0
-                    border.color: closeButton.visualFocus ? HoloniightPalette.borderFocus : "transparent"
-                    radius: HnMetrics.internalSpacing(HnControlSize.Compact)
-                }
                 onClicked: root.close()
             }
         }

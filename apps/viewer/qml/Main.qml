@@ -29,11 +29,12 @@ HnApplicationWindow {
         property bool floating: false
         property real cornerRadius: HnMetrics.internalSpacing(HnControlSize.Compact)
         implicitWidth: Math.max(implicitContentWidth + leftPadding + rightPadding, HnMetrics.controlHeight(HnControlSize.Normal))
-        background: Rectangle {
-            color: control.down ? HoloniightPalette.surface : control.hovered ? HoloniightPalette.surfaceHover : control.floating ? Qt.alpha(HoloniightPalette.surface, 0.85) : "transparent"
-            border.width: control.visualFocus ? HnMetrics.focusBorderWidth : control.floating ? HnMetrics.borderWidth : 0
-            border.color: control.visualFocus ? HoloniightPalette.borderFocus : control.floating ? HoloniightPalette.borderPassive : "transparent"
-            radius: control.cornerRadius
+        background: HnButtonSurface {
+            pressed: control.down
+            hovered: control.hovered
+            focusVisible: control.visualFocus
+            cornerRadius: control.cornerRadius
+            floating: control.floating
         }
     }
     property bool rendered: false

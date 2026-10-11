@@ -21,11 +21,11 @@ HnHeaderBar {
         id: control
         property real cornerRadius: HnMetrics.internalSpacing(HnControlSize.Compact)
         implicitWidth: Math.max(implicitContentWidth + leftPadding + rightPadding, HnMetrics.controlHeight(HnControlSize.Normal))
-        background: Rectangle {
-            color: control.down ? HoloniightPalette.surface : control.hovered ? HoloniightPalette.surfaceHover : "transparent"
-            border.width: control.visualFocus ? HnMetrics.focusBorderWidth : 0
-            border.color: control.visualFocus ? HoloniightPalette.borderFocus : "transparent"
-            radius: control.cornerRadius
+        background: HnButtonSurface {
+            pressed: control.down
+            hovered: control.hovered
+            focusVisible: control.visualFocus
+            cornerRadius: control.cornerRadius
         }
     }
     component ViewerHeaderButton: HeaderButtonBase {

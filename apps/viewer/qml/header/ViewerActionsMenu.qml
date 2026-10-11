@@ -70,10 +70,11 @@ Controls.Menu {
                 Accessible.ignored: true
             }
         }
-        background: Rectangle {
-            color: control.down ? HoloniightPalette.surface : control.hovered ? HoloniightPalette.surfaceHover : "transparent"
-            border.width: control.enabled && (control.visualFocus || control.highlighted) ? HnMetrics.focusBorderWidth : 0
-            border.color: control.enabled && (control.visualFocus || control.highlighted) ? HoloniightPalette.borderFocus : "transparent"
+        background: HnButtonSurface {
+            pressed: control.down
+            hovered: control.hovered
+            focusVisible: control.enabled && (control.visualFocus || control.highlighted)
+            cornerRadius: 0
         }
     }
     component ViewerMenuList: ListView {

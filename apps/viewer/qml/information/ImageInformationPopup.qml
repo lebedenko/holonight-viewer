@@ -5,9 +5,10 @@ import HolonightViewer
 import QtQuick.Layouts
 import QtQuick.Controls as Controls
 import Holonight.Core
+import Holonight.Controls
 
 // Modal card with structured facts about the current image; Main.qml owns when it is open.
-Controls.Popup {
+HnPopupCard {
     id: root
     objectName: "informationPopup"
     required property ImageDocument document
@@ -21,10 +22,6 @@ Controls.Popup {
             label: "",
             lines: []
         })
-    anchors.centerIn: parent
-    width: Math.min(480, windowWidth - 24)
-    height: Math.min(implicitHeight, windowHeight - 24)
-    padding: 16
     component SectionLabel: HnLabel {
         Layout.fillWidth: true
         role: HnTypographyRole.Caption
@@ -33,20 +30,7 @@ Controls.Popup {
         font.letterSpacing: 1.5
         Accessible.ignored: true
     }
-    modal: true
-    focus: true
-    closePolicy: Controls.Popup.CloseOnEscape | Controls.Popup.CloseOnPressOutside
-    // Light dimming, shared with Shortcut Help, so the image stays visible.
-    Controls.Overlay.modal: Rectangle {
-        objectName: "informationDimmer"
-        color: Qt.alpha(HoloniightPalette.shadow, 0.22)
-    }
-    background: Rectangle {
-        color: HoloniightPalette.surfaceRaised
-        border.width: HnMetrics.borderWidth
-        border.color: HoloniightPalette.borderPassive
-        radius: HnMetrics.internalSpacing(HnControlSize.Compact)
-    }
+    dimmerObjectName: "informationDimmer"
     // Popup is not an Item, so the dialog's accessible identity lives on its content.
     contentItem: ColumnLayout {
         objectName: "informationContent"
@@ -125,23 +109,10 @@ Controls.Popup {
                     rawText: root.document.modifiedText
                 }
             }
-            Controls.Button {
-                id: closeButton
+            HnPopupCloseButton {
                 objectName: "informationCloseButton"
                 Layout.alignment: Qt.AlignTop
-                display: Controls.AbstractButton.IconOnly
-                icon.source: "../icons/close.svg"
-                icon.width: HnMetrics.iconSize(HnControlSize.Normal)
-                icon.height: HnMetrics.iconSize(HnControlSize.Normal)
-                implicitWidth: HnMetrics.controlHeight(HnControlSize.Normal)
-                implicitHeight: HnMetrics.controlHeight(HnControlSize.Normal)
                 Accessible.name: qsTr("Close Image Information")
-                background: Rectangle {
-                    color: closeButton.down ? HoloniightPalette.surface : closeButton.hovered ? HoloniightPalette.surfaceHover : "transparent"
-                    border.width: closeButton.visualFocus ? HnMetrics.focusBorderWidth : 0
-                    border.color: closeButton.visualFocus ? HoloniightPalette.borderFocus : "transparent"
-                    radius: HnMetrics.internalSpacing(HnControlSize.Compact)
-                }
                 onClicked: root.close()
             }
         }
