@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Dialogs
 import QtQuick.Controls as Controls
 import Holonight.Core
 import Holonight.Controls
@@ -10,8 +9,6 @@ import "header"
 import "overlays"
 import "footer"
 import "grid"
-import "information"
-import "shortcuts"
 
 HnApplicationWindow {
     id: root
@@ -58,7 +55,7 @@ HnApplicationWindow {
         overlayController.hideArrows();
     }
     function togglePlayback(): void {
-        controller.togglePlayback();
+        viewerController.togglePlayback();
         // The keyboard hides the arrows, so the strip is what shows the new state.
         root.revealDetails();
         root.clearImageFocus();
@@ -73,25 +70,25 @@ HnApplicationWindow {
         WindowState.setFullscreen(root, root.visibility !== Window.FullScreen);
     }
 
-    property bool dialogRequested: false
-    property Item dialogFocusItem: null
-    property bool informationOpen: false
-    property bool helpOpen: false
-    readonly property bool modalActive: dialogRequested || informationOpen || helpOpen
+    property alias dialogRequested: dialogHost.dialogRequested
+    property alias dialogFocusItem: dialogHost.dialogFocusItem
+    property alias informationOpen: dialogHost.informationOpen
+    property alias helpOpen: dialogHost.helpOpen
+    readonly property bool modalActive: dialogHost.modalActive
     // Grid view replaces the canvas; everything that acts on the picture is gated by canInspect.
     ViewerController {
-        id: controller
+        id: viewerController
         objectName: "viewerController"
         document: root.document
         modalActive: root.modalActive
         windowSuspended: !root.visible || root.visibility === Window.Minimized
     }
-    readonly property bool gridMode: controller.gridMode
-    readonly property bool canEnterGrid: controller.canEnterGrid
-    readonly property bool canToggleGrid: controller.canToggleGrid
-    readonly property bool canInspect: controller.canInspect
-    readonly property bool hasPath: controller.hasPath
-    readonly property bool canShowInformation: controller.canShowInformation
+    readonly property bool gridMode: viewerController.gridMode
+    readonly property bool canEnterGrid: viewerController.canEnterGrid
+    readonly property bool canToggleGrid: viewerController.canToggleGrid
+    readonly property bool canInspect: viewerController.canInspect
+    readonly property bool hasPath: viewerController.hasPath
+    readonly property bool canShowInformation: viewerController.canShowInformation
     // While a scan runs the count is the transient one-item listing, so only the folder is named.
     readonly property string headerTitle: {
         if (!gridMode)
@@ -126,11 +123,11 @@ HnApplicationWindow {
         playbackAvailable: root.document.animation.canToggle && root.canInspect
         gridActive: root.gridMode
         onGridMoveRequested: move => {
-            controller.moveSelection(move);
+            viewerController.moveSelection(move);
             root.clearImageFocus();
         }
         onGridActivateRequested: {
-            controller.activateSelection();
+            viewerController.activateSelection();
             root.clearImageFocus();
         }
         onBrowseRequested: direction => {
@@ -200,7 +197,7 @@ HnApplicationWindow {
         actionsMenuOpen: root.actionsMenuOpen
         canPrevious: root.canBrowse(-1)
         canNext: root.canBrowse(1)
-        onPasteRequested: controller.paste()
+        onPasteRequested: viewerController.paste()
         onOpenRequested: root.dialogRequested = true
         onInformationRequested: root.informationOpen = true
         onHelpRequested: root.helpOpen = true
@@ -231,26 +228,26 @@ HnApplicationWindow {
     }
 
     function canBrowse(direction: int): bool {
-        return direction < 0 ? controller.canPrevious : controller.canNext;
+        return direction < 0 ? viewerController.canPrevious : viewerController.canNext;
     }
     function browse(direction: int): void {
-        controller.browse(direction);
+        viewerController.browse(direction);
         root.clearImageFocus();
     }
     function enterGrid(): void {
-        controller.enterGrid();
+        viewerController.enterGrid();
         root.clearImageFocus();
     }
     function leaveGrid(): void {
-        controller.leaveGrid();
+        viewerController.leaveGrid();
         root.clearImageFocus();
     }
     function toggleGrid(): void {
-        controller.toggleGrid();
+        viewerController.toggleGrid();
         root.clearImageFocus();
     }
     function refreshFolder(): void {
-        controller.refresh();
+        viewerController.refresh();
         root.clearImageFocus();
     }
 
@@ -277,72 +274,11 @@ HnApplicationWindow {
             WindowState.setFullscreen(root, false);
     }
 
-    // Every Open trigger sets dialogRequested; the portal picker runs first and the
-    // FileDialog below appears only when the portal cannot serve the request.
-    onDialogRequestedChanged: {
-        if (root.dialogRequested) {
-            root.dialogFocusItem = root.activeFocusItem;
-            portalFileChooser.requestOpen();
-        } else {
-            root.dialogFocusItem = null;
-            portalFileChooser.cancel();
-        }
-    }
-
-    PortalFileChooser {
-        id: portalFileChooser
-        objectName: "portalFileChooser"
-        window: root
-        nameFilters: root.document.nameFilters
-        currentLocalPath: root.document.localPath
-        onFinished: urls => {
-            // Acceptance enters single view; cancellation preserves the grid and its selection.
-            controller.open(urls);
-            root.dialogRequested = false;
-        }
-        onCancelled: {
-            const previousFocus = root.dialogFocusItem;
-            root.dialogRequested = false;
-            if (!root.modalActive && previousFocus && previousFocus.visible && previousFocus.enabled)
-                previousFocus.forceActiveFocus(Qt.OtherFocusReason);
-        }
-    }
-
-    Loader {
-        active: portalFileChooser.fallbackShown
-        sourceComponent: Item {
-            FileDialog {
-                id: fileDialog
-                objectName: "openDialog"
-                title: qsTr("Open image")
-                fileMode: FileDialog.OpenFile
-                nameFilters: root.document.nameFilters
-                onAccepted: portalFileChooser.fallbackAccepted(fileDialog.selectedFile)
-                onRejected: portalFileChooser.fallbackRejected()
-                Component.onCompleted: fileDialog.open()
-            }
-        }
-    }
-
-    Loader {
-        id: informationLoader
-        active: root.informationOpen
-        sourceComponent: ImageInformationPopup {
-            document: root.document
-            parent: Controls.Overlay.overlay
-            Component.onCompleted: open()
-            onClosed: root.informationOpen = false
-        }
-    }
-
-    Loader {
-        id: shortcutHelpLoader
-        active: root.helpOpen
-        sourceComponent: ShortcutHelpPopup {
-            parent: Controls.Overlay.overlay
-            Component.onCompleted: open()
-            onClosed: root.helpOpen = false
-        }
+    ViewerDialogHost {
+        id: dialogHost
+        applicationWindow: root
+        document: root.document
+        controller: viewerController
     }
 
     Item {
@@ -446,13 +382,13 @@ HnApplicationWindow {
                 anchors.fill: parent
                 visible: root.gridMode
                 model: root.document.folder
-                selectionController: controller.selection
+                selectionController: viewerController.selection
                 scanning: root.document.scanning
                 generation: root.document.thumbnailGeneration
                 devicePixelRatio: root.devicePixelRatio
                 onSelectionInteraction: root.clearImageFocus()
                 onActivated: {
-                    controller.activateSelection();
+                    viewerController.activateSelection();
                     root.clearImageFocus();
                 }
             }
@@ -610,7 +546,7 @@ HnApplicationWindow {
         anchors.fill: parent
         enabled: !root.modalActive
         onDropped: drop => {
-            controller.open(drop.urls);
+            viewerController.open(drop.urls);
             drop.acceptProposedAction();
         }
     }
