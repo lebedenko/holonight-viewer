@@ -14,7 +14,7 @@ import "information"
 import "shortcuts"
 
 HnApplicationWindow {
-    id: window
+    id: root
     objectName: "viewerWindow"
     required property ImageDocument document
     width: 1000
@@ -46,10 +46,10 @@ HnApplicationWindow {
     property alias detailsShown: overlayController.detailsShown
     ViewerOverlayController {
         id: overlayController
-        fullscreen: window.fullscreen
-        controlsHovered: window.controlsHovered
-        menuOpen: window.actionsMenuOpen
-        imageReady: window.documentState === ImageDocument.Ready
+        fullscreen: root.fullscreen
+        controlsHovered: root.controlsHovered
+        menuOpen: root.actionsMenuOpen
+        imageReady: root.documentState === ImageDocument.Ready
     }
     function showArrows(): void {
         overlayController.showArrows();
@@ -60,8 +60,8 @@ HnApplicationWindow {
     function togglePlayback(): void {
         controller.togglePlayback();
         // The keyboard hides the arrows, so the strip is what shows the new state.
-        window.revealDetails();
-        window.clearImageFocus();
+        root.revealDetails();
+        root.clearImageFocus();
     }
     function revealDetails(): void {
         overlayController.revealDetails();
@@ -70,7 +70,7 @@ HnApplicationWindow {
         overlayController.concealDetails();
     }
     function toggleFullscreen(): void {
-        WindowState.setFullscreen(window, window.visibility !== Window.FullScreen);
+        WindowState.setFullscreen(root, root.visibility !== Window.FullScreen);
     }
 
     property bool dialogRequested: false
@@ -82,9 +82,9 @@ HnApplicationWindow {
     ViewerController {
         id: controller
         objectName: "viewerController"
-        document: window.document
-        modalActive: window.modalActive
-        windowSuspended: !window.visible || window.visibility === Window.Minimized
+        document: root.document
+        modalActive: root.modalActive
+        windowSuspended: !root.visible || root.visibility === Window.Minimized
     }
     readonly property bool gridMode: controller.gridMode
     readonly property bool canEnterGrid: controller.canEnterGrid
@@ -104,51 +104,51 @@ HnApplicationWindow {
     }
     property int inputEpoch: 0
     onModalActiveChanged: {
-        ++window.inputEpoch;
+        ++root.inputEpoch;
         if (!modalActive)
-            window.clearImageFocus();
+            root.clearImageFocus();
     }
 
     function clearImageFocus(): void {
-        if (!window.modalActive && !window.actionsMenuOpen)
+        if (!root.modalActive && !root.actionsMenuOpen)
             neutralFocus.forceActiveFocus(Qt.OtherFocusReason);
     }
 
     WindowKeyRouter {
         id: keyRouter
         objectName: "windowKeyRouter"
-        target: window
+        target: root
         headerFocusTargets: viewerHeader.focusTargets
         playbackButton: playPauseButton
-        imageReady: window.canInspect
-        modalActive: window.modalActive
-        menuOpen: window.actionsMenuOpen
-        playbackAvailable: window.document.animation.canToggle && window.canInspect
-        gridActive: window.gridMode
+        imageReady: root.canInspect
+        modalActive: root.modalActive
+        menuOpen: root.actionsMenuOpen
+        playbackAvailable: root.document.animation.canToggle && root.canInspect
+        gridActive: root.gridMode
         onGridMoveRequested: move => {
             controller.moveSelection(move);
-            window.clearImageFocus();
+            root.clearImageFocus();
         }
         onGridActivateRequested: {
             controller.activateSelection();
-            window.clearImageFocus();
+            root.clearImageFocus();
         }
         onBrowseRequested: direction => {
             const action = direction < 0 ? viewerActions.previousImage : viewerActions.nextImage;
             if (action.enabled)
                 action.trigger();
         }
-        onPlaybackToggleRequested: window.togglePlayback()
+        onPlaybackToggleRequested: root.togglePlayback()
         onPanRequested: (horizontal, vertical) => {
             canvas.pan(Qt.point(horizontal, vertical));
-            window.clearImageFocus();
+            root.clearImageFocus();
         }
     }
 
     Item {
         id: neutralFocus
         objectName: "neutralFocus"
-        parent: window.contentItem
+        parent: root.contentItem
         focus: true
         activeFocusOnTab: false
         width: 1
@@ -159,68 +159,75 @@ HnApplicationWindow {
     readonly property int documentState: document.state
     onDocumentStateChanged: {
         if (documentState !== ImageDocument.Ready)
-            window.concealDetails();
+            root.concealDetails();
         if (documentState === ImageDocument.Ready)
-            canvas.Accessible.announce(qsTr("Loaded %1.").arg(window.document.fileName));
+            canvas.Accessible.announce(qsTr("Loaded %1.").arg(root.document.fileName));
         else if (documentState === ImageDocument.Error)
-            canvas.Accessible.announce(qsTr("Error opening %1: %2").arg(window.document.fileName).arg(window.document.error));
+            canvas.Accessible.announce(qsTr("Error opening %1: %2").arg(root.document.fileName).arg(root.document.error));
     }
 
     Connections {
-        target: window.document.animation
+        target: root.document.animation
         function onFailureNoticeChanged(notice: string): void {
-            window.revealDetails();
+            root.revealDetails();
             canvas.Accessible.announce(notice);
         }
     }
 
     Connections {
-        target: window.document.clipboard
+        target: root.document.clipboard
         function onChanged(): void {
-            if (!window.document.clipboard.busy && window.document.clipboard.feedback.length > 0)
-                canvas.Accessible.announce(window.document.clipboard.feedback);
+            if (!root.document.clipboard.busy && root.document.clipboard.feedback.length > 0)
+                canvas.Accessible.announce(root.document.clipboard.feedback);
         }
     }
 
     function transformImage(operation: int): void {
-        window.document.transform(operation);
-        window.fitImage();
-        ++window.inputEpoch;
+        root.document.transform(operation);
+        root.fitImage();
+        ++root.inputEpoch;
     }
 
     ViewerActions {
         id: viewerActions
-        document: window.document
-        modalActive: window.modalActive
-        hasPath: window.hasPath
-        canToggleGrid: window.canToggleGrid
-        canInspect: window.canInspect
-        canShowInformation: window.canShowInformation
-        gridMode: window.gridMode
-        actionsMenuOpen: window.actionsMenuOpen
-        canPrevious: window.canBrowse(-1)
-        canNext: window.canBrowse(1)
+        document: root.document
+        modalActive: root.modalActive
+        hasPath: root.hasPath
+        canToggleGrid: root.canToggleGrid
+        canInspect: root.canInspect
+        canShowInformation: root.canShowInformation
+        gridMode: root.gridMode
+        actionsMenuOpen: root.actionsMenuOpen
+        canPrevious: root.canBrowse(-1)
+        canNext: root.canBrowse(1)
         onPasteRequested: controller.paste()
-        onOpenRequested: window.dialogRequested = true
-        onInformationRequested: window.informationOpen = true
-        onHelpRequested: window.helpOpen = true
-        onRefreshRequested: window.refreshFolder()
-        onGridRequested: window.toggleGrid()
-        onBrowseRequested: direction => window.browse(direction)
-        onFitRequested: window.fitImage()
-        onActualSizeRequested: window.actualSizeImage()
-        onZoomRequested: steps => window.zoomImage(steps)
-        onFullscreenRequested: window.toggleFullscreen()
-        onQuitRequested: window.close()
-        onTransformRequested: operation => window.transformImage(operation)
+        onOpenRequested: root.dialogRequested = true
+        onInformationRequested: root.informationOpen = true
+        onHelpRequested: root.helpOpen = true
+        onRefreshRequested: root.refreshFolder()
+        onGridRequested: root.toggleGrid()
+        onBrowseRequested: direction => root.browse(direction)
+        onFitRequested: root.fitImage()
+        onActualSizeRequested: root.actualSizeImage()
+        onZoomRequested: steps => root.zoomImage(steps)
+        onFullscreenRequested: root.toggleFullscreen()
+        onQuitRequested: root.close()
+        onTransformRequested: operation => root.transformImage(operation)
         onResetRequested: {
-            window.document.resetTransform();
-            window.fitImage();
-            ++window.inputEpoch;
+            root.document.resetTransform();
+            root.fitImage();
+            ++root.inputEpoch;
         }
-        onFocusRequested: window.clearImageFocus()
-        onLeaveGridRequested: window.leaveGrid()
-        onLeaveFullscreenRequested: window.leaveFullscreen()
+        onCopyImageRequested: {
+            root.document.copyImage();
+            root.clearImageFocus();
+        }
+        onCopyPathRequested: {
+            root.document.copyPath();
+            root.clearImageFocus();
+        }
+        onLeaveGridRequested: root.leaveGrid()
+        onLeaveFullscreenRequested: root.leaveFullscreen()
     }
 
     function canBrowse(direction: int): bool {
@@ -228,56 +235,56 @@ HnApplicationWindow {
     }
     function browse(direction: int): void {
         controller.browse(direction);
-        window.clearImageFocus();
+        root.clearImageFocus();
     }
     function enterGrid(): void {
         controller.enterGrid();
-        window.clearImageFocus();
+        root.clearImageFocus();
     }
     function leaveGrid(): void {
         controller.leaveGrid();
-        window.clearImageFocus();
+        root.clearImageFocus();
     }
     function toggleGrid(): void {
         controller.toggleGrid();
-        window.clearImageFocus();
+        root.clearImageFocus();
     }
     function refreshFolder(): void {
         controller.refresh();
-        window.clearImageFocus();
+        root.clearImageFocus();
     }
 
     function fitImage(): void {
         canvas.fit();
-        window.revealDetails();
-        window.clearImageFocus();
+        root.revealDetails();
+        root.clearImageFocus();
     }
 
     function actualSizeImage(): void {
         canvas.actualSize();
-        window.revealDetails();
-        window.clearImageFocus();
+        root.revealDetails();
+        root.clearImageFocus();
     }
 
     function zoomImage(steps: real): void {
         canvas.zoomSteps(steps, Qt.point(canvas.width / 2, canvas.height / 2));
-        window.revealDetails();
-        window.clearImageFocus();
+        root.revealDetails();
+        root.clearImageFocus();
     }
 
     function leaveFullscreen(): void {
-        if (window.visibility === Window.FullScreen)
-            WindowState.setFullscreen(window, false);
+        if (root.visibility === Window.FullScreen)
+            WindowState.setFullscreen(root, false);
     }
 
     // Every Open trigger sets dialogRequested; the portal picker runs first and the
     // FileDialog below appears only when the portal cannot serve the request.
     onDialogRequestedChanged: {
-        if (window.dialogRequested) {
-            window.dialogFocusItem = window.activeFocusItem;
+        if (root.dialogRequested) {
+            root.dialogFocusItem = root.activeFocusItem;
             portalFileChooser.requestOpen();
         } else {
-            window.dialogFocusItem = null;
+            root.dialogFocusItem = null;
             portalFileChooser.cancel();
         }
     }
@@ -285,18 +292,18 @@ HnApplicationWindow {
     PortalFileChooser {
         id: portalFileChooser
         objectName: "portalFileChooser"
-        window: window
-        nameFilters: window.document.nameFilters
-        currentLocalPath: window.document.localPath
+        window: root
+        nameFilters: root.document.nameFilters
+        currentLocalPath: root.document.localPath
         onFinished: urls => {
             // Acceptance enters single view; cancellation preserves the grid and its selection.
             controller.open(urls);
-            window.dialogRequested = false;
+            root.dialogRequested = false;
         }
         onCancelled: {
-            const previousFocus = window.dialogFocusItem;
-            window.dialogRequested = false;
-            if (!window.modalActive && previousFocus && previousFocus.visible && previousFocus.enabled)
+            const previousFocus = root.dialogFocusItem;
+            root.dialogRequested = false;
+            if (!root.modalActive && previousFocus && previousFocus.visible && previousFocus.enabled)
                 previousFocus.forceActiveFocus(Qt.OtherFocusReason);
         }
     }
@@ -309,7 +316,7 @@ HnApplicationWindow {
                 objectName: "openDialog"
                 title: qsTr("Open image")
                 fileMode: FileDialog.OpenFile
-                nameFilters: window.document.nameFilters
+                nameFilters: root.document.nameFilters
                 onAccepted: portalFileChooser.fallbackAccepted(fileDialog.selectedFile)
                 onRejected: portalFileChooser.fallbackRejected()
                 Component.onCompleted: fileDialog.open()
@@ -319,22 +326,22 @@ HnApplicationWindow {
 
     Loader {
         id: informationLoader
-        active: window.informationOpen
+        active: root.informationOpen
         sourceComponent: ImageInformationPopup {
-            document: window.document
+            document: root.document
             parent: Controls.Overlay.overlay
             Component.onCompleted: open()
-            onClosed: window.informationOpen = false
+            onClosed: root.informationOpen = false
         }
     }
 
     Loader {
         id: shortcutHelpLoader
-        active: window.helpOpen
+        active: root.helpOpen
         sourceComponent: ShortcutHelpPopup {
             parent: Controls.Overlay.overlay
             Component.onCompleted: open()
-            onClosed: window.helpOpen = false
+            onClosed: root.helpOpen = false
         }
     }
 
@@ -345,7 +352,7 @@ HnApplicationWindow {
             objectName: "fullscreenHeaderBackground"
             anchors.fill: viewerHeader
             color: HoloniightPalette.surface
-            visible: window.fullscreen && viewerHeader.visible
+            visible: root.fullscreen && viewerHeader.visible
             z: 1
             Accessible.ignored: true
         }
@@ -354,46 +361,26 @@ HnApplicationWindow {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            title: window.headerTitle
-            titleVisible: window.fullscreen
+            title: root.headerTitle
+            titleVisible: root.fullscreen
             informationAction: viewerActions.imageInformation
             fullscreenAction: viewerActions.fullscreenCommand
-            modalActive: window.modalActive
-            visible: !window.fullscreen || window.gridMode || window.arrowsShown || window.actionsMenuOpen || viewerHeader.controlFocused
+            modalActive: root.modalActive
+            visible: !root.fullscreen || root.gridMode || root.arrowsShown || root.actionsMenuOpen || viewerHeader.controlFocused
             z: 2
             onMenuRequested: actionsMenu.open()
         }
         ViewerActionsMenu {
             id: actionsMenu
             parent: viewerHeader.menuAnchor
-            windowWidth: window.width
-            windowHeight: window.height
-            gridMode: window.gridMode
-            pastePathAction: viewerActions.pastePath
-            openImageAction: viewerActions.openImage
-            refreshAction: viewerActions.refresh
-            gridToggleAction: viewerActions.gridToggle
-            previousImageAction: viewerActions.previousImage
-            nextImageAction: viewerActions.nextImage
-            fitAction: viewerActions.fit
-            actualSizeAction: viewerActions.actualSize
-            zoomInAction: viewerActions.zoomIn
-            zoomOutAction: viewerActions.zoomOut
-            fullscreenCommandAction: viewerActions.fullscreenCommand
-            quitAction: viewerActions.quit
-            rotateClockwiseAction: viewerActions.rotateClockwise
-            rotateCounterclockwiseAction: viewerActions.rotateCounterclockwise
-            flipHorizontalAction: viewerActions.flipHorizontal
-            flipVerticalAction: viewerActions.flipVertical
-            resetTransformAction: viewerActions.resetTransform
-            copyImageAction: viewerActions.copyImage
-            copyPathAction: viewerActions.copyPath
-            imageInformationAction: viewerActions.imageInformation
-            shortcutHelpAction: viewerActions.shortcutHelp
-            onOpened: window.actionsMenuOpen = true
+            windowWidth: root.width
+            windowHeight: root.height
+            gridMode: root.gridMode
+            actions: viewerActions
+            onOpened: root.actionsMenuOpen = true
             onClosed: {
-                window.actionsMenuOpen = false;
-                window.clearImageFocus();
+                root.actionsMenuOpen = false;
+                root.clearImageFocus();
             }
         }
         HnLabel {
@@ -403,10 +390,10 @@ HnApplicationWindow {
             anchors.right: parent.right
             anchors.top: viewerHeader.bottom
             anchors.topMargin: 6
-            visible: window.document.scanning || window.document.folderError.length > 0
+            visible: root.document.scanning || root.document.folderError.length > 0
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
-            rawText: window.document.scanning ? qsTr("Scanning…") : window.document.folderError
+            rawText: root.document.scanning ? qsTr("Scanning…") : root.document.folderError
             Accessible.name: rawText
         }
 
@@ -415,65 +402,65 @@ HnApplicationWindow {
             anchors.left: parent.left
             anchors.right: parent.right
             // Fullscreen grid keeps the header and footer, since the canvas hover that reveals them is gone.
-            anchors.top: window.fullscreen && !window.gridMode ? parent.top : folderError.visible ? folderError.bottom : viewerHeader.bottom
-            anchors.bottom: window.fullscreen && !window.gridMode ? parent.bottom : viewerFooter.top
+            anchors.top: root.fullscreen && !root.gridMode ? parent.top : folderError.visible ? folderError.bottom : viewerHeader.bottom
+            anchors.bottom: root.fullscreen && !root.gridMode ? parent.bottom : viewerFooter.top
 
             ViewerImageView {
                 id: canvas
                 objectName: "imageCanvas"
                 anchors.fill: parent
-                visible: !window.gridMode
-                image: window.document.image
-                svgRenderer: window.document.svgRenderer
-                svgSize: window.document.svgSize
-                orientation: window.document.orientation
-                onOrientationChanged: ++window.inputEpoch
-                displayPixelRatio: window.devicePixelRatio
+                visible: !root.gridMode
+                image: root.document.image
+                svgRenderer: root.document.svgRenderer
+                svgSize: root.document.svgSize
+                orientation: root.document.orientation
+                onOrientationChanged: ++root.inputEpoch
+                displayPixelRatio: root.devicePixelRatio
                 activeFocusOnTab: false
                 onContentReset: {
-                    ++window.inputEpoch;
-                    window.rendered = false;
-                    window.concealDetails();
+                    ++root.inputEpoch;
+                    root.rendered = false;
+                    root.concealDetails();
                 }
                 onFirstRendered: {
-                    window.rendered = true;
-                    window.revealDetails();
+                    root.rendered = true;
+                    root.revealDetails();
                 }
                 onMouseMoved: {
-                    window.showArrows();
-                    if (window.rendered)
-                        window.revealDetails();
+                    root.showArrows();
+                    if (root.rendered)
+                        root.revealDetails();
                 }
-                onKeyboardInput: window.hideArrows()
-                onViewportChanged: ++window.inputEpoch
+                onKeyboardInput: root.hideArrows()
+                onViewportChanged: ++root.inputEpoch
                 Accessible.role: Accessible.Graphic
-                Accessible.name: window.document.state === ImageDocument.Empty ? qsTr("No image open") : window.document.fileName || qsTr("Image canvas")
+                Accessible.name: root.document.state === ImageDocument.Empty ? qsTr("No image open") : root.document.fileName || qsTr("Image canvas")
 
-                inputEpoch: window.inputEpoch
-                canInspect: window.canInspect
-                onFocusRequested: window.clearImageFocus()
-                onDetailsRequested: window.revealDetails()
+                inputEpoch: root.inputEpoch
+                canInspect: root.canInspect
+                onFocusRequested: root.clearImageFocus()
+                onDetailsRequested: root.revealDetails()
             }
             ThumbnailGrid {
                 id: grid
                 anchors.fill: parent
-                visible: window.gridMode
-                model: window.document.folder
+                visible: root.gridMode
+                model: root.document.folder
                 selectionController: controller.selection
-                scanning: window.document.scanning
-                generation: window.document.thumbnailGeneration
-                devicePixelRatio: window.devicePixelRatio
-                onSelectionInteraction: window.clearImageFocus()
+                scanning: root.document.scanning
+                generation: root.document.thumbnailGeneration
+                devicePixelRatio: root.devicePixelRatio
+                onSelectionInteraction: root.clearImageFocus()
                 onActivated: {
                     controller.activateSelection();
-                    window.clearImageFocus();
+                    root.clearImageFocus();
                 }
             }
             ViewerButton {
                 id: previousButton
                 objectName: "previousButton"
                 // Browsing needs at least two images; the shared arrow reveal also drives the play/pause button.
-                readonly property bool shown: window.arrowsShown && window.document.count > 1 && !window.gridMode
+                readonly property bool shown: root.arrowsShown && root.document.count > 1 && !root.gridMode
                 floating: true
                 implicitHeight: 48
                 anchors.left: parent.left
@@ -494,8 +481,8 @@ HnApplicationWindow {
             ViewerButton {
                 id: playPauseButton
                 objectName: "playPauseButton"
-                readonly property bool shown: window.arrowsShown && !window.gridMode
-                readonly property bool playing: window.document.animation.playing
+                readonly property bool shown: root.arrowsShown && !root.gridMode
+                readonly property bool playing: root.document.animation.playing
                 floating: true
                 display: Controls.AbstractButton.IconOnly
                 implicitWidth: 48
@@ -509,21 +496,21 @@ HnApplicationWindow {
                 icon.height: glyphSize
                 // The name is the action the button performs.
                 Accessible.name: playing ? qsTr("Pause") : qsTr("Play")
-                enabled: window.document.animation.canToggle && !window.modalActive
+                enabled: root.document.animation.canToggle && !root.modalActive
                 opacity: shown ? 1 : 0
-                visible: window.document.animation.animated && (shown || opacity > 0)
+                visible: root.document.animation.animated && (shown || opacity > 0)
                 Behavior on opacity {
                     NumberAnimation {
                         duration: 150
                     }
                 }
-                onClicked: window.togglePlayback()
+                onClicked: root.togglePlayback()
             }
             ViewerButton {
                 id: nextButton
                 objectName: "nextButton"
                 // Browsing needs at least two images; the shared arrow reveal also drives the play/pause button.
-                readonly property bool shown: window.arrowsShown && window.document.count > 1 && !window.gridMode
+                readonly property bool shown: root.arrowsShown && root.document.count > 1 && !root.gridMode
                 floating: true
                 implicitHeight: 48
                 anchors.right: parent.right
@@ -542,24 +529,24 @@ HnApplicationWindow {
                 action: viewerActions.nextImage
             }
             ImageDetailsStrip {
-                document: window.document
+                document: root.document
                 magnification: canvas.magnification
-                shown: window.detailsShown && !window.gridMode
+                shown: root.detailsShown && !root.gridMode
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: window.fullscreen && viewerFooter.visible ? viewerFooter.height + 12 : 12
+                anchors.bottomMargin: root.fullscreen && viewerFooter.visible ? viewerFooter.height + 12 : 12
             }
             ViewerEmptyState {
                 anchors.centerIn: parent
-                visible: window.document.state === ImageDocument.Empty || (window.gridMode && grid.showsEmpty)
+                visible: root.document.state === ImageDocument.Empty || (root.gridMode && grid.showsEmpty)
                 availableWidth: canvasArea.width
                 availableHeight: canvasArea.height
-                devicePixelRatio: window.devicePixelRatio
+                devicePixelRatio: root.devicePixelRatio
             }
             ViewerLoadingIndicator {
                 anchors.centerIn: parent
-                loading: window.document.state === ImageDocument.Loading && !window.gridMode
-                suppressed: window.gridMode || window.document.state === ImageDocument.Error
+                loading: root.document.state === ImageDocument.Loading && !root.gridMode
+                suppressed: root.gridMode || root.document.state === ImageDocument.Error
             }
             HnLabel {
                 objectName: "documentFeedback"
@@ -568,8 +555,8 @@ HnApplicationWindow {
                 width: canvasArea.width
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
-                visible: !window.gridMode && window.document.state === ImageDocument.Error
-                rawText: window.document.error
+                visible: !root.gridMode && root.document.state === ImageDocument.Error
+                rawText: root.document.error
                 Accessible.role: Accessible.StaticText
                 Accessible.name: rawText
             }
@@ -579,7 +566,7 @@ HnApplicationWindow {
             objectName: "fullscreenFooterBackground"
             anchors.fill: viewerFooter
             color: HoloniightPalette.surface
-            visible: window.fullscreen && viewerFooter.visible
+            visible: root.fullscreen && viewerFooter.visible
             z: 1
             Accessible.ignored: true
         }
@@ -591,7 +578,7 @@ HnApplicationWindow {
             anchors.bottom: parent.bottom
             height: implicitHeight
             spacing: 0
-            visible: !window.fullscreen || window.gridMode || window.arrowsShown
+            visible: !root.fullscreen || root.gridMode || root.arrowsShown
             z: 2
             HoverHandler {
                 id: footerHover
@@ -600,15 +587,15 @@ HnApplicationWindow {
                 Layout.fillWidth: true
                 Layout.topMargin: 6
                 Layout.bottomMargin: 6
-                visible: window.document.clipboard.feedback.length > 0
-                rawText: window.document.clipboard.feedback
+                visible: root.document.clipboard.feedback.length > 0
+                rawText: root.document.clipboard.feedback
                 textFormat: Text.PlainText
                 elide: Text.ElideMiddle
                 Accessible.name: rawText
             }
             FooterKeyHints {
-                gridMode: window.gridMode
-                animated: window.document.animation.canToggle
+                gridMode: root.gridMode
+                animated: root.document.animation.canToggle
                 Layout.fillWidth: true
                 Layout.leftMargin: 24
                 Layout.rightMargin: 24
@@ -621,7 +608,7 @@ HnApplicationWindow {
     DropArea {
         objectName: "imageDropArea"
         anchors.fill: parent
-        enabled: !window.modalActive
+        enabled: !root.modalActive
         onDropped: drop => {
             controller.open(drop.urls);
             drop.acceptProposedAction();

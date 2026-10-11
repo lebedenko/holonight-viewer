@@ -51,7 +51,8 @@ Item {
     signal quitRequested
     signal transformRequested(int operation)
     signal resetRequested
-    signal focusRequested
+    signal copyImageRequested
+    signal copyPathRequested
     signal leaveGridRequested
     signal leaveFullscreenRequested
     Controls.Action {
@@ -191,10 +192,7 @@ Item {
         text: qsTranslate("Main", "Copy Image")
         shortcut: ViewerShortcuts.sequence(ViewerShortcuts.CopyImage)
         enabled: root.canInspect && !root.document.clipboard.busy
-        onTriggered: {
-            root.document.copyImage();
-            root.focusRequested();
-        }
+        onTriggered: root.copyImageRequested()
     }
     Controls.Action {
         id: copyPath
@@ -202,10 +200,7 @@ Item {
         text: qsTranslate("Main", "Copy Path")
         shortcut: ViewerShortcuts.sequence(ViewerShortcuts.CopyPath)
         enabled: root.hasPath && !root.document.clipboard.busy
-        onTriggered: {
-            root.document.copyPath();
-            root.focusRequested();
-        }
+        onTriggered: root.copyPathRequested()
     }
     Controls.Action {
         id: imageInformation

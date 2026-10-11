@@ -8,31 +8,11 @@ import Holonight.Core
 import Holonight.Controls
 
 Controls.Menu {
-    id: menu
+    id: root
     required property real windowWidth
     required property real windowHeight
+    required property ViewerActions actions
     required property bool gridMode
-    required property Controls.Action pastePathAction
-    required property Controls.Action openImageAction
-    required property Controls.Action refreshAction
-    required property Controls.Action gridToggleAction
-    required property Controls.Action previousImageAction
-    required property Controls.Action nextImageAction
-    required property Controls.Action fitAction
-    required property Controls.Action actualSizeAction
-    required property Controls.Action zoomInAction
-    required property Controls.Action zoomOutAction
-    required property Controls.Action fullscreenCommandAction
-    required property Controls.Action quitAction
-    required property Controls.Action rotateClockwiseAction
-    required property Controls.Action rotateCounterclockwiseAction
-    required property Controls.Action flipHorizontalAction
-    required property Controls.Action flipVerticalAction
-    required property Controls.Action resetTransformAction
-    required property Controls.Action copyImageAction
-    required property Controls.Action copyPathAction
-    required property Controls.Action imageInformationAction
-    required property Controls.Action shortcutHelpAction
     component ViewerMenuItem: Controls.MenuItem {
         id: control
         // Keeps the trailing shortcut clear of the menu's overlay scroll bar.
@@ -92,14 +72,14 @@ Controls.Menu {
     popupType: Controls.Popup.Item
     margins: 12
     x: parent.width - width
-    width: Math.min(380, menu.windowWidth - 24)
-    height: Math.min(implicitHeight, menu.windowHeight - 24)
+    width: Math.min(380, root.windowWidth - 24)
+    height: Math.min(implicitHeight, root.windowHeight - 24)
     y: parent.height + HnMetrics.internalSpacing(HnControlSize.Normal)
     contentItem: ViewerMenuList {
         objectName: "actionsMenuList"
         implicitHeight: contentHeight
-        model: menu.contentModel
-        currentIndex: menu.currentIndex
+        model: root.contentModel
+        currentIndex: root.currentIndex
         interactive: contentHeight > height
         clip: true
         scrollBarReserve: interactive ? menuScrollBar.width : 0
@@ -111,22 +91,22 @@ Controls.Menu {
 
     ViewerMenuItem {
         objectName: "openButton"
-        action: menu.openImageAction
+        action: root.actions.openImage
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Open)
     }
     ViewerMenuItem {
         objectName: "pastePathMenuItem"
-        action: menu.pastePathAction
+        action: root.actions.pastePath
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Paste)
     }
     ViewerMenuItem {
-        action: menu.refreshAction
+        action: root.actions.refresh
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Refresh)
     }
     ViewerMenuItem {
         id: gridToggleItem
         objectName: "gridToggleItem"
-        action: menu.gridToggleAction
+        action: root.actions.gridToggle
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Grid)
     }
     // The command is not checkable: only gridMode controls the displayed state.
@@ -139,87 +119,87 @@ Controls.Menu {
     Binding {
         target: gridToggleItem
         property: "checked"
-        value: menu.gridMode
+        value: root.gridMode
     }
     ViewerMenuSeparator {}
     ViewerMenuItem {
         objectName: "previousMenuItem"
-        action: menu.previousImageAction
+        action: root.actions.previousImage
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Previous)
     }
     ViewerMenuItem {
         objectName: "nextMenuItem"
-        action: menu.nextImageAction
+        action: root.actions.nextImage
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Next)
     }
     ViewerMenuSeparator {}
     ViewerMenuItem {
         objectName: "fitButton"
-        action: menu.fitAction
+        action: root.actions.fit
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Fit)
     }
     ViewerMenuItem {
         objectName: "actualSizeButton"
-        action: menu.actualSizeAction
+        action: root.actions.actualSize
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.ActualSize)
     }
     ViewerMenuItem {
         objectName: "zoomInButton"
-        action: menu.zoomInAction
+        action: root.actions.zoomIn
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.ZoomIn)
     }
     ViewerMenuItem {
         objectName: "zoomOutButton"
-        action: menu.zoomOutAction
+        action: root.actions.zoomOut
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.ZoomOut)
     }
     ViewerMenuSeparator {}
     ViewerMenuItem {
-        action: menu.rotateClockwiseAction
+        action: root.actions.rotateClockwise
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.RotateClockwise)
     }
     ViewerMenuItem {
-        action: menu.rotateCounterclockwiseAction
+        action: root.actions.rotateCounterclockwise
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.RotateCounterclockwise)
     }
     ViewerMenuItem {
-        action: menu.flipHorizontalAction
+        action: root.actions.flipHorizontal
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.FlipHorizontal)
     }
     ViewerMenuItem {
-        action: menu.flipVerticalAction
+        action: root.actions.flipVertical
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.FlipVertical)
     }
     ViewerMenuItem {
-        action: menu.resetTransformAction
+        action: root.actions.resetTransform
         objectName: "resetTransformMenuItem"
     }
     ViewerMenuSeparator {}
     ViewerMenuItem {
-        action: menu.copyImageAction
+        action: root.actions.copyImage
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.CopyImage)
     }
     ViewerMenuItem {
-        action: menu.copyPathAction
+        action: root.actions.copyPath
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.CopyPath)
     }
     ViewerMenuSeparator {}
     ViewerMenuItem {
-        action: menu.imageInformationAction
+        action: root.actions.imageInformation
         objectName: "informationMenuItem"
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Information)
     }
     ViewerMenuItem {
-        action: menu.shortcutHelpAction
+        action: root.actions.shortcutHelp
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Help)
     }
     ViewerMenuSeparator {}
     ViewerMenuItem {
-        action: menu.fullscreenCommandAction
+        action: root.actions.fullscreenCommand
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Fullscreen)
     }
     ViewerMenuItem {
-        action: menu.quitAction
+        action: root.actions.quit
         shortcutKeys: ViewerShortcuts.keyGroups(ViewerShortcuts.Quit)
     }
 }
