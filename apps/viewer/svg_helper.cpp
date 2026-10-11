@@ -3,6 +3,7 @@
 #include "image_limits.h"
 
 #include <QPainter>
+#include <QSvgRenderer>
 
 QSizeF svgIntrinsicSize(const QSvgRenderer& renderer) {
   return HolonightImages::svgDocumentSize(renderer.defaultSize(), renderer.viewBoxF());

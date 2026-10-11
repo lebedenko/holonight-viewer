@@ -2,7 +2,6 @@
 
 #include <QCoreApplication>
 #include <QLocale>
-#include <QVariantMap>
 
 #include <array>
 
@@ -59,7 +58,7 @@ QString joinNonEmpty(const QStringList& parts, QStringView separator) {
   return present.join(separator);
 }
 
-QVariantList formatInformationSections(const ImageInformation& information, const QString& path) {
+QList<InformationSection> formatInformationSections(const ImageInformation& information, const QString& path) {
   struct Section {
     const char* key;
     QString label;
@@ -79,14 +78,12 @@ QVariantList formatInformationSections(const ImageInformation& information, cons
        .label = QCoreApplication::translate("ImageDocument", "File"),
        .lines = {path.isEmpty() ? QString{} : abbreviateHomePath(path)}},
   }};
-  QVariantList result;
+  QList<InformationSection> result;
   for (const auto& section : sections) {
     auto present = section.lines;
     present.removeAll(QString{});
     if (!present.isEmpty()) {
-      result.append(QVariantMap{{QStringLiteral("key"), QString::fromLatin1(section.key)},
-                                {QStringLiteral("label"), section.label},
-                                {QStringLiteral("lines"), present}});
+      result.append({QString::fromLatin1(section.key), section.label, present});
     }
   }
   return result;

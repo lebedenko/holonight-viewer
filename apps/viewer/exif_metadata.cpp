@@ -2,6 +2,8 @@
 
 #include "image_limits.h"
 
+#include <QIODevice>
+
 #include <cmath>
 
 namespace ExifMetadata {

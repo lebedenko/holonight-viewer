@@ -15,8 +15,12 @@ Controls.Popup {
     readonly property real windowWidth: parent ? parent.width : 0
     readonly property real windowHeight: parent ? parent.height : 0
     // FILE is laid out separately from the text-only sections.
-    readonly property var textSections: document.informationSections.filter(section => section.key !== "File")
-    readonly property var fileSection: document.informationSections.find(section => section.key === "File") ?? null
+    readonly property list<informationSection> textSections: document.informationSections.filter(section => section.key !== "File")
+    readonly property informationSection fileSection: document.informationSections.find(section => section.key === "File") ?? ({
+            key: "",
+            label: "",
+            lines: []
+        })
     anchors.centerIn: parent
     width: Math.min(480, windowWidth - 24)
     height: Math.min(implicitHeight, windowHeight - 24)
@@ -147,7 +151,7 @@ Controls.Popup {
             objectName: "informationScroll"
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: sections.count > 0 || root.fileSection !== null
+            visible: sections.count > 0 || root.fileSection.key.length > 0
             clip: true
             contentWidth: availableWidth
 
@@ -159,7 +163,7 @@ Controls.Popup {
                     model: root.textSections
                     delegate: ColumnLayout {
                         id: section
-                        required property var modelData
+                        required property informationSection modelData
                         objectName: "informationSection" + modelData.key
                         Layout.fillWidth: true
                         spacing: HnMetrics.internalSpacing(HnControlSize.Compact)
@@ -185,14 +189,14 @@ Controls.Popup {
                 // Declared directly rather than by the Repeater, so the selectable path is a plain child item.
                 ColumnLayout {
                     objectName: "informationSectionFile"
-                    visible: root.fileSection !== null
+                    visible: root.fileSection.key.length > 0
                     Layout.fillWidth: true
                     spacing: HnMetrics.internalSpacing(HnControlSize.Compact)
                     Accessible.role: Accessible.Grouping
-                    Accessible.name: root.fileSection ? root.fileSection.label : ""
+                    Accessible.name: root.fileSection.key.length > 0 ? root.fileSection.label : ""
                     SectionLabel {
                         objectName: "informationSectionLabelFile"
-                        rawText: root.fileSection ? root.fileSection.label.toUpperCase() : ""
+                        rawText: root.fileSection.key.length > 0 ? root.fileSection.label.toUpperCase() : ""
                     }
                     Controls.TextArea {
                         id: pathText
@@ -211,12 +215,12 @@ Controls.Popup {
                         readOnly: true
                         selectByMouse: true
                         selectByKeyboard: true
-                        activeFocusOnTab: root.fileSection !== null
+                        activeFocusOnTab: root.fileSection.key.length > 0
                         wrapMode: TextEdit.WrapAtWordBoundaryOrAnywhere
                         textFormat: TextEdit.PlainText
                         color: HoloniightPalette.textPrimary
                         Accessible.name: qsTr("File path")
-                        text: root.fileSection ? root.fileSection.lines[0] : ""
+                        text: root.fileSection.key.length > 0 ? root.fileSection.lines[0] : ""
                         onActiveFocusChanged: Qt.callLater(ensureCursorVisible)
                         onCursorRectangleChanged: Qt.callLater(ensureCursorVisible)
 

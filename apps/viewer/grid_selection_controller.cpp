@@ -7,7 +7,10 @@
 #include <algorithm>
 GridSelectionController::GridSelectionController(ImageDocument* document, QObject* parent)
     : QObject(parent), document_(document) {
-  connect(document_, &ImageDocument::changed, this, &GridSelectionController::reconcile);
+  if (document) {
+    connect(document, &ImageDocument::changed, this, &GridSelectionController::reconcile);
+    connect(document, &QObject::destroyed, this, &GridSelectionController::reconcile);
+  }
 }
 void GridSelectionController::enter(const QUrl& url) {
   selected_url_ = url;
@@ -16,7 +19,11 @@ void GridSelectionController::enter(const QUrl& url) {
   reconcile();
 }
 void GridSelectionController::reconcile() {
-  if (!document_->scanning()) {
+  if (!document_) {
+    selected_url_ = QUrl{};
+    selected_index_ = -1;
+    last_index_ = 0;
+  } else if (!document_->scanning()) {
     auto* model = document_->folder();
     int index = model->indexOfUrl(selected_url_);
     if (index < 0 && model->count() > 0) {
@@ -31,7 +38,7 @@ void GridSelectionController::reconcile() {
   emit changed();
 }
 void GridSelectionController::select(int index) {
-  if (document_->scanning() || index < 0 || index >= document_->folder()->count()) {
+  if (!document_ || document_->scanning() || index < 0 || index >= document_->folder()->count()) {
     return;
   }
   selected_index_ = index;
@@ -40,6 +47,9 @@ void GridSelectionController::select(int index) {
   emit changed();
 }
 int GridSelectionController::target(int move) const {
+  if (!document_) {
+    return -1;
+  }
   if (move < 0 || move > static_cast<int>(GridNavigation::Move::Last)) {
     return selected_index_;
   }
@@ -48,7 +58,7 @@ int GridSelectionController::target(int move) const {
 }
 bool GridSelectionController::canMove(int move) const {
   const int index = target(move);
-  return !document_->scanning() && index >= 0 && index != selected_index_;
+  return document_ && !document_->scanning() && index >= 0 && index != selected_index_;
 }
 void GridSelectionController::move(int move) {
   // Boundary commands also reveal an already-selected item after manual scrolling.
@@ -58,5 +68,5 @@ void GridSelectionController::move(int move) {
   }
 }
 bool GridSelectionController::canActivate() const {
-  return !document_->scanning() && selected_index_ >= 0 && selected_index_ < document_->folder()->count();
+  return document_ && !document_->scanning() && selected_index_ >= 0 && selected_index_ < document_->folder()->count();
 }

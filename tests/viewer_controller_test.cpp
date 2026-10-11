@@ -281,3 +281,90 @@ TEST(WindowKeyRouter, MouseButtonsEmitOncePerPressAndLeaveOtherButtonsAlone) {
   QTest::mouseClick(&window, Qt::ForwardButton);
   EXPECT_TRUE(browsing.isEmpty());
 }
+
+TEST(ViewerController, DocumentDestructionClearsGridAndNotifies) {
+  auto document = std::make_unique<ImageDocument>(solidDecode, [](const QUrl&, const std::atomic_bool&) {
+    return DirectoryResult{.urls = photos(3), .error = {}, .missing = {}};
+  });
+  ViewerController controller;
+  controller.setDocument(document.get());
+  controller.open({photo(2)});
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !document->scanning(); }));
+  controller.enterGrid();
+  ASSERT_TRUE(controller.gridMode());
+  QPointer<GridSelectionController> selection = controller.selection();
+  QSignalSpy documents(&controller, &ViewerController::documentChanged);
+  QSignalSpy changes(&controller, &ViewerController::changed);
+  document.reset();
+  EXPECT_EQ(controller.document(), nullptr);
+  EXPECT_EQ(controller.selection(), nullptr);
+  EXPECT_TRUE(selection.isNull());
+  EXPECT_FALSE(controller.gridMode());
+  EXPECT_EQ(documents.size(), 1);
+  EXPECT_FALSE(changes.isEmpty());
+  controller.setDocument(nullptr);
+  controller.moveSelection(static_cast<int>(GridNavigation::Move::First));
+  controller.activateSelection();
+  controller.browse(1);
+  controller.toggleGrid();
+  EXPECT_FALSE(controller.canNext());
+  EXPECT_FALSE(controller.canPrevious());
+  EXPECT_FALSE(controller.gridMode());
+}
+
+TEST(GridSelectionController, NullAndDestroyedDocumentsDisableCommands) {
+  GridSelectionController empty(nullptr);
+  empty.enter(photo(1));
+  EXPECT_TRUE(empty.selectedUrl().isEmpty());
+  EXPECT_EQ(empty.selectedIndex(), -1);
+  empty.move(static_cast<int>(GridNavigation::Move::Last));
+  EXPECT_FALSE(empty.canActivate());
+  auto document = std::make_unique<ImageDocument>(solidDecode, [](const QUrl&, const std::atomic_bool&) {
+    return DirectoryResult{.urls = photos(3), .error = {}, .missing = {}};
+  });
+  document->open({photo(2)});
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !document->scanning(); }));
+  GridSelectionController selection(document.get());
+  selection.enter(photo(2));
+  ASSERT_TRUE(selection.canActivate());
+  QSignalSpy changes(&selection, &GridSelectionController::changed);
+  document.reset();
+  EXPECT_EQ(changes.size(), 1);
+  EXPECT_TRUE(selection.selectedUrl().isEmpty());
+  EXPECT_EQ(selection.selectedIndex(), -1);
+  EXPECT_FALSE(selection.canActivate());
+  EXPECT_FALSE(selection.canNext());
+  EXPECT_FALSE(selection.canPrevious());
+  selection.select(0);
+  selection.move(static_cast<int>(GridNavigation::Move::First));
+  selection.enter(photo(1));
+  selection.reconcile();
+  EXPECT_EQ(selection.selectedIndex(), -1);
+}
+
+TEST(ViewerController, ReplacementDisconnectsOldDocumentLifetime) {
+  auto old = std::make_unique<ImageDocument>(solidDecode, [](const QUrl&, const std::atomic_bool&) {
+    return DirectoryResult{.urls = photos(3), .error = {}, .missing = {}};
+  });
+  ImageDocument replacement(solidDecode, [](const QUrl&, const std::atomic_bool&) {
+    return DirectoryResult{.urls = photos(3), .error = {}, .missing = {}};
+  });
+  ViewerController controller;
+  controller.setDocument(old.get());
+  controller.open({photo(1)});
+  controller.enterGrid();
+  QPointer<GridSelectionController> previous = controller.selection();
+  controller.setDocument(&replacement);
+  EXPECT_TRUE(previous.isNull());
+  EXPECT_FALSE(controller.gridMode());
+  EXPECT_FALSE(old->animation()->suspendedByModal());
+  QSignalSpy documents(&controller, &ViewerController::documentChanged);
+  old.reset();
+  EXPECT_TRUE(documents.isEmpty());
+  EXPECT_EQ(controller.document(), &replacement);
+  controller.open({photo(2)});
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !replacement.scanning(); }));
+  controller.enterGrid();
+  EXPECT_TRUE(controller.selection()->canActivate());
+  EXPECT_EQ(controller.selection()->selectedUrl(), photo(2));
+}

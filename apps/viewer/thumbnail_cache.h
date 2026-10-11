@@ -29,6 +29,10 @@ size_t qHash(const ThumbnailKey& key, size_t seed = 0);
 class ThumbnailCache {
  public:
   explicit ThumbnailCache(qsizetype maxEntries = kThumbnailCacheEntries, qint64 maxBytes = kThumbnailCacheBytes);
+  ThumbnailCache(const ThumbnailCache&) = delete;
+  ThumbnailCache& operator=(const ThumbnailCache&) = delete;
+  ThumbnailCache(ThumbnailCache&&) = delete;
+  ThumbnailCache& operator=(ThumbnailCache&&) = delete;
   // Promotes a hit to most recent.
   std::optional<QImage> find(const ThumbnailKey& key, const ThumbnailSource& source = {});
   // Replaces an existing entry, then evicts least recently used entries until both limits hold. An image

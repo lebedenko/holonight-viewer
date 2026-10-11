@@ -20,6 +20,14 @@ void ViewerController::setDocument(ImageDocument* document) {
   selection_ = (document != nullptr) ? new GridSelectionController(document, this) : nullptr;
   grid_mode_ = false;
   if (document != nullptr) {
+    connect(document, &QObject::destroyed, this, [this] {
+      delete selection_;
+      selection_ = nullptr;
+      document_ = nullptr;
+      grid_mode_ = false;
+      emit documentChanged();
+      emit changed();
+    });
     connect(document, &ImageDocument::pastedPathOpened, this, [this] {
       grid_mode_ = false;
       updateSuspension();
@@ -65,10 +73,11 @@ bool ViewerController::canInspect() const {
 }
 bool ViewerController::canShowInformation() const { return hasPath() && !grid_mode_; }
 bool ViewerController::canPrevious() const {
-  return document_ && !modal_active_ && (grid_mode_ ? selection_->canPrevious() : document_->canPrevious());
+  return document_ && !modal_active_ &&
+         (grid_mode_ ? selection_ && selection_->canPrevious() : document_->canPrevious());
 }
 bool ViewerController::canNext() const {
-  return document_ && !modal_active_ && (grid_mode_ ? selection_->canNext() : document_->canNext());
+  return document_ && !modal_active_ && (grid_mode_ ? selection_ && selection_->canNext() : document_->canNext());
 }
 void ViewerController::open(const QList<QUrl>& urls) {
   if (!document_) {
@@ -106,7 +115,7 @@ void ViewerController::refresh() {
   }
 }
 void ViewerController::enterGrid() {
-  if (!canEnterGrid() || grid_mode_) {
+  if (!selection_ || !canEnterGrid() || grid_mode_) {
     return;
   }
   grid_mode_ = true;
@@ -130,13 +139,13 @@ void ViewerController::toggleGrid() {
   }
 }
 void ViewerController::moveSelection(int move) {
-  if (grid_mode_ && !modal_active_) {
+  if (document_ && selection_ && grid_mode_ && !modal_active_) {
     document_->cancelPastedPath();
     selection_->move(move);
   }
 }
 void ViewerController::activateSelection() {
-  if (!grid_mode_ || modal_active_ || !selection_->canActivate()) {
+  if (!document_ || !selection_ || !grid_mode_ || modal_active_ || !selection_->canActivate()) {
     return;
   }
   document_->openFromFolder(selection_->selectedUrl());

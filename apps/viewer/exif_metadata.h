@@ -1,7 +1,7 @@
 #pragma once
 
 #include <QByteArray>
-#include <QIODevice>
+class QIODevice;
 #include <QString>
 
 #include <atomic>

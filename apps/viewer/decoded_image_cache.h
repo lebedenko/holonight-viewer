@@ -1,6 +1,6 @@
 #pragma once
 
-#include "exif_metadata.h"
+#include "image_information.h"
 
 #include <QDateTime>
 #include <QImage>
@@ -8,14 +8,6 @@
 
 #include <list>
 #include <optional>
-
-struct ImageInformation {
-  QString format;
-  qint64 encoded_size = -1;
-  QDateTime modified;
-  QSize decoded_size;
-  ExifDetails exif;
-};
 
 struct CachedImage {
   QUrl url;

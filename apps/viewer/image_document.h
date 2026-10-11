@@ -7,13 +7,13 @@
 #include "folder_grid_model.h"
 #include "image_decoder.h"
 #include "image_orientation.h"
+#include "information_section.h"
 
 #include <QImage>
 #include <QObject>
 #include <QSvgRenderer>
 #include <QThread>
 #include <QUrl>
-#include <QVariantList>
 #include <QtQml/qqmlregistration.h>
 
 #include <atomic>
@@ -48,7 +48,7 @@ class ImageDocument : public QObject {
   Q_PROPERTY(QString transformedLine READ transformedLine NOTIFY changed)
   Q_PROPERTY(QString modifiedText READ modifiedText NOTIFY changed)
   Q_PROPERTY(QString displayPath READ displayPath NOTIFY changed)
-  Q_PROPERTY(QVariantList informationSections READ informationSections NOTIFY changed)
+  Q_PROPERTY(QList<InformationSection> informationSections READ informationSections NOTIFY changed)
   Q_PROPERTY(ClipboardController* clipboard READ clipboard CONSTANT)
   Q_PROPERTY(AnimationController* animation READ animation CONSTANT)
   Q_PROPERTY(State state READ state NOTIFY changed)
@@ -100,8 +100,8 @@ class ImageDocument : public QObject {
   [[nodiscard]] QString transformedLine() const;
   [[nodiscard]] QString modifiedText() const;
   [[nodiscard]] QString displayPath() const;
-  // Ordered {key, label, lines} maps for Camera, Location and File; sections without lines are omitted.
-  [[nodiscard]] QVariantList informationSections() const;
+  // Ordered values for Camera, Location and File; sections without lines are omitted.
+  [[nodiscard]] QList<InformationSection> informationSections() const;
   [[nodiscard]] QString formattedFileSize() const;
   [[nodiscard]] const ImageInformation& information() const { return information_; }
   ClipboardController* clipboard() { return &clipboard_; }

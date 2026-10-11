@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 Andrii L <lebeden@gmail.com>
 #pragma once
-#include "folder_grid_model.h"
 #include "grid_navigation.h"
 
 #include <QObject>
+#include <QPointer>
+#include <QUrl>
 #include <QtQml/qqmlregistration.h>
 class ImageDocument;
 class GridSelectionController : public QObject {
@@ -35,7 +36,7 @@ class GridSelectionController : public QObject {
 
  private:
   [[nodiscard]] int target(int move) const;
-  ImageDocument* document_;
+  QPointer<ImageDocument> document_;
   QUrl selected_url_;
   int selected_index_ = -1;
   int last_index_ = 0;

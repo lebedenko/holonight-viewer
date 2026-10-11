@@ -6,6 +6,7 @@
 
 #include <QFile>
 #include <QFileInfo>
+#include <QSvgRenderer>
 #include <QUrl>
 
 #include <holonight_images/image.h>

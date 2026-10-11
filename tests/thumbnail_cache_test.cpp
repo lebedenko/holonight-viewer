@@ -1,6 +1,12 @@
 #include "thumbnail_cache.h"
 
 #include <gtest/gtest.h>
+#include <type_traits>
+
+static_assert(!std::is_copy_constructible_v<ThumbnailCache>);
+static_assert(!std::is_copy_assignable_v<ThumbnailCache>);
+static_assert(!std::is_move_constructible_v<ThumbnailCache>);
+static_assert(!std::is_move_assignable_v<ThumbnailCache>);
 
 namespace {
 ThumbnailKey key(int number, int box = 256, int generation = 0) {

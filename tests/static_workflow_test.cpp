@@ -171,7 +171,7 @@ TEST(Workflow, InformationCacheRefreshAndUnchangedSource) {
   EXPECT_EQ(document.information().encoded_size, -1);
   EXPECT_EQ(document.summaryLine(), "Details unavailable");
   ASSERT_EQ(document.informationSections().size(), 1);
-  EXPECT_EQ(document.informationSections().first().toMap().value("key"), "File");
+  EXPECT_EQ(document.informationSections().first().key, "File");
 }
 
 TEST(Workflow, ClipboardCaptureBusyFailureAndShutdown) {

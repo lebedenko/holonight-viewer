@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "thumbnail_provider.h"
 #include "thumbnail_size.h"
 
 #include <QObject>
@@ -26,11 +25,5 @@ class ThumbnailMetrics : public QObject {
   Q_INVOKABLE static constexpr int devicePixels(qreal dpr) { return thumbnailBoxPixels(dpr); }
 
   // Empty for a URL that is not a local file. The generation changes on a rescan so thumbnails decode again.
-  Q_INVOKABLE static QString sourceFor(const QUrl& fileUrl, qreal dpr, int generation) {
-    if (!fileUrl.isLocalFile()) {
-      return {};
-    }
-    return QStringLiteral("image://thumbnail/") +
-           ThumbnailProvider::idFor(fileUrl.toLocalFile(), thumbnailBoxPixels(dpr), generation);
-  }
+  Q_INVOKABLE static QString sourceFor(const QUrl& fileUrl, qreal dpr, int generation);
 };

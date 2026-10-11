@@ -6,6 +6,7 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <QFileInfo>
+#include <QSvgRenderer>
 
 #include <utility>
 

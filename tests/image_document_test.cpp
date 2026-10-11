@@ -752,7 +752,7 @@ TEST(Document, SvgHasNoCameraOrLocationSectionsAndPreviewIsRasterized) {
   ASSERT_EQ(document.state(), ImageDocument::Ready) << document.error().toStdString();
   const auto sections = document.informationSections();
   for (const auto& section : sections) {
-    const auto key = section.toMap().value("key").toString();
+    const auto key = section.key;
     EXPECT_NE(key, "Camera");
     EXPECT_NE(key, "Location");
   }

@@ -1,7 +1,8 @@
 #pragma once
 
-#include "decoded_image_cache.h"
+#include "image_information.h"
 
+#include <QImage>
 #include <QUrl>
 
 #include <atomic>

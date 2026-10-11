@@ -1,9 +1,10 @@
 #pragma once
 
-#include "decoded_image_cache.h"
+#include "image_information.h"
+#include "information_section.h"
 
 #include <QDir>
-#include <QVariantList>
+#include <QList>
 
 // Image Information presentation helpers; pure so tests need no decoded image.
 // Replaces a leading home directory with "~"; a sibling such as "/home/alice2" is left unchanged.
@@ -16,5 +17,5 @@ QString formatTransformedLine(QSize decodedSize, QSize transformedSize);
 QString formatModifiedText(const QDateTime& modified);
 QString joinNonEmpty(const QStringList& parts, QStringView separator = u" · ");
 
-QVariantList formatInformationSections(const ImageInformation& information, const QString& path);
+QList<InformationSection> formatInformationSections(const ImageInformation& information, const QString& path);
 QString formatFileSize(qint64 size);

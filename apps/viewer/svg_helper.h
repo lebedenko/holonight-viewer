@@ -1,7 +1,7 @@
 #pragma once
 
 #include <QImage>
-#include <QSvgRenderer>
+class QSvgRenderer;
 
 #include <atomic>
 #include <holonight_images/svg.h>

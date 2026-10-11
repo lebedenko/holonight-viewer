@@ -467,7 +467,9 @@ void ImageDocument::copyPath() {
     clipboard_.copyPath(localPath());
   }
 }
-QVariantList ImageDocument::informationSections() const { return formatInformationSections(information_, localPath()); }
+QList<InformationSection> ImageDocument::informationSections() const {
+  return formatInformationSections(information_, localPath());
+}
 
 QString ImageDocument::formattedFileSize() const { return formatFileSize(information_.encoded_size); }
 

@@ -235,9 +235,8 @@ bool openAndSettle(ImageDocument& document, const QUrl& url) {
 QList<std::pair<QString, QStringList>> sections(const ImageDocument& document) {
   QList<std::pair<QString, QStringList>> result;
   for (const auto& section : document.informationSections()) {
-    const auto map = section.toMap();
-    EXPECT_EQ(map.value("key").toString(), map.value("label").toString()) << "untranslated tests use matching keys";
-    result.append({map.value("label").toString(), map.value("lines").toStringList()});
+    EXPECT_EQ(section.key, section.label) << "untranslated tests use matching keys";
+    result.append({section.label, section.lines});
   }
   return result;
 }
@@ -358,4 +357,13 @@ TEST(ExifMetadata, OptionalMalformedTagsCompleteSuccessfullyWithoutInventingAFai
   EXPECT_EQ(details.outcome, HolonightImages::Outcome::Success);
   EXPECT_FALSE(details.hasCamera());
   EXPECT_FALSE(details.hasLocation());
+}
+
+TEST(ImageInformationFormat, EmptyMetadataOmitsAllSections) {
+  EXPECT_TRUE(formatInformationSections({}, {}).isEmpty());
+  const auto result = formatInformationSections({}, QStringLiteral("/tmp/photo.png"));
+  ASSERT_EQ(result.size(), 1);
+  EXPECT_EQ(result.first().key, "File");
+  EXPECT_EQ(result.first().label, "File");
+  EXPECT_EQ(result.first().lines, QStringList{QStringLiteral("/tmp/photo.png")});
 }
