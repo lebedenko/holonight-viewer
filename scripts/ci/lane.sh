@@ -44,7 +44,7 @@ fetch_provider() {
   [ "$(git -C "/work/$name" rev-parse HEAD)" = "$revision" ]
 }
 fetch_provider holonight-config d6a392b41991f70a004d58f7694c7b6115cb7280
-fetch_provider holonight-qt 6c7ac33004702e166b8c152dcde918296be54286
+fetch_provider holonight-qt 680d709de4d1d8e8697d6a69a99f15ef891ef7b2
 fetch_provider holonight-images d834984dc413dc9e56f7f3157fa605d6a8667088
 fetch_provider holonight-thumbnails 2284b1822b0f8f856677e14d21d91e8fa10bd98c
 task deps
