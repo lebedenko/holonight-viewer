@@ -23,7 +23,7 @@ target_link_libraries(viewer-protocol PRIVATE PkgConfig::WaylandClient viewer-sa
 set_target_properties(viewer-protocol PROPERTIES AUTOMOC OFF)
 
 add_library(viewer-private STATIC
-  image_decoder.cpp image_information_formatter.cpp svg_helper.cpp
+  image_loader.cpp image_decoder.cpp image_information_formatter.cpp svg_helper.cpp
   image_orientation.cpp thumbnail_cache.cpp thumbnail_decoder.cpp thumbnail_provider.cpp directory_model.cpp decoded_image_cache.cpp exif_metadata.cpp
   view_geometry.cpp portal_request_builder.cpp wayland_foreign_export.cpp frame_source.cpp frame_streamer.cpp)
 target_link_libraries(viewer-private PUBLIC Qt6::Quick Qt6::DBus Qt6::Svg HolonightImages::Images HolonightThumbnails::Thumbnails PRIVATE

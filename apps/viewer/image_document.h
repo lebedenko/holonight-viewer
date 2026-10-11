@@ -2,17 +2,17 @@
 
 #include "animation_controller.h"
 #include "clipboard_controller.h"
-#include "decoded_image_cache.h"
 #include "directory_model.h"
 #include "folder_grid_model.h"
 #include "image_decoder.h"
+#include "image_loader.h"
 #include "image_orientation.h"
 #include "information_section.h"
 
 #include <QImage>
 #include <QObject>
+#include <QSet>
 #include <QSvgRenderer>
-#include <QThread>
 #include <QUrl>
 #include <QtQml/qqmlregistration.h>
 
@@ -74,7 +74,7 @@ class ImageDocument : public QObject {
   // NOLINTNEXTLINE(cppcoreguidelines-use-enum-class,performance-enum-size)
   enum TransformOperation { RotateClockwise = 1, RotateCounterclockwise = 3, FlipHorizontal = 4, FlipVertical = 6 };
   Q_ENUM(TransformOperation)
-  using Decoder = std::function<DecodeResult(const QUrl&, const std::atomic_bool&)>;
+  using Decoder = ImageLoader::Decoder;
   struct PlaybackOptions {
     std::unique_ptr<PlaybackClock> clock = std::make_unique<QtPlaybackClock>();
     FrameSourceFactory source = makeQtGifFrameSource;
@@ -155,22 +155,15 @@ class ImageDocument : public QObject {
 
  private:
   friend struct ImageDocumentTestAccess;
-  struct Request {
-    quint64 request_id;
-    QUrl url;
-    quint64 cache_epoch;
-    bool prefetch = false;
-    bool tentative = false;
-  };
-  void startPending();
-  void decodeRequest(const Request& request, const std::shared_ptr<std::atomic_bool>& cancel);
+  using Request = ImageLoader::Request;
   bool commitPastedPath(const Request& request, const DecodeResult& result);
   void complete(const Request& request, DecodeResult result);
   void applyDecoded(const Request& request, DecodeResult result);
   void select(const QUrl& url);
   void navigate(int direction);
   void maybePrefetch();
-  void workerFinished();
+  enum class ShutdownParticipant : std::uint8_t { Loader, Directory, Clipboard, Animation };
+  void participantFinished(ShutdownParticipant participant);
   ClipboardController clipboard_;
   AnimationController animation_;
   int thumbnail_generation_ = 0;
@@ -183,20 +176,9 @@ class ImageDocument : public QObject {
   int direction_ = 1;
   quint64 prefetched_selection_ = 0;
   quint64 cache_epoch_ = 0;
-  int finished_workers_ = 0;
-  // Accessed exclusively by the decode worker.
-  quint64 worker_cache_epoch_ = 0;
-  DecodedImageCache cache_;
-  qint64 retained_budget_;
-  std::optional<CachedImage> displayed_;
-  QThread thread_;
-  QObject* worker_;
-  Decoder decoder_;
-  std::shared_ptr<std::atomic_bool> cancellation_;
-  std::optional<Request> pending_;
+  QSet<ShutdownParticipant> pending_shutdown_;
+  ImageLoader loader_;
   quint64 request_id_ = 0;
-  bool tentative_active_ = false;
-  bool busy_ = false;
   bool stopping_ = false;
   State state_ = Empty;
   QString file_name_;

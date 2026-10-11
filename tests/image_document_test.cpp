@@ -5,6 +5,7 @@
 #include "gif_fixture.h"
 #include "image_canvas.h"
 #include "image_limits.h"
+#include "image_loader_test_access.h"
 #include "manual_playback_clock.h"
 #include "pasted_path_p.h"
 #include "viewer_controller.h"
@@ -32,13 +33,9 @@
 #include <gtest/gtest.h>
 
 struct ImageDocumentTestAccess {
-  static bool busy(const ImageDocument& document) { return document.busy_; }
+  static bool busy(const ImageDocument& document) { return document.loader_.busy(); }
   static std::pair<qint64, qint64> cacheBudget(ImageDocument& document) {
-    std::pair<qint64, qint64> result;
-    QMetaObject::invokeMethod(
-        document.worker_, [&] { result = {document.cache_.bytes(), document.cache_.limit()}; },
-        Qt::BlockingQueuedConnection);
-    return result;
+    return ImageLoaderTestAccess::cacheBudget(document.loader_);
   }
 };
 

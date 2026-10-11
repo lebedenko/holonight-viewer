@@ -28,10 +28,18 @@ struct AnimationFixture {
     if (!dir.isValid()) {
       return ::testing::AssertionFailure() << "temporary directory unavailable";
     }
+    QStringList errors;
+    const auto warning_connection =
+        QObject::connect(&engine, &QQmlEngine::warnings, &engine, [&](const QList<QQmlError>& warnings) {
+          for (const auto& warning : warnings) {
+            errors.append(warning.toString());
+          }
+        });
     engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
     engine.loadFromModule("HolonightViewer", "Main");
+    QObject::disconnect(warning_connection);
     if (engine.rootObjects().size() != 1) {
-      return ::testing::AssertionFailure() << "Main failed to load";
+      return ::testing::AssertionFailure() << "Main failed to load: " << errors.join("\n").toStdString();
     }
     window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
     window->requestActivate();
