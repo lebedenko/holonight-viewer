@@ -1,6 +1,8 @@
+#include "fake_frame_source.h"
 #include "gif_fixture.h"
 #include "image_canvas.h"
 #include "image_document.h"
+#include "manual_playback_clock.h"
 
 #include <QAccessible>
 #include <QQmlApplicationEngine>
@@ -318,4 +320,66 @@ TEST(AnimationUi, HiddenWindowSuspendsAndFooterAndHelpAdvertiseSpace) {
   EXPECT_TRUE(fixture.animation()->playing());
   fixture.document.open({fixture.dir.filePath("missing.gif")});
   EXPECT_TRUE(QTest::qWaitFor([&] { return fixture.item("footerHintPlayPause") == nullptr; }));
+}
+
+TEST(AnimationUi, MetadataDelegatesSurviveVisibleAndHiddenFrameAdvances) {
+  FakeScript script;
+  script.delaysMs = {100, 100, 100};
+  script.info = {.frame_count = 3, .loop_count = -1};
+  auto manual = std::make_unique<ManualPlaybackClock>();
+  auto* clock = manual.get();
+  ImageDocument::PlaybackOptions playback;
+  playback.clock = std::move(manual);
+  playback.source = [&] { return std::make_unique<FakeFrameSource>(script); };
+  playback.execution = AnimationController::Execution::Inline;
+  ImageDocument document(decodeImage, scanDirectory, std::move(playback));
+  QQmlEngine engine;
+  QQmlComponent component(&engine);
+  component.setData(R"(import QtQuick
+import HolonightViewer
+Item {
+    width: 800
+    height: 200
+    required property ImageDocument document
+    ImageDetailsStrip {
+        document: parent.document
+        magnification: 1
+        shown: true
+    }
+})",
+                    QUrl());
+  std::unique_ptr<QObject> root(component.createWithInitialProperties({{"document", QVariant::fromValue(&document)}}));
+  ASSERT_NE(root, nullptr) << component.errorString().toStdString();
+  document.animation()->start("fake.gif", {2, 2});
+  auto* strip = root->findChild<QQuickItem*>("detailsStrip");
+  ASSERT_NE(strip, nullptr);
+  const auto delegates = [&] {
+    QList<QPointer<QObject>> items;
+    const auto collect = [&](auto&& self, QQuickItem* item) -> void {
+      if (item->property("modelData").isValid()) {
+        items.append(item);
+      }
+      for (auto* child : item->childItems()) {
+        self(self, child);
+      }
+    };
+    collect(collect, strip);
+    return items;
+  };
+  for (bool shown : {true, false}) {
+    strip->setProperty("shown", shown);
+    const auto before = delegates();
+    ASSERT_EQ(before.size(), 7);
+    clock->advance(700);
+    EXPECT_EQ(delegates(), before);
+    for (const auto& item : before) {
+      EXPECT_FALSE(item.isNull());
+    }
+  }
+  document.animation()->toggle();
+  EXPECT_EQ(delegates().at(5)->property("modelData").toString(), "Paused");
+  document.animation()->toggle();
+  EXPECT_EQ(delegates().at(5)->property("modelData").toString(), "Playing");
+  document.animation()->stop();
+  EXPECT_EQ(delegates().size(), 4);
 }

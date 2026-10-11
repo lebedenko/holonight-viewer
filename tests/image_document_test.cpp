@@ -1195,3 +1195,31 @@ TEST(PastedPath, GridNavigationDiscardsPendingValidation) {
   EXPECT_TRUE(controller.gridMode());
   EXPECT_EQ(document.url(), url);
 }
+
+TEST(Document, SvgNeighborsAreDecodedOnlyOnForegroundSelection) {
+  for (const auto* suffix : {"svg", "SVG"}) {
+    const auto selected = QUrl::fromLocalFile(fixturePath("selected.png"));
+    const auto neighbor = QUrl::fromLocalFile(fixturePath(QString("neighbor.%1").arg(suffix)));
+    std::atomic_int calls{0};
+    ImageDocument document(
+        [&](const QUrl& url, const std::atomic_bool&) {
+          if (url == neighbor) {
+            ++calls;
+          }
+          return solidResult();
+        },
+        [&](const QUrl&, const std::atomic_bool&) {
+          return DirectoryResult{.urls = {selected, neighbor}, .error = {}};
+        });
+    document.open({selected});
+    ASSERT_TRUE(QTest::qWaitFor([&] {
+      return document.state() == ImageDocument::Ready && !document.scanning() &&
+             !ImageDocumentTestAccess::busy(document);
+    }));
+    EXPECT_EQ(calls.load(), 0);
+    document.next();
+    ASSERT_TRUE(settled(document));
+    EXPECT_EQ(document.url(), neighbor);
+    EXPECT_EQ(calls.load(), 1);
+  }
+}

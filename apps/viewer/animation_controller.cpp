@@ -52,8 +52,6 @@ void AnimationController::command(std::function<void(FrameStreamer&, quint64)> a
 
 void AnimationController::resetSession() {
   clock_->disarm();
-  const bool changed = active_ || animated_ || failed_ || finished_ || user_paused_ || !notice_.isEmpty() ||
-                       frame_count_ != 0 || frame_index_ != 0;
   active_ = false;
   animated_ = false;
   failed_ = false;
@@ -69,9 +67,7 @@ void AnimationController::resetSession() {
   remaining_ = 0;
   next_.reset();
   notice_.clear();
-  if (changed) {
-    emit stateChanged();
-  }
+  publish();
 }
 
 void AnimationController::start(const QString& path, QSize firstFrameSize) {
@@ -117,7 +113,7 @@ void AnimationController::setSuspendedByModal(bool suspended) {
   }
   suspended_by_modal_ = suspended;
   recompute();
-  emit stateChanged();
+  publish();
 }
 
 void AnimationController::setSuspendedByWindow(bool suspended) {
@@ -126,7 +122,7 @@ void AnimationController::setSuspendedByWindow(bool suspended) {
   }
   suspended_by_window_ = suspended;
   recompute();
-  emit stateChanged();
+  publish();
 }
 
 void AnimationController::toggle() {
@@ -147,7 +143,7 @@ void AnimationController::toggle() {
     user_paused_ = !user_paused_;
   }
   recompute();
-  emit stateChanged();
+  publish();
 }
 
 void AnimationController::arm() { clock_->arm(std::max<qint64>(0, deadline_ - clock_->nowMs())); }
@@ -195,7 +191,7 @@ void AnimationController::handle(StreamEvent event) {
       loop_ = LoopPolicy::fromQt(event.info.loop_count);
       if (event.info.frame_count > 1 && frame_count_ == 0) {
         frame_count_ = event.info.frame_count;
-        emit stateChanged();
+        publish();
       }
       return;
     case Kind::Frame: {
@@ -207,7 +203,7 @@ void AnimationController::handle(StreamEvent event) {
         animated_ = true;
         remaining_ = std::max<qint64>(0, prime_deadline_ - clock_->nowMs());
         recompute();
-        emit stateChanged();
+        publish();
       }
       tryAdvance();
       return;
@@ -230,13 +226,13 @@ void AnimationController::handle(StreamEvent event) {
       } else {
         end_pending_ = true;
       }
-      emit stateChanged();
+      publish();
       tryAdvance();
       return;
     }
     case Kind::Failed:
       fail();
-      emit stateChanged();
+      publish();
       return;
   }
 }
@@ -272,7 +268,7 @@ void AnimationController::step() {
     current_delay_ms_ = frame.delay_ms;
     arm();
     emit frameReady(frame.image);
-    emit stateChanged();
+    publish();
     command([](FrameStreamer& streamer, quint64 generation) { streamer.readNext(generation); });
     return;
   }
@@ -281,6 +277,27 @@ void AnimationController::step() {
     end_pending_ = false;
     running_ = false;
     clock_->disarm();
+    publish();
+  }
+}
+
+void AnimationController::publish() {
+  const Published current{.animated = animated(),
+                          .playing = playing(),
+                          .user_paused = userPaused(),
+                          .can_toggle = canToggle(),
+                          .frame_count = frameCount(),
+                          .notice = failureNotice(),
+                          .modal = suspendedByModal(),
+                          .window = suspendedByWindow()};
+  const bool state_changed = current != published_;
+  const bool frame_changed = frame_index_ != published_frame_index_;
+  published_ = current;
+  published_frame_index_ = frame_index_;
+  if (state_changed) {
     emit stateChanged();
+  }
+  if (frame_changed) {
+    emit frameIndexChanged();
   }
 }

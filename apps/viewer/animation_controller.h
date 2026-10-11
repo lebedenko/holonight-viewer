@@ -31,7 +31,7 @@ class AnimationController : public QObject {
   Q_PROPERTY(bool userPaused READ userPaused NOTIFY stateChanged)
   Q_PROPERTY(bool canToggle READ canToggle NOTIFY stateChanged)
   Q_PROPERTY(int frameCount READ frameCount NOTIFY stateChanged)
-  Q_PROPERTY(int frameIndex READ frameIndex NOTIFY stateChanged)
+  Q_PROPERTY(int frameIndex READ frameIndex NOTIFY frameIndexChanged)
   Q_PROPERTY(QString failureNotice READ failureNotice NOTIFY stateChanged)
   Q_PROPERTY(bool suspendedByModal READ suspendedByModal WRITE setSuspendedByModal NOTIFY stateChanged)
   Q_PROPERTY(bool suspendedByWindow READ suspendedByWindow WRITE setSuspendedByWindow NOTIFY stateChanged)
@@ -66,6 +66,7 @@ class AnimationController : public QObject {
 
  signals:
   void stateChanged();
+  void frameIndexChanged();
   void frameReady(QImage frame);
   void failureNoticeChanged(QString notice);
   void shutdownFinished();
@@ -83,6 +84,20 @@ class AnimationController : public QObject {
   void command(std::function<void(FrameStreamer&, quint64)> action);
   void handle(StreamEvent event);
   void recompute();
+  void publish();
+  struct Published {
+    bool animated = false;
+    bool playing = false;
+    bool user_paused = false;
+    bool can_toggle = false;
+    int frame_count = 0;
+    QString notice;
+    bool modal = false;
+    bool window = false;
+    bool operator==(const Published&) const = default;
+  };
+  Published published_;
+  int published_frame_index_ = 0;
   void step();
   void tryAdvance();
   void resetSession();

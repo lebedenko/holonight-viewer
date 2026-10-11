@@ -376,3 +376,24 @@ TEST(AnimationController, TruncatedRealGifReportsDamageAfterTheLastGoodFrame) {
   controller.stop();
   EXPECT_TRUE(controller.failureNotice().isEmpty());
 }
+
+TEST(AnimationController, FrameNotificationsDoNotPublishUnchangedMetadata) {
+  Harness harness({100, 100, 100}, -1);
+  QSignalSpy state(harness.controller.get(), &AnimationController::stateChanged);
+  QSignalSpy index(harness.controller.get(), &AnimationController::frameIndexChanged);
+  harness.start();
+  state.clear();
+  harness.clock->advance(700);
+  EXPECT_TRUE(state.isEmpty());
+  EXPECT_EQ(index.count(), 7);
+  harness.controller->toggle();
+  EXPECT_EQ(state.count(), 1);
+  harness.controller->toggle();
+  EXPECT_EQ(state.count(), 2);
+  harness.controller->stop();
+  EXPECT_EQ(state.count(), 3);
+  EXPECT_EQ(index.count(), 8);
+  harness.controller->stop();
+  EXPECT_EQ(state.count(), 3);
+  EXPECT_EQ(index.count(), 8);
+}

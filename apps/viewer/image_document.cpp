@@ -402,7 +402,8 @@ void ImageDocument::maybePrefetch() {
   }
   prefetched_selection_ = request_id_;
   const auto neighbor = directory_.urlAt(selected_index_ + direction_);
-  if (neighbor.isEmpty()) {
+  if (neighbor.isEmpty() ||
+      QFileInfo(neighbor.toLocalFile()).suffix().compare(QLatin1String("svg"), Qt::CaseInsensitive) == 0) {
     return;
   }
   pending_ = Request{.request_id = request_id_, .url = neighbor, .cache_epoch = cache_epoch_, .prefetch = true};
