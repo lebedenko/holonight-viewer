@@ -2,13 +2,11 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls as Controls
 import Holonight.Core
 import Holonight.Controls
 import "header"
 import "overlays"
 import "footer"
-import "grid"
 
 HnApplicationWindow {
     id: root
@@ -21,38 +19,25 @@ HnApplicationWindow {
     visible: true
     title: gridMode || document.fileName ? qsTr("%1 — HoloNight Viewer").arg(headerTitle) : qsTr("HoloNight Viewer")
 
-    component ViewerButton: Controls.Button {
-        id: control
-        property bool floating: false
-        property real cornerRadius: HnMetrics.internalSpacing(HnControlSize.Compact)
-        implicitWidth: Math.max(implicitContentWidth + leftPadding + rightPadding, HnMetrics.controlHeight(HnControlSize.Normal))
-        background: HnButtonSurface {
-            pressed: control.down
-            hovered: control.hovered
-            focusVisible: control.visualFocus
-            cornerRadius: control.cornerRadius
-            floating: control.floating
-        }
-    }
-    property bool rendered: false
+    property alias rendered: stage.rendered
     property bool actionsMenuOpen: false
     readonly property bool fullscreen: visibility === Window.FullScreen
-    readonly property bool controlsHovered: previousButton.hovered || nextButton.hovered || playPauseButton.hovered || viewerHeader.hovered || footerHover.hovered
-    property alias arrowsShown: overlayController.arrowsShown
-    property alias countdownActive: overlayController.countdownActive
-    property alias detailsShown: overlayController.detailsShown
+    readonly property bool controlsHovered: stage.controlsHovered || viewerHeader.hovered || footerHover.hovered
+    property alias arrowsShown: overlayTiming.arrowsShown
+    property alias countdownActive: overlayTiming.countdownActive
+    property alias detailsShown: overlayTiming.detailsShown
     ViewerOverlayController {
-        id: overlayController
+        id: overlayTiming
         fullscreen: root.fullscreen
         controlsHovered: root.controlsHovered
         menuOpen: root.actionsMenuOpen
         imageReady: root.documentState === ImageDocument.Ready
     }
     function showArrows(): void {
-        overlayController.showArrows();
+        overlayTiming.showArrows();
     }
     function hideArrows(): void {
-        overlayController.hideArrows();
+        overlayTiming.hideArrows();
     }
     function togglePlayback(): void {
         viewerController.togglePlayback();
@@ -61,10 +46,10 @@ HnApplicationWindow {
         root.clearImageFocus();
     }
     function revealDetails(): void {
-        overlayController.revealDetails();
+        overlayTiming.revealDetails();
     }
     function concealDetails(): void {
-        overlayController.concealDetails();
+        overlayTiming.concealDetails();
     }
     function toggleFullscreen(): void {
         WindowState.setFullscreen(root, root.visibility !== Window.FullScreen);
@@ -99,7 +84,7 @@ HnApplicationWindow {
         const count = document.folder.count;
         return (count === 1 ? qsTr("%1 — %n image", "", count) : qsTr("%1 — %n images", "", count)).arg(document.folderName);
     }
-    property int inputEpoch: 0
+    property alias inputEpoch: stage.inputEpoch
     onModalActiveChanged: {
         ++root.inputEpoch;
         if (!modalActive)
@@ -116,7 +101,7 @@ HnApplicationWindow {
         objectName: "windowKeyRouter"
         target: root
         headerFocusTargets: viewerHeader.focusTargets
-        playbackButton: playPauseButton
+        playbackButton: stage.playbackButton
         imageReady: root.canInspect
         modalActive: root.modalActive
         menuOpen: root.actionsMenuOpen
@@ -137,7 +122,7 @@ HnApplicationWindow {
         }
         onPlaybackToggleRequested: root.togglePlayback()
         onPanRequested: (horizontal, vertical) => {
-            canvas.pan(Qt.point(horizontal, vertical));
+            stage.pan(horizontal, vertical);
             root.clearImageFocus();
         }
     }
@@ -158,16 +143,16 @@ HnApplicationWindow {
         if (documentState !== ImageDocument.Ready)
             root.concealDetails();
         if (documentState === ImageDocument.Ready)
-            canvas.Accessible.announce(qsTr("Loaded %1.").arg(root.document.fileName));
+            stage.canvas.Accessible.announce(qsTr("Loaded %1.").arg(root.document.fileName));
         else if (documentState === ImageDocument.Error)
-            canvas.Accessible.announce(qsTr("Error opening %1: %2").arg(root.document.fileName).arg(root.document.error));
+            stage.canvas.Accessible.announce(qsTr("Error opening %1: %2").arg(root.document.fileName).arg(root.document.error));
     }
 
     Connections {
         target: root.document.animation
         function onFailureNoticeChanged(notice: string): void {
             root.revealDetails();
-            canvas.Accessible.announce(notice);
+            stage.canvas.Accessible.announce(notice);
         }
     }
 
@@ -175,7 +160,7 @@ HnApplicationWindow {
         target: root.document.clipboard
         function onChanged(): void {
             if (!root.document.clipboard.busy && root.document.clipboard.feedback.length > 0)
-                canvas.Accessible.announce(root.document.clipboard.feedback);
+                stage.canvas.Accessible.announce(root.document.clipboard.feedback);
         }
     }
 
@@ -252,19 +237,19 @@ HnApplicationWindow {
     }
 
     function fitImage(): void {
-        canvas.fit();
+        stage.fit();
         root.revealDetails();
         root.clearImageFocus();
     }
 
     function actualSizeImage(): void {
-        canvas.actualSize();
+        stage.actualSize();
         root.revealDetails();
         root.clearImageFocus();
     }
 
     function zoomImage(steps: real): void {
-        canvas.zoomSteps(steps, Qt.point(canvas.width / 2, canvas.height / 2));
+        stage.zoom(steps);
         root.revealDetails();
         root.clearImageFocus();
     }
@@ -333,169 +318,26 @@ HnApplicationWindow {
             Accessible.name: rawText
         }
 
-        Item {
-            id: canvasArea
+        ViewerStage {
+            id: stage
             anchors.left: parent.left
             anchors.right: parent.right
             // Fullscreen grid keeps the header and footer, since the canvas hover that reveals them is gone.
             anchors.top: root.fullscreen && !root.gridMode ? parent.top : folderError.visible ? folderError.bottom : viewerHeader.bottom
             anchors.bottom: root.fullscreen && !root.gridMode ? parent.bottom : viewerFooter.top
 
-            ViewerImageView {
-                id: canvas
-                objectName: "imageCanvas"
-                anchors.fill: parent
-                visible: !root.gridMode
-                image: root.document.image
-                svgRenderer: root.document.svgRenderer
-                svgSize: root.document.svgSize
-                orientation: root.document.orientation
-                onOrientationChanged: ++root.inputEpoch
-                displayPixelRatio: root.devicePixelRatio
-                activeFocusOnTab: false
-                onContentReset: {
-                    ++root.inputEpoch;
-                    root.rendered = false;
-                    root.concealDetails();
-                }
-                onFirstRendered: {
-                    root.rendered = true;
-                    root.revealDetails();
-                }
-                onMouseMoved: {
-                    root.showArrows();
-                    if (root.rendered)
-                        root.revealDetails();
-                }
-                onKeyboardInput: root.hideArrows()
-                onViewportChanged: ++root.inputEpoch
-                Accessible.role: Accessible.Graphic
-                Accessible.name: root.document.state === ImageDocument.Empty ? qsTr("No image open") : root.document.fileName || qsTr("Image canvas")
-
-                inputEpoch: root.inputEpoch
-                canInspect: root.canInspect
-                onFocusRequested: root.clearImageFocus()
-                onDetailsRequested: root.revealDetails()
-            }
-            ThumbnailGrid {
-                id: grid
-                anchors.fill: parent
-                visible: root.gridMode
-                model: root.document.folder
-                selectionController: viewerController.selection
-                scanning: root.document.scanning
-                generation: root.document.thumbnailGeneration
-                devicePixelRatio: root.devicePixelRatio
-                onSelectionInteraction: root.clearImageFocus()
-                onActivated: {
-                    viewerController.activateSelection();
-                    root.clearImageFocus();
-                }
-            }
-            ViewerButton {
-                id: previousButton
-                objectName: "previousButton"
-                // Browsing needs at least two images; the shared arrow reveal also drives the play/pause button.
-                readonly property bool shown: root.arrowsShown && root.document.count > 1 && !root.gridMode
-                floating: true
-                implicitHeight: 48
-                anchors.left: parent.left
-                anchors.leftMargin: 12
-                anchors.verticalCenter: parent.verticalCenter
-                text: qsTr("‹")
-                Accessible.name: qsTr("Previous image")
-                // Stays visible only while fading, so a faded arrow is neither clickable nor announced.
-                opacity: shown ? 1 : 0
-                visible: shown || opacity > 0
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: 150
-                    }
-                }
-                action: viewerActions.previousImage
-            }
-            ViewerButton {
-                id: playPauseButton
-                objectName: "playPauseButton"
-                readonly property bool shown: root.arrowsShown && !root.gridMode
-                readonly property bool playing: root.document.animation.playing
-                floating: true
-                display: Controls.AbstractButton.IconOnly
-                implicitWidth: 48
-                implicitHeight: 48
-                cornerRadius: 24
-                anchors.centerIn: parent
-                icon.source: playing ? "icons/pause.svg" : "icons/play.svg"
-                // Both sizes come from one value: icon.height reading icon.width is a binding loop on the group.
-                readonly property real glyphSize: Math.min(HnMetrics.iconSize(HnControlSize.Hero), 32)
-                icon.width: glyphSize
-                icon.height: glyphSize
-                // The name is the action the button performs.
-                Accessible.name: playing ? qsTr("Pause") : qsTr("Play")
-                enabled: root.document.animation.canToggle && !root.modalActive
-                opacity: shown ? 1 : 0
-                visible: root.document.animation.animated && (shown || opacity > 0)
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: 150
-                    }
-                }
-                onClicked: root.togglePlayback()
-            }
-            ViewerButton {
-                id: nextButton
-                objectName: "nextButton"
-                // Browsing needs at least two images; the shared arrow reveal also drives the play/pause button.
-                readonly property bool shown: root.arrowsShown && root.document.count > 1 && !root.gridMode
-                floating: true
-                implicitHeight: 48
-                anchors.right: parent.right
-                anchors.rightMargin: 12
-                anchors.verticalCenter: parent.verticalCenter
-                text: qsTr("›")
-                Accessible.name: qsTr("Next image")
-                // Stays visible only while fading, so a faded arrow is neither clickable nor announced.
-                opacity: shown ? 1 : 0
-                visible: shown || opacity > 0
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: 150
-                    }
-                }
-                action: viewerActions.nextImage
-            }
-            ImageDetailsStrip {
-                document: root.document
-                magnification: canvas.magnification
-                shown: root.detailsShown && !root.gridMode
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: root.fullscreen && viewerFooter.visible ? viewerFooter.height + 12 : 12
-            }
-            ViewerEmptyState {
-                anchors.centerIn: parent
-                visible: root.document.state === ImageDocument.Empty || (root.gridMode && grid.showsEmpty)
-                availableWidth: canvasArea.width
-                availableHeight: canvasArea.height
-                devicePixelRatio: root.devicePixelRatio
-            }
-            ViewerLoadingIndicator {
-                anchors.centerIn: parent
-                loading: root.document.state === ImageDocument.Loading && !root.gridMode
-                suppressed: root.gridMode || root.document.state === ImageDocument.Error
-            }
-            HnLabel {
-                objectName: "documentFeedback"
-                textFormat: Text.PlainText
-                anchors.centerIn: parent
-                width: canvasArea.width
-                horizontalAlignment: Text.AlignHCenter
-                wrapMode: Text.Wrap
-                visible: !root.gridMode && root.document.state === ImageDocument.Error
-                rawText: root.document.error
-                Accessible.role: Accessible.StaticText
-                Accessible.name: rawText
-            }
+            document: root.document
+            controller: viewerController
+            actions: viewerActions
+            fullscreen: root.fullscreen
+            modalActive: root.modalActive
+            displayPixelRatio: root.devicePixelRatio
+            overlayController: overlayTiming
+            footerVisible: viewerFooter.visible
+            footerHeight: viewerFooter.height
+            onFocusRequested: root.clearImageFocus()
+            onDetailsRequested: root.revealDetails()
+            onPlaybackRequested: root.togglePlayback()
         }
 
         Rectangle {
