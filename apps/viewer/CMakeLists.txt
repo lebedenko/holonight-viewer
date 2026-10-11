@@ -1,36 +1,7 @@
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(WaylandClient REQUIRED IMPORTED_TARGET wayland-client)
-pkg_check_modules(WaylandProtocols REQUIRED wayland-protocols)
-pkg_check_modules(WaylandScanner REQUIRED wayland-scanner)
-pkg_get_variable(WAYLAND_PROTOCOLS_DATADIR wayland-protocols pkgdatadir)
-pkg_get_variable(WAYLAND_SCANNER_EXECUTABLE wayland-scanner wayland_scanner)
-find_program(WAYLAND_SCANNER_EXECUTABLE wayland-scanner REQUIRED)
-# Generated protocol bindings stay under build/ with the rest of the tree's outputs.
-set(xdg_foreign_xml "${WAYLAND_PROTOCOLS_DATADIR}/unstable/xdg-foreign/xdg-foreign-unstable-v2.xml")
-set(xdg_foreign_dir "${CMAKE_CURRENT_BINARY_DIR}/wayland-protocols")
-set(xdg_foreign_header "${xdg_foreign_dir}/xdg-foreign-unstable-v2-client-protocol.h")
-set(xdg_foreign_code "${xdg_foreign_dir}/xdg-foreign-unstable-v2-protocol.c")
-file(MAKE_DIRECTORY "${xdg_foreign_dir}")
-add_custom_command(OUTPUT "${xdg_foreign_header}"
-  COMMAND "${WAYLAND_SCANNER_EXECUTABLE}" client-header "${xdg_foreign_xml}" "${xdg_foreign_header}"
-  DEPENDS "${xdg_foreign_xml}" VERBATIM)
-add_custom_command(OUTPUT "${xdg_foreign_code}"
-  COMMAND "${WAYLAND_SCANNER_EXECUTABLE}" private-code "${xdg_foreign_xml}" "${xdg_foreign_code}"
-  DEPENDS "${xdg_foreign_xml}" VERBATIM)
-
-add_library(viewer-protocol STATIC "${xdg_foreign_code}" "${xdg_foreign_header}")
-target_link_libraries(viewer-protocol PRIVATE PkgConfig::WaylandClient viewer-sanitizers)
-set_target_properties(viewer-protocol PROPERTIES AUTOMOC OFF)
-
-add_library(viewer-private STATIC
-  image_loader.cpp image_decoder.cpp image_information_formatter.cpp svg_helper.cpp
-  image_orientation.cpp thumbnail_cache.cpp thumbnail_decoder.cpp thumbnail_provider.cpp directory_model.cpp decoded_image_cache.cpp exif_metadata.cpp
-  view_geometry.cpp portal_request_builder.cpp wayland_foreign_export.cpp frame_source.cpp frame_streamer.cpp)
-target_link_libraries(viewer-private PUBLIC Qt6::Quick Qt6::DBus Qt6::Svg HolonightImages::Images HolonightThumbnails::Thumbnails PRIVATE
-  PkgConfig::WaylandClient Qt6::GuiPrivate viewer-protocol)
-target_include_directories(viewer-private PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_include_directories(viewer-private SYSTEM PRIVATE "${xdg_foreign_dir}")
-viewer_warnings(viewer-private)
+add_subdirectory(images)
+add_subdirectory(browsing)
+add_subdirectory(thumbnails)
+add_subdirectory(platform)
 
 function(add_viewer_application target)
   set(app_dir "${PROJECT_SOURCE_DIR}/apps/viewer")
@@ -53,7 +24,8 @@ function(add_viewer_application target)
     set_source_files_properties("${file}" PROPERTIES QT_RESOURCE_ALIAS "icons/${icon}.svg")
     list(APPEND module_icons "${file}")
   endforeach()
-  qt_add_executable(${target} ${ARGN})
+  qt_add_executable(${target} ${ARGN}
+    "${app_dir}/image_information_formatter.cpp" "${app_dir}/view_geometry.cpp")
   qt_add_qml_module(${target}
     URI HolonightViewer VERSION 1.0
     OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/qml/${target}/HolonightViewer"
@@ -77,7 +49,9 @@ function(add_viewer_application target)
     NO_IMPORT_SCAN)
   qt_add_resources(${target} viewer-config PREFIX "/" BASE "${app_dir}"
     FILES "${app_dir}/qtquickcontrols2.conf")
-  target_link_libraries(${target} PRIVATE viewer-private Qt6::QuickControls2 Qt6::Svg
+  target_include_directories(${target} PRIVATE "${app_dir}")
+  target_link_libraries(${target} PRIVATE viewer-images viewer-browsing viewer-thumbnails viewer-platform
+    Qt6::QuickControls2 Qt6::Svg
     HolonightQt::Core HolonightQt::Controls)
   target_compile_definitions(${target} PRIVATE VIEWER_VERSION="${PROJECT_VERSION}")
   viewer_warnings(${target})

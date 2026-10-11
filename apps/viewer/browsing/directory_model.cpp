@@ -1,5 +1,7 @@
 #include "directory_model.h"
 
+#include "local_url.h"
+
 #include <QDir>
 #include <QFileInfo>
 #include <QSet>
@@ -7,10 +9,6 @@
 #include <algorithm>
 #include <filesystem>
 #include <holonight_images/image.h>
-
-QUrl normalizedLocalUrl(const QUrl& url) {
-  return QUrl::fromLocalFile(QDir::cleanPath(QFileInfo(url.toLocalFile()).absoluteFilePath()));
-}
 
 namespace {
 bool asciiDigit(QChar character) { return character >= u'0' && character <= u'9'; }

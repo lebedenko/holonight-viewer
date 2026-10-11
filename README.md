@@ -23,6 +23,11 @@ opened read-only and never changed.
 
 See [Unreleased notes](docs/releases/unreleased.md) for the current source contract.
 
+Viewer implementation is split into non-installed `viewer-images`, `viewer-browsing`,
+`viewer-thumbnails` and `viewer-platform` targets under `apps/viewer`. QML controllers,
+presentation formatting, canvas and geometry remain executable-owned. Each private
+target exports its own headers and keeps implementation dependencies private.
+
 ## Requirements
 
 - **Build:** C++23, Qt 6.11+ (including Qt DBus and the Qt GUI private module),

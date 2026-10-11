@@ -20,9 +20,9 @@ class ImageLoader : public QObject {
   using Decoder = std::function<DecodeResult(const QUrl&, const std::atomic_bool&)>;
   enum class Kind : std::uint8_t { Foreground, Tentative, Prefetch };
   struct Request {
-    quint64 request_id;
+    quint64 request_id = 0;
     QUrl url;
-    quint64 cache_epoch;
+    quint64 cache_epoch = 0;
     Kind kind = Kind::Foreground;
   };
   explicit ImageLoader(Decoder decoder, qint64 retainedBytes, QObject* parent = nullptr);

@@ -16,8 +16,7 @@
 #include <QUrl>
 #include <QtQml/qqmlregistration.h>
 
-#include <atomic>
-#include <functional>
+#include <cstdint>
 #include <memory>
 #include <optional>
 

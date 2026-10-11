@@ -8,7 +8,7 @@ import sys
 
 root = Path(__file__).resolve().parent.parent
 viewer = root / 'apps/viewer'
-header = viewer / 'thumbnail_size.h'
+header = viewer / 'thumbnails/thumbnail_size.h'
 definition = re.compile(r'\bkThumbnailBoxLogical\s*=\s*256\s*;')
 literal = re.compile(r'(?<![\w.])256(?![\w.])')
 suffixes = {'.h', '.cpp', '.qml'}

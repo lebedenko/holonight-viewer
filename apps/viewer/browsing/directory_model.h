@@ -15,7 +15,6 @@ struct DirectoryResult {
   // The explicit URL when it had to be added to the listing because it is not an existing regular file.
   QUrl missing = {};
 };
-QUrl normalizedLocalUrl(const QUrl& url);
 bool naturalFileNameLess(const QString& left, const QString& right);
 DirectoryResult scanDirectory(const QUrl& selected, const std::atomic_bool& cancelled);
 

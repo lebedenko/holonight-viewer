@@ -1,6 +1,7 @@
 #include "image_document.h"
 
 #include "image_information_formatter.h"
+#include "local_url.h"
 
 #include <QDir>
 #include <QFile>

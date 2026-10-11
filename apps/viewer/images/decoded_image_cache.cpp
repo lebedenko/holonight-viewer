@@ -1,6 +1,6 @@
 #include "decoded_image_cache.h"
 
-#include "directory_model.h"
+#include "local_url.h"
 
 #include <QFileInfo>
 

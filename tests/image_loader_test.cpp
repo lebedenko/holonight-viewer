@@ -45,12 +45,13 @@ TEST(ImageLoader, ReplacesPendingWorkAndDeliversOnGuiThreadAfterClearingBusy) {
   const auto cleanup = qScopeGuard([&] { release.release(); });
   QList<quint64> tokens;
   QList<HolonightImages::Outcome> outcomes;
-  QObject::connect(&loader, &ImageLoader::completed, &loader, [&](ImageLoader::Request value, DecodeResult result) {
-    EXPECT_EQ(QThread::currentThread(), loader.thread());
-    EXPECT_FALSE(loader.busy());
-    tokens.append(value.request_id);
-    outcomes.append(*result.outcome);
-  });
+  QObject::connect(&loader, &ImageLoader::completed, &loader,
+                   [&](const ImageLoader::Request& value, const DecodeResult& result) {
+                     EXPECT_EQ(QThread::currentThread(), loader.thread());
+                     EXPECT_FALSE(loader.busy());
+                     tokens.append(value.request_id);
+                     outcomes.append(*result.outcome);
+                   });
   loader.submit(request(1));
   ASSERT_TRUE(QTest::qWaitFor([&] { return started.load(); }));
   loader.submit(request(2, ImageLoader::Kind::Prefetch));
@@ -80,14 +81,15 @@ TEST(ImageLoader, PendingDecodeStartsOnlyAfterCompletionHandlerReturns) {
       64);
   const auto cleanup = qScopeGuard([&] { release.release(); });
   QList<quint64> tokens;
-  QObject::connect(&loader, &ImageLoader::completed, &loader, [&](ImageLoader::Request value, DecodeResult) {
-    tokens.append(value.request_id);
-    if (value.request_id == 1) {
-      loader.submit(request(3));
-      EXPECT_FALSE(loader.busy());
-      EXPECT_EQ(calls.load(), 1);
-    }
-  });
+  QObject::connect(&loader, &ImageLoader::completed, &loader,
+                   [&](const ImageLoader::Request& value, const DecodeResult&) {
+                     tokens.append(value.request_id);
+                     if (value.request_id == 1) {
+                       loader.submit(request(3));
+                       EXPECT_FALSE(loader.busy());
+                       EXPECT_EQ(calls.load(), 1);
+                     }
+                   });
   loader.submit(request(1));
   ASSERT_TRUE(QTest::qWaitFor([&] { return started.load(); }));
   loader.submit(request(2));
@@ -114,7 +116,7 @@ TEST(ImageLoader, ShutdownDrainsBlockedDecoderAndDropsPendingWork) {
   const auto cleanup = qScopeGuard([&] { release.release(); });
   int completions = 0;
   QObject::connect(&loader, &ImageLoader::completed, &loader,
-                   [&](ImageLoader::Request, DecodeResult) { ++completions; });
+                   [&](const ImageLoader::Request&, const DecodeResult&) { ++completions; });
   QSignalSpy finished(&loader, &ImageLoader::shutdownFinished);
   loader.submit(request(1));
   ASSERT_TRUE(QTest::qWaitFor([&] { return started.load(); }));
@@ -154,15 +156,16 @@ TEST(ImageLoader, AcceptedTentativeResultIsAdoptedBeforeTheNextRequest) {
       },
       64);
   int completions = 0;
-  QObject::connect(&loader, &ImageLoader::completed, &loader, [&](ImageLoader::Request value, DecodeResult result) {
-    ++completions;
-    if (value.kind == ImageLoader::Kind::Tentative) {
-      loader.retainTentative(value, result, 2);
-      loader.submit({.request_id = 2, .url = other, .cache_epoch = 2});
-    } else if (value.request_id == 2) {
-      loader.submit({.request_id = 3, .url = pasted, .cache_epoch = 2});
-    }
-  });
+  QObject::connect(&loader, &ImageLoader::completed, &loader,
+                   [&](const ImageLoader::Request& value, const DecodeResult& result) {
+                     ++completions;
+                     if (value.kind == ImageLoader::Kind::Tentative) {
+                       loader.retainTentative(value, result, 2);
+                       loader.submit({.request_id = 2, .url = other, .cache_epoch = 2});
+                     } else if (value.request_id == 2) {
+                       loader.submit({.request_id = 3, .url = pasted, .cache_epoch = 2});
+                     }
+                   });
   loader.submit({.request_id = 1, .url = pasted, .cache_epoch = 1, .kind = ImageLoader::Kind::Tentative});
   ASSERT_TRUE(QTest::qWaitFor([&] { return completions == 3; }));
   EXPECT_EQ(calls.load(), 2);
