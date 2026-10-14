@@ -74,10 +74,11 @@ bool ViewerController::canInspect() const {
 bool ViewerController::canShowInformation() const { return hasPath() && !grid_mode_; }
 bool ViewerController::canPrevious() const {
   return document_ && !modal_active_ &&
-         (grid_mode_ ? selection_ && selection_->canPrevious() : document_->canPrevious());
+         (grid_mode_ ? selection_ != nullptr && selection_->canPrevious() : document_->canPrevious());
 }
 bool ViewerController::canNext() const {
-  return document_ && !modal_active_ && (grid_mode_ ? selection_ && selection_->canNext() : document_->canNext());
+  return document_ && !modal_active_ &&
+         (grid_mode_ ? selection_ != nullptr && selection_->canNext() : document_->canNext());
 }
 void ViewerController::open(const QList<QUrl>& urls) {
   if (!document_) {
@@ -115,7 +116,7 @@ void ViewerController::refresh() {
   }
 }
 void ViewerController::enterGrid() {
-  if (!selection_ || !canEnterGrid() || grid_mode_) {
+  if (selection_ == nullptr || !canEnterGrid() || grid_mode_) {
     return;
   }
   grid_mode_ = true;
@@ -139,13 +140,13 @@ void ViewerController::toggleGrid() {
   }
 }
 void ViewerController::moveSelection(int move) {
-  if (document_ && selection_ && grid_mode_ && !modal_active_) {
+  if (document_ && selection_ != nullptr && grid_mode_ && !modal_active_) {
     document_->cancelPastedPath();
     selection_->move(move);
   }
 }
 void ViewerController::activateSelection() {
-  if (!document_ || !selection_ || !grid_mode_ || modal_active_ || !selection_->canActivate()) {
+  if (!document_ || selection_ == nullptr || !grid_mode_ || modal_active_ || !selection_->canActivate()) {
     return;
   }
   document_->openFromFolder(selection_->selectedUrl());

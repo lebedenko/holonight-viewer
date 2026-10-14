@@ -83,7 +83,7 @@ QList<InformationSection> formatInformationSections(const ImageInformation& info
     auto present = section.lines;
     present.removeAll(QString{});
     if (!present.isEmpty()) {
-      result.append({QString::fromLatin1(section.key), section.label, present});
+      result.append({.key = QString::fromLatin1(section.key), .label = section.label, .lines = present});
     }
   }
   return result;

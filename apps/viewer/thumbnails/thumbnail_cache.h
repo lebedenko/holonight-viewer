@@ -29,6 +29,7 @@ size_t qHash(const ThumbnailKey& key, size_t seed = 0);
 class ThumbnailCache {
  public:
   explicit ThumbnailCache(qsizetype maxEntries = kThumbnailCacheEntries, qint64 maxBytes = kThumbnailCacheBytes);
+  ~ThumbnailCache() = default;
   ThumbnailCache(const ThumbnailCache&) = delete;
   ThumbnailCache& operator=(const ThumbnailCache&) = delete;
   ThumbnailCache(ThumbnailCache&&) = delete;

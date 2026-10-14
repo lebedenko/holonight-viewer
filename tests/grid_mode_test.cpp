@@ -393,7 +393,7 @@ TEST(GridMode, DroppingAFileLeavesTheGrid) {
   QMimeData mime;
   mime.setUrls({photo(9)});
   const QPoint point(fixture.window->width() / 2, fixture.window->height() / 2);
-  QDragEnterEvent enter(QPointF(point), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+  QDragEnterEvent enter(point, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
   QCoreApplication::sendEvent(fixture.window, &enter);
   QDropEvent drop(point, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
   QCoreApplication::sendEvent(fixture.window, &drop);

@@ -7,7 +7,7 @@
 #include <algorithm>
 GridSelectionController::GridSelectionController(ImageDocument* document, QObject* parent)
     : QObject(parent), document_(document) {
-  if (document) {
+  if (document != nullptr) {
     connect(document, &ImageDocument::changed, this, &GridSelectionController::reconcile);
     connect(document, &QObject::destroyed, this, &GridSelectionController::reconcile);
   }
