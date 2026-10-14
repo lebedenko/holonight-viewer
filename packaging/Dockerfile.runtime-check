@@ -1,7 +1,6 @@
-# Reuse the exact Qt runtime used to build providers (their private Qt ABI matters).
-ARG VIEWER_CI_IMAGE=viewer-ci
+# Use the qualified full Arch environment for the exact private Qt ABI.
+ARG VIEWER_CI_IMAGE=ghcr.io/lebedenko/holonight-deps@sha256:37ca051c39d1688d6413c47d94b8c0f221152dac6981ec67d155f2c43ea17b40
 FROM ${VIEWER_CI_IMAGE}
-# viewer-ci supplies required libwebp, libexif and Qt format plugins for installed payloads.
 COPY payload/usr/ /usr/
 COPY check/ /opt/check/
 RUN ldconfig

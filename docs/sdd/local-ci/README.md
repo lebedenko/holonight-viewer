@@ -1,5 +1,8 @@
 # Local CI Rehearsal
 
+Current dependency preparation/offline contracts supersede the historical image/provider notes below:
+see [external dependency adoption](../external-dependency-management/SPEC.md) and the root README.
+
 Baseline: 2f388a4a5f46c318644f4225ab4f5cff054c3cda.
 
 `task ci` and GitHub invoke the same repository launcher and standard, sanitizer

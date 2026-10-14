@@ -1,7 +1,6 @@
 ExtraArgsBefore:
   - -Wno-error=unknown-argument
 
-# clang-format owns comma style; clang-tidy 23 misidentifies separators after braced arguments.
 Checks: >
   clang-diagnostic-*,
   clang-analyzer-*,
@@ -12,7 +11,6 @@ Checks: >
   -modernize-use-trailing-return-type,
   -readability-magic-numbers,
   -readability-redundant-access-specifiers,
-  -readability-trailing-comma,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-owning-memory,
   -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access
@@ -22,6 +20,9 @@ WarningsAsErrors: '*'
 HeaderFilterRegex: '(apps|libs|include|src|qml|wayland|tests)/.*\.(h|hpp)$'
 
 CheckOptions:
+  # Clang 23 mistakes empty argument braces for single-line initializers.
+  - key: readability-trailing-comma.SingleLineCommaPolicy
+    value: Ignore
   - key: readability-identifier-naming.ClassCase
     value: CamelCase
   - key: readability-identifier-naming.MemberCase

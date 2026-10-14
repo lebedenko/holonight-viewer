@@ -3,9 +3,10 @@
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 context=$(mktemp -d "$root/build/runtime-check.XXXXXX")
-for provider in holonight-config holonight-qt holonight-images holonight-thumbnails; do
-  DESTDIR="$context/payload" cmake --install "$root/build/deps/$provider" --prefix /usr
-done
+# The launcher validates the preparation manifest before mounting this installed prefix.
+# Provider sources and build trees are deliberately unavailable to acceptance.
+mkdir -p "$context/payload/usr"
+cp -a "$root/build/deps/prefix/." "$context/payload/usr/"
 DESTDIR="$context/payload" cmake --install "$root/build/release" --prefix /usr
 DESTDIR="$context/payload" cmake --install "$root/build/test" --prefix /usr --component qualification
 mkdir -p "$context/check/scripts" "$context/check/build"

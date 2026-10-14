@@ -12,6 +12,7 @@ jobs:
         check: [standard, sanitizer]
     steps:
       - uses: actions/checkout@v4
+      - run: python3 scripts/ci/run.py --prepare
       - run: python3 scripts/ci/run.py --lane ${{ matrix.check }}
       - name: Toolchain and test evidence
         if: always()

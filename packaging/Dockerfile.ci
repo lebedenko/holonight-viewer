@@ -1,11 +1,4 @@
-FROM archlinux@sha256:eb8f6dcc89a38977c9735f10fcf6ae4afe496283e7008eb7a3420cdba31fbd04
-# Refresh the digest and completed archive date together, then run CI qualification.
-ARG ARCH_SNAPSHOT=2026/09/30
-RUN printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "$ARCH_SNAPSHOT" > /etc/pacman.d/mirrorlist \
-    && pacman -Syyuu --noconfirm && pacman -S --needed --noconfirm \
-    base-devel cmake ninja go-task qt6-base qt6-declarative qt6-svg \
-    libwebp libexif pkgconf wayland wayland-protocols qt6-imageformats qt6-tools qt6-wayland tomlplusplus gtest clang python reuse \
-    appstream desktop-file-utils glib2 dbus xorg-server-xvfb mesa binutils ripgrep git ttf-dejavu && pacman -Scc --noconfirm
-RUN ln -s /usr/bin/go-task /usr/local/bin/task
+# Qualified environment; acquisition is an explicit preparation step.
+FROM ghcr.io/lebedenko/holonight-deps@sha256:37ca051c39d1688d6413c47d94b8c0f221152dac6981ec67d155f2c43ea17b40
 ENV QT_QPA_PLATFORM=offscreen QSG_RHI_BACKEND=software
 WORKDIR /work/viewer

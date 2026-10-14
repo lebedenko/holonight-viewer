@@ -4,7 +4,8 @@ lane=$1
 mkdir /work/viewer
 cp -a /input/. /work/viewer/
 cd /work/viewer
-export HOME=/work/build/home LC_ALL=C.UTF-8 TZ=UTC JOBS=2
+export HOME=/work/build/home LC_ALL=C.UTF-8 TZ=UTC
+export JOBS=${JOBS:-2} CMAKE_BUILD_PARALLEL_LEVEL=${JOBS:-2}
 mkdir -p "$HOME"
 if [ "$lane" = licensing ]; then
   reuse --version
@@ -21,7 +22,7 @@ command -v xvfb-run
 python3 scripts/ci/test_launcher.py
 python3 scripts/ci/test_tooling_tidy.py
 bash scripts/record-toolchain.sh
-cp scripts/ci/packages.json build/ci-provenance/supplements.json
+pacman -Q > build/ci-provenance/packages.txt
 capture() {
   status=$?
   cp -a build/ci-provenance /output/
@@ -32,22 +33,27 @@ capture() {
       find "build/$preset/tests" -maxdepth 1 -name 'viewer-menu-separators-*.png' -exec cp '{}' "/output/$preset/" \;
     fi
   done
+  if [ -d .cache/tooling ]; then cp -a .cache/tooling /output/tooling; fi
   exit "$status"
 }
 trap capture 0
-fetch_provider() {
-  name=$1
-  revision=$2
-  git init -q "/work/$name"
-  git -C "/work/$name" fetch --depth 1 "https://github.com/lebedenko/$name.git" "$revision"
-  git -C "/work/$name" checkout --detach FETCH_HEAD
-  [ "$(git -C "/work/$name" rev-parse HEAD)" = "$revision" ]
-}
-fetch_provider holonight-config d6a392b41991f70a004d58f7694c7b6115cb7280
-fetch_provider holonight-qt 680d709de4d1d8e8697d6a69a99f15ef891ef7b2
-fetch_provider holonight-images d834984dc413dc9e56f7f3157fa605d6a8667088
-fetch_provider holonight-thumbnails 2284b1822b0f8f856677e14d21d91e8fa10bd98c
-task deps
+if [ "$lane" = prepare ]; then
+  export HOLONIGHT_CONFIG_SOURCE=/prepared/sources/holonight-config
+  export HOLONIGHT_QT_SOURCE=/prepared/sources/holonight-qt
+  export HOLONIGHT_IMAGES_SOURCE=/prepared/sources/holonight-images
+  export HOLONIGHT_THUMBNAILS_SOURCE=/prepared/sources/holonight-thumbnails
+  if [ -d /prepared/deps ]; then cp -a /prepared/deps build/deps; fi
+  task deps PRESET=test
+  mkdir -p /prepared/deps
+  cp -a build/deps/. /prepared/deps/
+  cp -a build/ci-provenance /prepared/environment
+  exit
+fi
+cp -a /prepared/deps build/deps
+cp /prepared/provider-revisions.json build/ci-provenance/
+cp build/deps/provider-revisions.tsv build/ci-provenance/
+python3 scripts/ci/test_dependencies.py
+export HOLONIGHT_TIDY_DATABASE="$PWD/build/test/compile_commands.json"
 export LD_LIBRARY_PATH="$PWD/build/deps/prefix/lib"
 if [ "$lane" = sanitizer ]; then
   task sanitizer-check
@@ -57,7 +63,4 @@ else
   context=$(cat build/runtime-check-context)
   cp scripts/ci/Dockerfile.runtime "$context/Dockerfile"
   cp -a "$context" /output/runtime-context
-  cp -a /work/packages /output/runtime-context/packages
-  cp scripts/ci/packages.json /output/runtime-context/packages.json
-  cp scripts/ci/install-runtime-tools.py /output/runtime-context/install-runtime-tools.py
 fi

@@ -447,25 +447,36 @@ task screenshot -- --delay 5 --margin 16
 
 ### CI and Docker reproduction
 
-Run `task ci` with Python 3 and Docker (Podman fallback). Local and hosted jobs use
-`scripts/ci/run.py`, the immutable build image and checksum-pinned supplements in
-`scripts/ci/`. Network access fetches exact provider commits and required images.
-The launcher runs standard, sanitizer and REUSE 6.2.0 lanes on Linux amd64 (native
-or runtime emulation), starting with fresh application/provider build trees.
+Run `task ci:prepare` explicitly before `task ci` (Python 3 and Docker, with Podman fallback).
+Preparation pulls both pinned images and clones the exact Config, Qt, Images and Thumbnails revisions
+recorded in `scripts/ci/run.py`. For local canonical checkouts, use
+`JOBS=8 python3 scripts/ci/run.py --prepare --provider-source-root ..`.
+Qt preparation retains `BUILD_WAYLAND=ON`. No host packages are installed.
 
-Tracked edits, deletions and non-ignored new files enter isolated snapshots that
-retain real Git HEAD and preserve executable modes/symlinks. Add reported new inputs
-before pushing. Host source is read-only; normal development builds are unchanged.
-Complete logs, versions, source state, lane results, pixel captures and installed
-runtime image identity remain in ignored `build/ci/`, including on failures.
+The build and installed-runtime environments use the qualified full Arch image
+`ghcr.io/lebedenko/holonight-deps@sha256:37ca051c39d1688d6413c47d94b8c0f221152dac6981ec67d155f2c43ea17b40`.
+The standard, sanitizer and licensing lanes run offline with implicit pulls disabled.
+Hosted Licensing explicitly acquires the pinned REUSE image before running offline.
+Historical supplement audit data remains in `scripts/ci/packages.json`; no extraction/bootstrap path is active.
 
-Standard verification preserves `task deps`/`task check`, stages providers and
-Viewer under `/usr`, then runs a second installed-runtime container without a
-workspace mount, networking or development runtime overrides. The launcher keeps
-the Docker daemon on the host. Publication and artifact uploads remain remote.
+Preparation records image identities, exact provider sources, options, installed artifacts and content hashes
+under `build/ci-prepared`. Acceptance rejects missing, stale or tampered preparation and sees only the
+verified installed prefix, never provider source/build trees. Incompatible preparations are archived.
+`task deps` is the developer provider-preparation command. Configure/build/test only validate installed
+prerequisites. Internal discovery uses `HOLONIGHT_DEPENDENCY_PREFIX` (default `build/deps/prefix`);
+`HOLONIGHT_EXTERNAL_PREFIX` adds external packages alongside normal system locations. Paths with spaces work.
+Installed GTest >=1.14 CONFIG is required for tests; private Qt must match public Qt exactly.
+Images owns codec dependencies; Viewer additionally declares WebP encoding for acceptance fixtures.
 
-The existing `packaging/Dockerfile.ci` and `task runtime-context` remain available
-for development experiments with local provider checkouts. CI parity uses `task ci`.
+Tracked edits, deletions and non-ignored new files enter isolated snapshots preserving real Git HEAD,
+executable modes and symlinks. Add reported inputs before publication. Complete logs, source hashes,
+package/toolchain versions, lane results, pixel captures and runtime image identity remain in `build/ci/`.
+Review complete logs and preserve their hashes in the local dependency SDD evidence before handoff.
+
+Standard verification preserves `task check`, stages installed providers and Viewer under `/usr`,
+then builds/runs a second installed-runtime container offline without workspace mounts or development
+search paths. The runtime probe is staged only as a qualification component. ASan/UBSan and REUSE remain
+separate lanes. Fresh native desktop review belongs to umbrella EDM-022. Publication and pinning are separate.
 
 ### Native clipboard qualification
 
