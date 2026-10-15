@@ -3,15 +3,13 @@
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 context=$(mktemp -d "$root/build/runtime-check.XXXXXX")
-# The launcher validates the preparation manifest before mounting this installed prefix.
-# Provider sources and build trees are deliberately unavailable to acceptance.
+# The fresh runtime container receives only installed payloads and check scripts.
 mkdir -p "$context/payload/usr"
 cp -a "$root/build/deps/prefix/." "$context/payload/usr/"
 DESTDIR="$context/payload" cmake --install "$root/build/release" --prefix /usr
-DESTDIR="$context/payload" cmake --install "$root/build/test" --prefix /usr --component qualification
+DESTDIR="$context/payload" cmake --install "$root/build/dev" --prefix /usr --component qualification
 mkdir -p "$context/check/scripts" "$context/check/build"
 cp "$root/scripts/check-opening.py" "$root/scripts/format-fixtures.py" \
   "$root/scripts/check-metadata.py" "$root/scripts/check-installed-desktop.py" "$root/scripts/isolated-runtime.sh" "$context/check/scripts/"
-cp "$root/packaging/Dockerfile.runtime-check" "$context/Dockerfile"
-printf '%s\n' "$context" > "$root/build/runtime-check-context"
+printf '%s\n' "${context#"$root/"}" > "$root/build/runtime-check-context"
 printf 'Runtime context: %s\n' "$context"

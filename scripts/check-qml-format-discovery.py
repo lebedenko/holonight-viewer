@@ -14,13 +14,13 @@ with tempfile.TemporaryDirectory(prefix='qml configured Qt spaces ') as temporar
     fixtures = Path(temporary)
     (fixtures / 'scripts').mkdir()
     shutil.copy(root / 'scripts/qml-format.sh', fixtures / 'scripts/qml-format.sh')
-    shutil.copytree(root / 'tooling', fixtures / 'tooling', ignore=shutil.ignore_patterns('__pycache__'))
+    shutil.copy(root / 'scripts/qt-tool.py', fixtures / 'scripts/qt-tool.py')
     wrapper = fixtures / 'scripts/qml-format.sh'
     path = fixtures / 'path'
     path.mkdir()
     (path / 'python3').symlink_to(sys.executable)
     qt = fixtures / 'Qt tools'
-    cache = fixtures / 'build/test/CMakeCache.txt'
+    cache = fixtures / 'build/dev/CMakeCache.txt'
     cache.parent.mkdir(parents=True)
     env = dict(os.environ, PATH=str(path))
     env.pop('QMLFORMAT', None)

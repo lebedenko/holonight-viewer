@@ -1,8 +1,0 @@
-# Use the qualified full Arch environment for the exact private Qt ABI.
-ARG VIEWER_CI_IMAGE=ghcr.io/lebedenko/holonight-deps@sha256:37ca051c39d1688d6413c47d94b8c0f221152dac6981ec67d155f2c43ea17b40
-FROM ${VIEWER_CI_IMAGE}
-COPY payload/usr/ /usr/
-COPY check/ /opt/check/
-RUN ldconfig
-WORKDIR /opt/check
-CMD ["bash", "scripts/isolated-runtime.sh"]

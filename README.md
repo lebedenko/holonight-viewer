@@ -1,5 +1,7 @@
 # HoloNight Viewer
 
+For current build, test, container acceptance and provider workflows, see [DEVELOPMENT.md](DEVELOPMENT.md).
+
 A standalone, keyboard-first image viewer for native Wayland, built on the
 HoloNight theme and controls ([holonight-config](https://github.com/lebedenko/holonight-config),
 [holonight-qt](https://github.com/lebedenko/holonight-qt)), with
@@ -43,22 +45,18 @@ target exports its own headers and keeps implementation dependencies private.
   module for vector SVG rendering (not a `QImageReader` plugin). See
   [Supported formats](#supported-formats-and-limits).
 
-On Arch, the [CI Dockerfile](packaging/Dockerfile.ci) lists all packages.
+Use the shared image described in [DEVELOPMENT.md](DEVELOPMENT.md) for the exact acceptance environment.
 
 ## Quick start
 
-```sh
-task deps                 # build sibling providers locally, without source changes
-task build
-task run                  # Ctrl+O opens an image; F toggles fullscreen, Q quits
-task test
-task check                # sequential builds, tests, formatting, lint, licenses, staged install
-task --list               # individual checks and build commands
-```
+Install the dependencies described in [DEVELOPMENT.md](DEVELOPMENT.md), then run:
 
-`task deps` expects the providers in `../holonight-config`, `../holonight-qt`,
-`../holonight-images` and `../holonight-thumbnails`; see
-[Providers and presets](#providers-and-presets) to change that.
+```sh
+task build
+task test
+task run -- /path/to/image.png
+task check
+```
 
 ## Usage
 
@@ -78,12 +76,7 @@ opens when present; a missing `frame:1.png` is rejected as a URL, while
 `./frame:1.png` reports the normal missing-file error. `--help` and `--version` are
 supported.
 
-```sh
-task run -- '/path/to/photo.jpg'
-# Direct launch against the local providers from task deps:
-QML_IMPORT_PATH=build/deps/prefix/lib/qt6/qml LD_LIBRARY_PATH=build/deps/prefix/lib \
-  build/debug/apps/viewer/hn-viewer -- './photo with spaces.png'
-```
+See [DEVELOPMENT.md](DEVELOPMENT.md) for current native and container commands.
 
 Missing, corrupt and unreadable images produce a recoverable error in the window,
 reported once per attempt (each retry or refresh reports again); Open remains
@@ -379,57 +372,9 @@ entry shadows the system entry.
 
 See the [contributor workflow](CONTRIBUTING.md) for conventions.
 
-### Providers and presets
-
-`task deps` builds providers from `../holonight-config`, `../holonight-qt`,
-`../holonight-images` and `../holonight-thumbnails`;
-override them with `HOLONIGHT_CONFIG_SOURCE`, `HOLONIGHT_QT_SOURCE`, `HOLONIGHT_IMAGES_SOURCE`
-and `HOLONIGHT_THUMBNAILS_SOURCE`, and set `JOBS`
-to control parallelism. Builds and the staging prefix live under `build/deps`.
-
-To use an existing installation, override `HOLONIGHT_DEPENDENCY_PREFIX` and
-`HOLONIGHT_QML_IMPORT_PATH` as Task variables. Direct CMake users can set the same
-cache variables with `cmake --preset debug -D...`, and `CMAKE_PREFIX_PATH` can
-supply additional packages. The debug, release and test presets default to the local
-prefix.
-
-`task run` builds the configured preset and launches it with the checkout's provider
-overrides and CLI arguments; use `PRESET=release` for Release. `task run` and
-`task test` set the installed QML and library search paths. Neither creates desktop
-entries or icons in user directories.
-
-### Checks
-
-`task check` (alias `task verify`) runs, in sequence: debug and release builds, tests,
-format checking, C++/QML lint, license checking, staged installation verification
-and QML import/metadata checks. Each step is also available on its own: `test`,
-`format-check`, `tidy`, `qml-lint`, `lint`, `license-check`, `install-check` and
-`qml-import-check`, `qmltypes-check`. `task format` applies C++ and QML formatting.
-
-`task sanitizer-check` separately builds Viewer with ASan/UBSan and runs the full
-CTest suite with leak detection enabled. It supports GCC/Clang; providers and Qt
-remain uninstrumented. See CONTRIBUTING.md for CI toolchain pinning and updates.
-
-Run `viewer-smoke` through ctest: it starts the tests on a private D-Bus session with
-a mock portal. Run directly on a desktop session, it exits with an explanation
-instead of reaching the real portal.
-
-CMake and Task `format`/`format-check` share one recursive inventory of application
-and test C++ sources, headers and nested QML. QML formatting uses
-`QMLFORMAT` when set (an executable path or command name, without arguments), then
-`qtpaths6` directories in order (`QT_INSTALL_BINS`, `QT_HOST_BINS`,
-`QT_INSTALL_LIBEXECS`, `QT_HOST_LIBEXECS`), `/usr/lib/qt6/bin/qmlformat`,
-then `qmlformat-qt6` and `qmlformat` on `PATH`. An invalid explicit override fails
-instead of falling back. Fixture scripts accept an external build directory;
-standalone invocations use the system temporary directory.
-
-```sh
-QMLFORMAT="/opt/Qt 6/bin/qmlformat" task format-check
-```
-
-`task clean` removes only `build/debug`, `build/release`, `build/test`, `build/sanitizer` and
-`build/system-install`; local provider installs and verification artifacts stay
-under `build/`.
+See [DEVELOPMENT.md](DEVELOPMENT.md). Native builds consume installed dependencies;
+container checks automatically build exact pinned providers. The integration check retains
+ASan/UBSan, Release staging, installed runtime and desktop-opening regressions.
 
 ### Screenshots and visual checks
 
@@ -445,47 +390,14 @@ task screenshot -- --delay 5 --margin 16
 `task visual-check` captures dark/light renders at normal and fractional scale under
 `build/visual` for manual inspection.
 
-### CI and Docker reproduction
-
-Run `task ci:prepare` explicitly before `task ci` (Python 3 and Docker, with Podman fallback).
-Preparation pulls both pinned images and clones the exact Config, Qt, Images and Thumbnails revisions
-recorded in `scripts/ci/run.py`. For local canonical checkouts, use
-`JOBS=8 python3 scripts/ci/run.py --prepare --provider-source-root ..`.
-Qt preparation retains `BUILD_WAYLAND=ON`. No host packages are installed.
-
-The build and installed-runtime environments use the qualified full Arch image
-`ghcr.io/lebedenko/holonight-deps@sha256:37ca051c39d1688d6413c47d94b8c0f221152dac6981ec67d155f2c43ea17b40`.
-The standard, sanitizer and licensing lanes run offline with implicit pulls disabled.
-Hosted Licensing explicitly acquires the pinned REUSE image before running offline.
-Historical supplement audit data remains in `scripts/ci/packages.json`; no extraction/bootstrap path is active.
-
-Preparation records image identities, exact provider sources, options, installed artifacts and content hashes
-under `build/ci-prepared`. Acceptance rejects missing, stale or tampered preparation and sees only the
-verified installed prefix, never provider source/build trees. Incompatible preparations are archived.
-`task deps` is the developer provider-preparation command. Configure/build/test only validate installed
-prerequisites. Internal discovery uses `HOLONIGHT_DEPENDENCY_PREFIX` (default `build/deps/prefix`);
-`HOLONIGHT_EXTERNAL_PREFIX` adds external packages alongside normal system locations. Paths with spaces work.
-Installed GTest >=1.14 CONFIG is required for tests; private Qt must match public Qt exactly.
-Images owns codec dependencies; Viewer additionally declares WebP encoding for acceptance fixtures.
-
-Tracked edits, deletions and non-ignored new files enter isolated snapshots preserving real Git HEAD,
-executable modes and symlinks. Add reported inputs before publication. Complete logs, source hashes,
-package/toolchain versions, lane results, pixel captures and runtime image identity remain in `build/ci/`.
-Review complete logs and preserve their hashes in the local dependency SDD evidence before handoff.
-
-Standard verification preserves `task check`, stages installed providers and Viewer under `/usr`,
-then builds/runs a second installed-runtime container offline without workspace mounts or development
-search paths. The runtime probe is staged only as a qualification component. ASan/UBSan and REUSE remain
-separate lanes. Fresh native desktop review belongs to umbrella EDM-022. Publication and pinning are separate.
-
 ### Native clipboard qualification
 
 For real native clipboard checks, start the probe on the same native platform as the
 receiver under test:
 
 ```sh
-build/test/tests/clipboard-probe --interactive image build/received.png
-build/test/tests/clipboard-probe --interactive text build/received.txt
+build/dev/tests/clipboard-probe --interactive image build/received.png
+build/dev/tests/clipboard-probe --interactive text build/received.txt
 ```
 
 Copy through Viewer's keyboard or menu, focus the probe, then click or press
@@ -642,7 +554,7 @@ GPL-3.0-or-later; see [LICENSE](LICENSE).
 
 ## Shared raster processing
 
-Build and install `holonight-images` before configuring, or use `task deps` with a sibling checkout
+Build and install `holonight-images` before configuring, using `CMAKE_PREFIX_PATH` for its prefix
 (`HOLONIGHT_IMAGES_SOURCE` overrides its location). `find_package(HolonightImages CONFIG REQUIRED)`
 provides `HolonightImages::Images`; custom builds pass its prefix through `CMAKE_PREFIX_PATH`.
 The provider owns raster decoding and structured EXIF extraction; presentation and scheduling remain here.
@@ -673,16 +585,3 @@ provenance is retained. Intentional provenance differences require one exact
 No timing gate or statistical significance is inferred. Old datasets without the
 versioned contract must be recollected. See the
 [maintenance SDD](docs/sdd/shared-image-maintenance/SPEC.md).
-
-## Standalone developer tooling
-
-See [tooling/README.md](tooling/README.md) for presets, dependencies, editor refresh and Serena.
-
-Paste Image Path (Ctrl+V) opens clipboard text containing one absolute `/…` or
-home-relative `~/…` path. Escape spaces as `\ ` and backslashes as `\\`.
-Do not quote the path or add whitespace, newlines, URLs, or other text. Other
-characters, including `%` and `#`, are literal. A missing, unreadable, or invalid
-image leaves the current image and grid unchanged. Validation runs asynchronously
-with the usual image resource limits. Clipboard images and file-manager URL lists
-are not accepted. Copy Path still copies the raw absolute path; escape any spaces
-or backslashes before pasting it.

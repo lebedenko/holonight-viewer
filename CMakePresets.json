@@ -1,27 +1,16 @@
 {
-  "version": 6,
-  "cmakeMinimumRequired": {
-    "major": 3,
-    "minor": 25,
-    "patch": 0
-  },
+  "version": 5,
   "configurePresets": [
     {
-      "name": "debug",
+      "name": "dev",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/debug",
+      "binaryDir": "${sourceDir}/build/dev",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "BUILD_TESTING": "OFF",
+        "BUILD_TESTING": "ON",
         "CMAKE_INSTALL_PREFIX": "/usr",
         "CMAKE_INSTALL_LIBDIR": "lib",
-        "CMAKE_PREFIX_PATH": "${sourceDir}/build/deps/prefix",
-        "QML_IMPORT_PATH": "${sourceDir}/build/deps/prefix/lib/qt6/qml",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-      },
-      "environment": {
-        "QML_IMPORT_PATH": "${sourceDir}/build/deps/prefix/lib/qt6/qml",
-        "LD_LIBRARY_PATH": "${sourceDir}/build/deps/prefix/lib"
       }
     },
     {
@@ -33,68 +22,24 @@
         "BUILD_TESTING": "OFF",
         "CMAKE_INSTALL_PREFIX": "/usr",
         "CMAKE_INSTALL_LIBDIR": "lib",
-        "CMAKE_PREFIX_PATH": "${sourceDir}/build/deps/prefix",
-        "QML_IMPORT_PATH": "${sourceDir}/build/deps/prefix/lib/qt6/qml",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-      },
-      "environment": {
-        "QML_IMPORT_PATH": "${sourceDir}/build/deps/prefix/lib/qt6/qml",
-        "LD_LIBRARY_PATH": "${sourceDir}/build/deps/prefix/lib"
-      }
-    },
-    {
-      "name": "test",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/test",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "BUILD_TESTING": "ON",
-        "CMAKE_INSTALL_PREFIX": "/usr",
-        "CMAKE_INSTALL_LIBDIR": "lib",
-        "CMAKE_PREFIX_PATH": "${sourceDir}/build/deps/prefix",
-        "QML_IMPORT_PATH": "${sourceDir}/build/deps/prefix/lib/qt6/qml",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-      },
-      "environment": {
-        "QML_IMPORT_PATH": "${sourceDir}/build/deps/prefix/lib/qt6/qml",
-        "LD_LIBRARY_PATH": "${sourceDir}/build/deps/prefix/lib"
-      }
-    },
-    {
-      "name": "sanitizer",
-      "inherits": "test",
-      "binaryDir": "${sourceDir}/build/sanitizer",
-      "cacheVariables": {
-        "VIEWER_ENABLE_SANITIZERS": "ON"
       }
     }
   ],
   "buildPresets": [
     {
-      "name": "debug",
-      "configurePreset": "debug",
-      "jobs": 2
+      "name": "dev",
+      "configurePreset": "dev"
     },
     {
       "name": "release",
-      "configurePreset": "release",
-      "jobs": 2
-    },
-    {
-      "name": "test",
-      "configurePreset": "test",
-      "jobs": 2
-    },
-    {
-      "name": "sanitizer",
-      "configurePreset": "sanitizer",
-      "jobs": 2
+      "configurePreset": "release"
     }
   ],
   "testPresets": [
     {
-      "name": "test",
-      "configurePreset": "test",
+      "name": "dev",
+      "configurePreset": "dev",
       "output": {
         "outputOnFailure": true
       },
@@ -103,15 +48,6 @@
       },
       "environment": {
         "QT_QPA_PLATFORM": "offscreen"
-      }
-    },
-    {
-      "name": "sanitizer",
-      "inherits": "test",
-      "configurePreset": "sanitizer",
-      "environment": {
-        "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1",
-        "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
       }
     }
   ]
