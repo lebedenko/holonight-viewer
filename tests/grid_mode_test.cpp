@@ -43,7 +43,10 @@ struct GridModeFixture {
               }
               return DirectoryResult{.urls = *urls, .error = {}, .missing = missingUrl};
             }) {}
-  ~GridModeFixture() { blockScans(false); }
+  ~GridModeFixture() {
+    decoder.block(false);
+    blockScans(false);
+  }
 
   QMutex scanMutex;
   QWaitCondition scanGate;
@@ -61,8 +64,9 @@ struct GridModeFixture {
   QUrl missingUrl;
   bool decodeFails = false;
   ImageDocument document;
-  QQmlApplicationEngine engine;
+  // Engine teardown drains thumbnail workers, so their decoder must outlive it.
   SyntheticDecoder decoder;
+  QQmlApplicationEngine engine;
   QQuickWindow* window = nullptr;
 
   ::testing::AssertionResult load(int fileCount) {

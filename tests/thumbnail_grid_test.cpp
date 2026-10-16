@@ -27,12 +27,15 @@
 
 namespace {
 // The cell has no window minimum width, so it loads standalone at any width.
+// NOLINTNEXTLINE(cppcoreguidelines-special-member-functions)
 struct StandaloneCell {
   explicit StandaloneCell(int width = 300) : windowWidth(width) {}
+  ~StandaloneCell() { decoder.block(false); }
 
+  // Engine teardown drains thumbnail workers, so their decoder must outlive it.
+  SyntheticDecoder decoder;
   QQmlEngine engine;
   QQuickWindow window;
-  SyntheticDecoder decoder;
   std::unique_ptr<QQuickItem> cell;
   int windowWidth;
 
@@ -227,19 +230,24 @@ struct GridFixture {
           }
           return DirectoryResult{.urls = *urls, .error = {}, .missing = {}};
         }) {}
-  ~GridFixture() { blockScans(false); }
+  ~GridFixture() {
+    decoder.block(false);
+    blockScans(false);
+  }
 
-  std::shared_ptr<QList<QUrl>> urls;
-  ImageDocument document;
-  GridSelectionController selection{&document};
-  QQmlEngine engine;
-  QQuickWindow window;
-  SyntheticDecoder decoder;
-  std::unique_ptr<QQuickItem> root;
-  QQuickItem* grid = nullptr;
+  // Scan state must outlive the document, whose teardown drains scan workers.
   QMutex scanMutex;
   QWaitCondition scanGate;
   bool scanBlocked = false;
+  std::shared_ptr<QList<QUrl>> urls;
+  ImageDocument document;
+  GridSelectionController selection{&document};
+  // Engine teardown drains thumbnail workers, so their decoder must outlive it.
+  SyntheticDecoder decoder;
+  QQmlEngine engine;
+  QQuickWindow window;
+  std::unique_ptr<QQuickItem> root;
+  QQuickItem* grid = nullptr;
 
   void blockScans(bool value) {
     QMutexLocker lock(&scanMutex);
