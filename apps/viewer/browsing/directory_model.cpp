@@ -3,55 +3,19 @@
 #include "local_url.h"
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QSet>
 
+#include <HolonightFileBrowser/directory_scan.h>
+#include <HolonightFileBrowser/native_path.h>
+#include <HolonightFileBrowser/natural_order.h>
 #include <algorithm>
-#include <filesystem>
 #include <holonight_images/image.h>
-
-namespace {
-bool asciiDigit(QChar character) { return character >= u'0' && character <= u'9'; }
-QStringView digitRun(QStringView text, qsizetype& position) {
-  auto begin = position;
-  while (position < text.size() && asciiDigit(text[position])) {
-    ++position;
-  }
-  while (begin < position && text[begin] == u'0') {
-    ++begin;
-  }
-  return text.mid(begin, position - begin);
-}
-}  // namespace
+#include <sys/stat.h>
 
 bool naturalFileNameLess(const QString& left, const QString& right) {
-  const auto foldedLeft = left.toCaseFolded();
-  const auto foldedRight = right.toCaseFolded();
-  qsizetype leftPosition = 0;
-  qsizetype rightPosition = 0;
-  while (leftPosition < foldedLeft.size() && rightPosition < foldedRight.size()) {
-    if (asciiDigit(foldedLeft[leftPosition]) && asciiDigit(foldedRight[rightPosition])) {
-      const auto leftDigits = digitRun(foldedLeft, leftPosition);
-      const auto rightDigits = digitRun(foldedRight, rightPosition);
-      if (leftDigits.size() != rightDigits.size()) {
-        return leftDigits.size() < rightDigits.size();
-      }
-      const auto comparison = leftDigits.compare(rightDigits);
-      if (comparison != 0) {
-        return comparison < 0;
-      }
-      continue;
-    }
-    if (foldedLeft[leftPosition] != foldedRight[rightPosition]) {
-      return foldedLeft[leftPosition] < foldedRight[rightPosition];
-    }
-    ++leftPosition;
-    ++rightPosition;
-  }
-  if (leftPosition != foldedLeft.size() || rightPosition != foldedRight.size()) {
-    return leftPosition == foldedLeft.size();
-  }
-  return left < right;
+  return HolonightFileBrowser::naturalFileNameLess(left, right);
 }
 
 DirectoryResult scanDirectory(const QUrl& selected, const std::atomic_bool& cancelled) {
@@ -64,24 +28,28 @@ DirectoryResult scanDirectory(const QUrl& selected, const std::atomic_bool& canc
   }
   // SVG decodes via QSvgRenderer, not QImageReader, so it is listed unconditionally here.
   suffixes.insert(QStringLiteral("svg"));
-  std::error_code error;
-  const auto path = std::filesystem::path(selectedInfo.absolutePath().toStdString());
-  std::filesystem::directory_iterator iterator(path, error);
-  const std::filesystem::directory_iterator end;
-  while (!error && iterator != end) {
-    if (cancelled.load()) {
-      return {};
-    }
-    const QFileInfo info(QString::fromStdString(iterator->path().string()));
-    if (!info.isHidden() && info.isFile() && suffixes.contains(info.suffix().toCaseFolded())) {
-      result.urls.append(QUrl::fromLocalFile(info.absoluteFilePath()));
-    }
-    iterator.increment(error);
-  }
-  if (error) {
-    result.urls.clear();
-    result.error =
-        DirectoryModel::tr("The containing folder could not be read: %1").arg(QString::fromStdString(error.message()));
+  const auto selectedPath = HolonightFileBrowser::nativePath(explicitUrl);
+  const auto folder = selectedPath.left(std::max<qsizetype>(1, selectedPath.lastIndexOf('/')));
+  // The containing-folder adapter retains Viewer's filtering and explicit-file policy.
+  auto cancel = std::shared_ptr<const std::atomic_bool>(&cancelled, [](auto*) {});
+  HolonightFileBrowser::walkDirectory(
+      QFile::decodeName(folder), cancel, {}, -1, {},
+      [&](const QList<DirectoryEntry>& entries, bool, const QString& error) {
+        if (!error.isEmpty()) {
+          result.urls.clear();
+          result.error = DirectoryModel::tr("The containing folder could not be read: %1").arg(error);
+          return;
+        }
+        for (const auto& entry : entries) {
+          if (!entry.is_parent && !entry.name.startsWith(u'.') && S_ISREG(entry.mode) &&
+              suffixes.contains(QFileInfo(entry.name).suffix().toCaseFolded())) {
+            result.urls.append(HolonightFileBrowser::localUrl(entry.native_path));
+          }
+        }
+      },
+      folder);
+  if (cancelled.load()) {
+    return {};
   }
   if (!result.urls.contains(explicitUrl)) {
     result.urls.append(explicitUrl);

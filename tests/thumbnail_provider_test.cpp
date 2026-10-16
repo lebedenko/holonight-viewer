@@ -1,5 +1,3 @@
-#include "thumbnail_provider.h"
-
 #include "thumbnail_metrics.h"
 
 #include <QCoreApplication>
@@ -16,6 +14,7 @@
 #include <QThread>
 #include <QWaitCondition>
 
+#include <HolonightFileBrowser/preview_quick/thumbnail_provider.h>
 #include <gtest/gtest.h>
 #include <memory>
 #include <vector>

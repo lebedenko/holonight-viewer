@@ -13,26 +13,26 @@ GridSelectionController::GridSelectionController(ImageDocument* document, QObjec
   }
 }
 void GridSelectionController::enter(const QUrl& url) {
-  selected_url_ = url;
+  selection_.single(url.toEncoded());
   last_index_ = 0;
   selected_index_ = -1;
   reconcile();
 }
 void GridSelectionController::reconcile() {
   if (!document_) {
-    selected_url_ = QUrl{};
+    selection_.clear();
     selected_index_ = -1;
     last_index_ = 0;
   } else if (!document_->scanning()) {
     auto* model = document_->folder();
-    int index = model->indexOfUrl(selected_url_);
+    int index = model->indexOfUrl(selectedUrl());
     if (index < 0 && model->count() > 0) {
       index = std::clamp(last_index_, 0, model->count() - 1);
     }
     selected_index_ = index;
     if (index >= 0) {
       last_index_ = index;
-      selected_url_ = model->urlAt(index);
+      selection_.single(model->urlAt(index).toEncoded());
     }
   }
   emit changed();
@@ -43,7 +43,7 @@ void GridSelectionController::select(int index) {
   }
   selected_index_ = index;
   last_index_ = index;
-  selected_url_ = document_->folder()->urlAt(index);
+  selection_.single(document_->folder()->urlAt(index).toEncoded());
   emit changed();
 }
 int GridSelectionController::target(int move) const {

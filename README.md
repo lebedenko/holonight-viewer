@@ -585,3 +585,13 @@ provenance is retained. Intentional provenance differences require one exact
 No timing gate or statistical significance is inferred. Old datasets without the
 versioned contract must be recollected. See the
 [maintenance SDD](docs/sdd/shared-image-maintenance/SPEC.md).
+
+## Shared browsing provider
+
+Viewer consumes installed `HolonightFileBrowser` Core, Quick, Preview and PreviewQuick
+components for folder enumeration, deterministic ordering, selection/grid primitives and
+thumbnails. Its image document, playback, full-resolution rendering and portal-based Open
+remain application-owned. QMarkdown is not required. Build the independent
+`holonight-file-browser` provider first and supply its prefix through `CMAKE_PREFIX_PATH`.
+CI pins published providers in `scripts/ci/providers.json`; use
+`task check -- --siblings /path/to/umbrella` to test current sibling sources explicitly.

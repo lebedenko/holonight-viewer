@@ -1,13 +1,13 @@
 #include "image_canvas.h"
 
 #include "image_orientation.h"
-#include "svg_helper.h"
 
 #include <QCoreApplication>
 #include <QEvent>
 #include <QPainter>
 #include <QQuickWindow>
 
+#include <HolonightFileBrowser/preview/svg_helper.h>
 #include <algorithm>
 #include <cmath>
 

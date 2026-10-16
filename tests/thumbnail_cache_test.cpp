@@ -1,5 +1,4 @@
-#include "thumbnail_cache.h"
-
+#include <HolonightFileBrowser/preview/thumbnail_cache.h>
 #include <gtest/gtest.h>
 #include <type_traits>
 

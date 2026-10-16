@@ -1,6 +1,5 @@
 #include "image_canvas.h"
 #include "image_document.h"
-#include "image_limits.h"
 #include "mock_portal.h"
 
 #include <QAccessible>
@@ -25,6 +24,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 
+#include <HolonightFileBrowser/preview/image_limits.h>
 #include <algorithm>
 #include <cmath>
 #include <gtest/gtest.h>

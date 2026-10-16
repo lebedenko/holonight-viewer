@@ -22,15 +22,12 @@ def scoped_files():
 
 def check():
     errors = []
-    if not header.is_file():
-        return [f'{header.relative_to(root)} is missing']
     definitions = [p for p in viewer.rglob('*') if p.suffix in suffixes and definition.search(p.read_text())]
-    if definitions != [header] or len(definition.findall(header.read_text())) != 1:
-        names = ', '.join(str(p.relative_to(root)) for p in definitions) or 'none'
-        errors.append(f'kThumbnailBoxLogical = 256 must be defined exactly once in thumbnail_size.h (found: {names})')
+    if definitions:
+        errors.append('Thumbnail size belongs to the installed HolonightFileBrowser provider')
     for path in scoped_files():
         for number, line in enumerate(path.read_text().splitlines(), 1):
-            if literal.search(line) and not (path == header and definition.search(line)):
+            if literal.search(line):
                 errors.append(f'{path.relative_to(root)}:{number}: literal 256; use kThumbnailBoxLogical or ThumbnailMetrics.boxSize')
     return errors
 

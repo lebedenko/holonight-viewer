@@ -5,6 +5,7 @@ import QtQuick.Controls as Controls
 import Holonight.Core
 import Holonight.Controls
 import HolonightViewer
+import Holonight.FileBrowser as Browser
 
 Item {
     id: root
@@ -87,7 +88,7 @@ Item {
         rawText: "Ag"
     }
 
-    GridView {
+    Browser.DirectoryGrid {
         id: view
         objectName: "thumbnailGridView"
         anchors.fill: parent
@@ -99,14 +100,7 @@ Item {
         // Centres the columns. The margins leave room for exactly `columns` cells, so the view lays out the same count.
         leftMargin: Math.max(0, Math.floor((root.width - root.columns * root.cellWidth) / 2))
         rightMargin: leftMargin
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
-        keyNavigationEnabled: false
-        activeFocusOnTab: false
-        reuseItems: false
         // Anchor layout can briefly produce a negative height while the window changes state.
-        cacheBuffer: Math.max(0, height)
-        Controls.ScrollBar.vertical: Controls.ScrollBar {}
         Accessible.role: Accessible.List
         Accessible.name: qsTr("Images")
 

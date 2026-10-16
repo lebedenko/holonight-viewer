@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "thumbnail_size.h"
-
 #include <QObject>
 #include <QUrl>
 #include <QtQml/qqmlregistration.h>
+
+#include <HolonightFileBrowser/preview/thumbnail_size.h>
 
 // The only place QML learns the thumbnail box size and builds thumbnail sources.
 class ThumbnailMetrics : public QObject {

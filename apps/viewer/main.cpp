@@ -1,6 +1,4 @@
 #include "image_document.h"
-#include "image_limits.h"
-#include "thumbnail_provider.h"
 
 #include <QCommandLineParser>
 #include <QGuiApplication>
@@ -9,6 +7,8 @@
 #include <QTextStream>
 #include <QTimer>
 
+#include <HolonightFileBrowser/preview/image_limits.h>
+#include <HolonightFileBrowser/preview_quick/thumbnail_provider.h>
 #include <cstdlib>
 
 int main(int argc, char* argv[]) {

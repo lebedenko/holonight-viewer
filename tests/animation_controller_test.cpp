@@ -3,13 +3,13 @@
 #include "fake_frame_source.h"
 #include "frame_streamer.h"
 #include "gif_fixture.h"
-#include "image_limits.h"
 #include "manual_playback_clock.h"
 
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
 
+#include <HolonightFileBrowser/preview/image_limits.h>
 #include <algorithm>
 #include <array>
 #include <gtest/gtest.h>

@@ -1,5 +1,4 @@
 #include "image_document.h"
-#include "image_limits.h"
 
 #include <QGuiApplication>
 #include <QImageReader>
@@ -7,6 +6,7 @@
 #include <QTextStream>
 #include <QTimer>
 
+#include <HolonightFileBrowser/preview/image_limits.h>
 #include <algorithm>
 #include <array>
 

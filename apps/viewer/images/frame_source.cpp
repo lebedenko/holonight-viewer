@@ -1,9 +1,9 @@
 #include "frame_source.h"
 
-#include "image_limits.h"
-
 #include <QFile>
 #include <QImageReader>
+
+#include <HolonightFileBrowser/preview/image_limits.h>
 
 namespace {
 class QtGifFrameSource final : public FrameSource {

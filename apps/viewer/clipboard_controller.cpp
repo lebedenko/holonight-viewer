@@ -1,7 +1,6 @@
 #include "clipboard_controller.h"
 
 #include "clipboard_png_p.h"
-#include "image_limits.h"
 #include "image_orientation.h"
 
 #include <QBuffer>
@@ -12,6 +11,7 @@
 #include <QPainter>
 #include <QSvgRenderer>
 
+#include <HolonightFileBrowser/preview/image_limits.h>
 #include <algorithm>
 #include <cmath>
 #include <exception>

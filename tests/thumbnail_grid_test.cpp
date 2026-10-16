@@ -2,8 +2,6 @@
 #include "grid_selection_controller.h"
 #include "image_document.h"
 #include "synthetic_thumbnails.h"
-#include "thumbnail_provider.h"
-#include "thumbnail_size.h"
 
 #include <QAccessible>
 #include <QFile>
@@ -18,6 +16,8 @@
 #include <QTest>
 #include <QWaitCondition>
 
+#include <HolonightFileBrowser/preview/thumbnail_size.h>
+#include <HolonightFileBrowser/preview_quick/thumbnail_provider.h>
 #include <algorithm>
 #include <atomic>
 #include <cmath>

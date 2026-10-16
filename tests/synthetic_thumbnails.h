@@ -1,13 +1,13 @@
 #pragma once
 
 #include "image_document.h"
-#include "thumbnail_decoder.h"
 
 #include <QImage>
 #include <QMutex>
 #include <QThread>
 #include <QWaitCondition>
 
+#include <HolonightFileBrowser/preview/thumbnail_decoder.h>
 #include <atomic>
 
 // Decodes to a synthetic solid image; can be held closed or made to fail.

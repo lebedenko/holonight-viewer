@@ -1,9 +1,8 @@
 #include "exif_metadata.h"
 
-#include "image_limits.h"
-
 #include <QIODevice>
 
+#include <HolonightFileBrowser/preview/image_limits.h>
 #include <cmath>
 
 namespace ExifMetadata {

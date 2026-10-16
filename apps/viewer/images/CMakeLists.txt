@@ -8,18 +8,15 @@ add_library(viewer-images STATIC
   image_information.h
   exif_metadata.h
   exif_metadata.cpp
-  svg_helper.h
-  svg_helper.cpp
   image_orientation.h
   image_orientation.cpp
   frame_source.h
   frame_source.cpp
   frame_streamer.h
   frame_streamer.cpp
-  image_limits.h
   local_url.h
   local_url.cpp
 )
-target_link_libraries(viewer-images PUBLIC Qt6::Core Qt6::Gui HolonightImages::Images PRIVATE Qt6::Svg)
+target_link_libraries(viewer-images PUBLIC HolonightFileBrowser::Preview Qt6::Core Qt6::Gui HolonightImages::Images PRIVATE Qt6::Svg)
 target_include_directories(viewer-images PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 viewer_warnings(viewer-images)

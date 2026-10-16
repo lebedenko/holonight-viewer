@@ -1,6 +1,5 @@
 add_subdirectory(images)
 add_subdirectory(browsing)
-add_subdirectory(thumbnails)
 add_subdirectory(platform)
 
 function(add_viewer_application target)
@@ -50,7 +49,7 @@ function(add_viewer_application target)
   qt_add_resources(${target} viewer-config PREFIX "/" BASE "${app_dir}"
     FILES "${app_dir}/qtquickcontrols2.conf")
   target_include_directories(${target} PRIVATE "${app_dir}")
-  target_link_libraries(${target} PRIVATE viewer-images viewer-browsing viewer-thumbnails viewer-platform
+  target_link_libraries(${target} PRIVATE viewer-images viewer-browsing HolonightFileBrowser::PreviewQuick viewer-platform
     Qt6::QuickControls2 Qt6::Svg
     HolonightQt::Core HolonightQt::Controls)
   target_compile_definitions(${target} PRIVATE VIEWER_VERSION="${PROJECT_VERSION}")

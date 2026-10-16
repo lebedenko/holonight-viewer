@@ -7,6 +7,8 @@
 #include <QPointer>
 #include <QUrl>
 #include <QtQml/qqmlregistration.h>
+
+#include <HolonightFileBrowser/selection.h>
 class ImageDocument;
 class GridSelectionController : public QObject {
   Q_OBJECT
@@ -21,7 +23,7 @@ class GridSelectionController : public QObject {
   Q_PROPERTY(bool canActivate READ canActivate NOTIFY changed)
  public:
   explicit GridSelectionController(ImageDocument* document, QObject* parent = nullptr);
-  [[nodiscard]] QUrl selectedUrl() const { return selected_url_; }
+  [[nodiscard]] QUrl selectedUrl() const { return QUrl::fromEncoded(selection_.current); }
   [[nodiscard]] int selectedIndex() const { return selected_index_; }
   [[nodiscard]] bool canPrevious() const { return canMove(static_cast<int>(GridNavigation::Move::Previous)); }
   [[nodiscard]] bool canNext() const { return canMove(static_cast<int>(GridNavigation::Move::Next)); }
@@ -37,7 +39,7 @@ class GridSelectionController : public QObject {
  private:
   [[nodiscard]] int target(int move) const;
   QPointer<ImageDocument> document_;
-  QUrl selected_url_;
+  HolonightFileBrowser::Selection selection_;
   int selected_index_ = -1;
   int last_index_ = 0;
   int columns_ = 1;

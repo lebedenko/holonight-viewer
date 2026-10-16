@@ -1,13 +1,12 @@
 #include "image_decoder.h"
 
-#include "image_limits.h"
-#include "svg_helper.h"
-
 #include <QCoreApplication>
 #include <QFile>
 #include <QFileInfo>
 #include <QSvgRenderer>
 
+#include <HolonightFileBrowser/preview/image_limits.h>
+#include <HolonightFileBrowser/preview/svg_helper.h>
 #include <utility>
 
 namespace {

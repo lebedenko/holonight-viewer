@@ -1,8 +1,5 @@
-#include "thumbnail_decoder.h"
-
 #include "exif_fixture.h"
 #include "gif_fixture.h"
-#include "thumbnail_size.h"
 
 #include <QBuffer>
 #include <QFile>
@@ -10,6 +7,8 @@
 #include <QTemporaryDir>
 #include <QtEndian>
 
+#include <HolonightFileBrowser/preview/thumbnail_decoder.h>
+#include <HolonightFileBrowser/preview/thumbnail_size.h>
 #include <array>
 #include <gtest/gtest.h>
 #include <holonight_thumbnails/cache.h>

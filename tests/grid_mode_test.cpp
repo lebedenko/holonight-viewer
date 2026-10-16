@@ -1,5 +1,4 @@
 #include "synthetic_thumbnails.h"
-#include "thumbnail_provider.h"
 #include "viewer_controller.h"
 
 #include <QDragEnterEvent>
@@ -15,6 +14,7 @@
 #include <QTranslator>
 #include <QWaitCondition>
 
+#include <HolonightFileBrowser/preview_quick/thumbnail_provider.h>
 #include <array>
 #include <gtest/gtest.h>
 #include <memory>
