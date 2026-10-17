@@ -82,8 +82,8 @@ TEST(ThumbnailCell, LoadsStandaloneBelowTheWindowMinimumWidth) {
   StandaloneCell standalone(300);
   ASSERT_TRUE(standalone.load());
   EXPECT_LT(standalone.cell->width(), 420);
-  for (const char* name :
-       {"cellBackground", "cellFocusRing", "cellThumbnail", "cellPlaceholder", "cellBrokenGlyph", "cellLabel"}) {
+  for (const char* name : {"hnSelectableDelegateSelectedOverlay", "hnSelectableDelegateOutline", "cellThumbnail",
+                           "cellPlaceholder", "cellBrokenGlyph", "thumbnailCaption"}) {
     EXPECT_NE(standalone.part(name), nullptr) << name;
   }
   EXPECT_EQ(standalone.cell->implicitWidth(), 256 + (2 * standalone.cell->property("padding").toReal()));
@@ -129,7 +129,7 @@ TEST(ThumbnailCell, BrokenGlyphReplacesTheThumbnailOnError) {
   EXPECT_FALSE(standalone.part("cellThumbnail")->isVisible());
   // The cell stays a normal item: it is still labelled and can still be selected.
   standalone.cell->setProperty("isSelected", true);
-  EXPECT_TRUE(standalone.part("cellFocusRing")->isVisible());
+  EXPECT_TRUE(standalone.part("hnSelectableDelegateOutline")->isVisible());
 }
 
 TEST(ThumbnailCell, SelectionTintsBehindTheThumbnailAndDrawsTheRing) {
@@ -137,8 +137,8 @@ TEST(ThumbnailCell, SelectionTintsBehindTheThumbnailAndDrawsTheRing) {
   ASSERT_TRUE(standalone.load());
   standalone.setSource("/photos/a.png");
   ASSERT_TRUE(QTest::qWaitFor([&] { return standalone.status() == kReady; }, 5000));
-  auto* ring = standalone.part("cellFocusRing");
-  auto* background = standalone.part("cellBackground");
+  auto* ring = standalone.part("hnSelectableDelegateOutline");
+  auto* background = standalone.part("hnSelectableDelegateSelectedOverlay");
   EXPECT_FALSE(ring->isVisible());
   const auto padding = standalone.cell->property("padding").toReal();
   // A point inside the box but outside the centred 100x50 thumbnail shows the background.
@@ -157,7 +157,9 @@ TEST(ThumbnailCell, SelectionTintsBehindTheThumbnailAndDrawsTheRing) {
                 .toReal());
   EXPECT_EQ(ring->property("border").value<QObject*>()->property("color").value<QColor>(),
             standalone.palette("borderFocus"));
-  EXPECT_EQ(background->property("color").value<QColor>(), standalone.palette("surfaceSelected"));
+  EXPECT_EQ(
+      background->property("color").value<QColor>(),
+      standalone.palette(standalone.cell->property("hovered").toBool() ? "surfaceSelectedHover" : "surfaceSelected"));
   const auto selected = standalone.window.grabWindow();
   EXPECT_NE(selected.pixelColor(corner), unselected.pixelColor(corner));
   // The tint sits behind the picture, which is not obscured.
@@ -168,17 +170,18 @@ TEST(ThumbnailCell, LongNameElidesInTheMiddleOnOneLine) {
   StandaloneCell standalone;
   ASSERT_TRUE(
       standalone.load(QStringLiteral("a-very-long-photograph-file-name-taken-on-holiday-2026-final-edit.jpeg")));
-  auto* label = standalone.part("cellLabel");
+  auto* label = standalone.part("thumbnailCaption");
   EXPECT_TRUE(label->property("truncated").toBool());
   EXPECT_EQ(label->property("elide").toInt(), Qt::ElideMiddle);
   EXPECT_EQ(label->property("maximumLineCount").toInt(), 1);
   EXPECT_EQ(label->width(), 256);
-  EXPECT_GE(label->y(), standalone.cell->property("padding").toReal() + 256);
+  EXPECT_GE(label->mapToItem(standalone.cell.get(), QPointF{}).y(),
+            standalone.cell->property("padding").toReal() + 256);
   EXPECT_EQ(label->property("lineCount").toInt(), 1);
 
   StandaloneCell shortName;
   ASSERT_TRUE(shortName.load(QStringLiteral("a.png")));
-  EXPECT_FALSE(shortName.part("cellLabel")->property("truncated").toBool());
+  EXPECT_FALSE(shortName.part("thumbnailCaption")->property("truncated").toBool());
 }
 
 TEST(ThumbnailCell, ExposesOneListItemNamedAfterTheFile) {
@@ -652,7 +655,7 @@ TEST(ThumbnailGrid, RingMarksOnlyTheSelectedCellAfterNavigation) {
     ASSERT_TRUE(fixture.selectedFullyVisible());
     int rings = 0;
     for (auto* cell : fixture.cells()) {
-      auto* ring = cell->findChild<QQuickItem*>("cellFocusRing");
+      auto* ring = cell->findChild<QQuickItem*>("hnSelectableDelegateOutline");
       ASSERT_NE(ring, nullptr);
       const bool selected = cell->property("index").toInt() == fixture.selectedIndex();
       EXPECT_EQ(ring->isVisible(), selected) << cell->property("index").toInt();

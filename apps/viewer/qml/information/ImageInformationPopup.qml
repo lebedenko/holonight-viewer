@@ -50,19 +50,16 @@ HnPopupCard {
             objectName: "informationHeaderRow"
             Layout.fillWidth: true
             spacing: 16
-            Rectangle {
+            HnPreviewFrame {
                 objectName: "informationPreview"
                 visible: root.document.state === ImageDocument.Ready && root.windowWidth >= 360
                 Layout.alignment: Qt.AlignTop
                 Layout.preferredWidth: 96
                 Layout.preferredHeight: 96
-                color: HoloniightPalette.surface
-                border.width: HnMetrics.borderWidth
-                border.color: HoloniightPalette.borderPassive
+                padding: HnMetrics.borderWidth
+                previewState: HnPreviewFrame.Content
                 Accessible.ignored: true
-                ImageCanvas {
-                    anchors.fill: parent
-                    anchors.margins: HnMetrics.borderWidth
+                previewContent: ImageCanvas {
                     image: root.document.previewImage
                     orientation: root.document.orientation
                     displayPixelRatio: Window.window ? Window.window.devicePixelRatio : 1
@@ -132,29 +129,22 @@ HnPopupCard {
                 Repeater {
                     id: sections
                     model: root.textSections
-                    delegate: ColumnLayout {
+                    delegate: HnMetadataList {
                         id: section
                         required property informationSection modelData
                         objectName: "informationSection" + modelData.key
                         Layout.fillWidth: true
-                        spacing: HnMetrics.internalSpacing(HnControlSize.Compact)
                         Accessible.role: Accessible.Grouping
                         Accessible.name: modelData.label
-                        SectionLabel {
-                            objectName: "informationSectionLabel" + section.modelData.key
-                            rawText: section.modelData.label.toUpperCase()
-                        }
-                        Repeater {
-                            model: section.modelData.lines
-                            delegate: HnLabel {
-                                required property string modelData
-                                Layout.fillWidth: true
-                                color: HoloniightPalette.textPrimary
-                                textFormat: Text.PlainText
-                                wrapMode: Text.Wrap
-                                rawText: modelData
+                        rows: [
+                            {
+                                heading: modelData.label
                             }
-                        }
+                        ].concat(modelData.lines.map(line => ({
+                                    label: "",
+                                    value: line
+                                })))
+                        labelWidth: 0
                     }
                 }
                 // Declared directly rather than by the Repeater, so the selectable path is a plain child item.

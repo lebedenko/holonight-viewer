@@ -2,10 +2,11 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls as Controls
+import Holonight.Controls
 import Holonight.Core
 import HolonightViewer
 
-Item {
+HnThumbnailDelegate {
     id: root
     objectName: "thumbnailCell"
 
@@ -15,37 +16,29 @@ Item {
     property bool isSelected: false
     // Set by the grid to image://thumbnail/... for this file; empty until then.
     property url source
-    property real padding: 8
+    padding: 8
     // Free space around the tinted tile, half on each side, so neighbouring tiles do not touch.
-    property real spacing: 0
+    spacing: 0
     property real labelGap: 6
     readonly property real boxSize: ThumbnailMetrics.boxSize
     readonly property real radius: HnAppearance.roundedRadius(HnSurfaceRole.Control, width, height, HnAppearance.revision)
 
-    signal clicked
-    signal doubleClicked
+    highlighted: isSelected
+    caption: fileName
+    captionElide: Text.ElideMiddle
+    tooltip: fileName
 
     implicitWidth: boxSize + 2 * padding + spacing
-    implicitHeight: padding + boxSize + labelGap + label.implicitHeight + padding + spacing
+    implicitHeight: padding + boxSize + labelGap + captionItem.implicitHeight + padding + spacing
 
     Accessible.role: Accessible.ListItem
     Accessible.name: root.fileName
     Accessible.selected: root.isSelected
 
-    Rectangle {
-        id: background
-        objectName: "cellBackground"
-        anchors.fill: parent
-        anchors.margins: root.spacing / 2
-        radius: root.radius
-        color: root.isSelected ? HoloniightPalette.surfaceSelected : (hover.hovered ? HoloniightPalette.surfaceHover : "transparent")
-        Accessible.ignored: true
-    }
-
-    Item {
+    thumbnailContent: Item {
         id: thumbnailBox
-        x: root.spacing / 2 + root.padding
-        y: root.spacing / 2 + root.padding
+        implicitWidth: root.boxSize
+        implicitHeight: root.boxSize
         width: root.boxSize
         height: root.boxSize
         Accessible.ignored: true
@@ -88,46 +81,5 @@ Item {
             size: root.boxSize / 4
             Accessible.ignored: true
         }
-    }
-
-    HnLabel {
-        id: label
-        objectName: "cellLabel"
-        x: root.spacing / 2 + root.padding
-        y: root.spacing / 2 + root.padding + root.boxSize + root.labelGap
-        width: root.boxSize
-        horizontalAlignment: Text.AlignHCenter
-        textFormat: Text.PlainText
-        elide: Text.ElideMiddle
-        maximumLineCount: 1
-        rawText: root.fileName
-        color: root.isSelected ? HoloniightPalette.textPrimary : HoloniightPalette.textSecondary
-        Accessible.ignored: true
-    }
-
-    Rectangle {
-        id: focusRing
-        objectName: "cellFocusRing"
-        anchors.fill: parent
-        anchors.margins: root.spacing / 2
-        radius: root.radius
-        color: "transparent"
-        border.width: HnMetrics.focusBorderWidth
-        border.color: HoloniightPalette.borderFocus
-        visible: root.isSelected
-        Accessible.ignored: true
-    }
-
-    HoverHandler {
-        id: hover
-    }
-
-    Controls.ToolTip.text: root.fileName
-    Controls.ToolTip.delay: 500
-    Controls.ToolTip.visible: hover.hovered && label.truncated
-
-    TapHandler {
-        onTapped: root.clicked()
-        onDoubleTapped: root.doubleClicked()
     }
 }

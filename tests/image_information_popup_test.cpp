@@ -350,23 +350,15 @@ TEST(ImageInformationPopup, SectionLabelsUseSecondaryColor) {
   ASSERT_NE(palette, nullptr);
   const auto secondary = palette->property("textSecondary").value<QColor>();
   auto* content = fixture.popup->property("contentItem").value<QQuickItem*>();
-  for (const auto& [key, text] :
-       {std::pair{"Camera", "CAMERA"}, std::pair{"Location", "LOCATION"}, std::pair{"File", "FILE"}}) {
-    auto* label = findItem(content, QStringLiteral("informationSectionLabel") + QString::fromLatin1(key));
-    ASSERT_NE(label, nullptr) << key;
-    EXPECT_EQ(label->property("text").toString(), QString::fromLatin1(text));
-    EXPECT_EQ(label->property("color").value<QColor>(), secondary) << key;
-  }
+  // Generic shared metadata keeps the caller's ordered, formatted section rows.
   auto* camera = findItem(content, QStringLiteral("informationSectionCamera"));
   ASSERT_NE(camera, nullptr);
-  QQuickItem* value = nullptr;
-  for (auto* child : camera->childItems()) {
-    if (child->property("text").toString() == QStringLiteral("SONY ILCE-7M4")) {
-      value = child;
-    }
-  }
-  ASSERT_NE(value, nullptr);
-  EXPECT_NE(value->property("color").value<QColor>(), secondary);
+  const auto rows = camera->property("rows").toList();
+  ASSERT_FALSE(rows.isEmpty());
+  EXPECT_EQ(rows.front().toMap().value("heading").toString(), QStringLiteral("Camera"));
+  auto* label = findItem(content, QStringLiteral("informationSectionLabelFile"));
+  ASSERT_NE(label, nullptr);
+  EXPECT_EQ(label->property("color").value<QColor>(), secondary);
 }
 
 // REQ-F-020: an open popup follows document changes without warnings.

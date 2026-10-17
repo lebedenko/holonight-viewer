@@ -138,39 +138,19 @@ Item {
         Repeater {
             id: repeater
             model: root.hints
-            delegate: Row {
+            delegate: HnLabeledKeyHint {
                 id: hintRow
                 required property var modelData
                 required property int index
-                readonly property real fullWidth: keycap.implicitWidth + spacing + hintLabel.implicitWidth
+                readonly property real fullWidth: implicitWidth
                 objectName: "footerHint" + modelData.name
                 visible: index === root.hints.length - 1 || index < root.fittingCount
-                spacing: HnMetrics.internalSpacing(HnControlSize.Compact)
+                lowercaseLetters: true
+                text: modelData.text ?? ""
+                keyGroups: modelData.keyGroups
+                description: modelData.label
                 onFullWidthChanged: root.reportWidth(index, fullWidth)
                 Component.onCompleted: root.reportWidth(index, fullWidth)
-                Accessible.role: Accessible.StaticText
-                Accessible.name: keycap.accessibleText + " " + modelData.label
-
-                HnKeyHint {
-                    id: keycap
-                    lowercaseLetters: true
-                    objectName: hintRow.objectName + "Keycap"
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: hintRow.modelData.text ?? ""
-                    keyGroups: hintRow.modelData.keyGroups
-                    font.pointSize: hintLabel.font.pointSize
-                    Accessible.ignored: true
-                }
-                HnLabel {
-                    id: hintLabel
-                    objectName: hintRow.objectName + "Label"
-                    anchors.verticalCenter: parent.verticalCenter
-                    role: HnTypographyRole.Caption
-                    color: HoloniightPalette.textMuted
-                    textFormat: Text.PlainText
-                    rawText: hintRow.modelData.label
-                    Accessible.ignored: true
-                }
             }
         }
     }
