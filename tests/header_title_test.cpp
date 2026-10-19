@@ -142,7 +142,7 @@ TEST(ViewerHeader, CloseActivatesOnEnterAndSpaceThroughNormalWindowClose) {
   }
 }
 
-TEST(ViewerHeader, GlyphsShareCloseExtent) {
+TEST(ViewerHeader, GlyphsPreserveIntendedExtents) {
   QRect closeBounds;
   for (const auto* name : {"close", "information", "fullscreen", "menu"}) {
     QSvgRenderer renderer(QStringLiteral(":/qt/qml/HolonightViewer/icons/%1.svg").arg(QString::fromLatin1(name)));
@@ -164,7 +164,11 @@ TEST(ViewerHeader, GlyphsShareCloseExtent) {
       closeBounds = bounds;
       EXPECT_FALSE(bounds.isEmpty());
     } else {
-      EXPECT_EQ(bounds, closeBounds) << name;
+      // The information glyph is optically enlarged while retaining the same center.
+      const auto expected = QString::fromLatin1(name) == QStringLiteral("information")
+                                ? closeBounds.adjusted(-1, -1, 1, 1)
+                                : closeBounds;
+      EXPECT_EQ(bounds, expected) << name;
     }
   }
 }
