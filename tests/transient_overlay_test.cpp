@@ -540,7 +540,8 @@ TEST(TransientOverlay, FullscreenHeaderFocusRevealsAndHoldsTheHeader) {
   QTest::keyClick(fixture.window, Qt::Key_0, Qt::ControlModifier);
   ASSERT_TRUE(QTest::qWaitFor([&] { return !fixture.header->isVisible(); }, 1000));
 
-  for (const auto* name : {"informationButton", "fullscreenButton", "actionsButton", "informationButton"}) {
+  for (const auto* name :
+       {"informationButton", "fullscreenButton", "actionsButton", "closeButton", "informationButton"}) {
     QTest::keyClick(fixture.window, Qt::Key_Tab);
     auto* button = fixture.window->findChild<QQuickItem*>(name);
     ASSERT_NE(button, nullptr);
@@ -551,7 +552,7 @@ TEST(TransientOverlay, FullscreenHeaderFocusRevealsAndHoldsTheHeader) {
     QTest::qWait(200);
     EXPECT_TRUE(fixture.header->isVisible());
   }
-  for (const auto* name : {"actionsButton", "fullscreenButton", "informationButton"}) {
+  for (const auto* name : {"closeButton", "actionsButton", "fullscreenButton", "informationButton"}) {
     QTest::keyClick(fixture.window, Qt::Key_Backtab);
     auto* button = fixture.window->findChild<QQuickItem*>(name);
     ASSERT_NE(button, nullptr);

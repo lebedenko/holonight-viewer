@@ -8,6 +8,8 @@ import Holonight.Controls
 HnHeaderBar {
     id: header
     property bool titleVisible: true
+    property bool closeVisible: true
+    required property Controls.Action quitAction
     required property string title
     required property Controls.Action informationAction
     required property Controls.Action fullscreenAction
@@ -52,15 +54,30 @@ HnHeaderBar {
         id: headerHover
     }
     component HeaderContent: Item {
-        readonly property bool controlFocused: informationButton.activeFocus || fullscreenButton.activeFocus || actionsButton.activeFocus
+        id: headerContent
+        property bool closeShown: true
+        function updateCloseVisibility(): void {
+            if (!header.closeVisible && closeButton.activeFocus && !header.modalActive)
+                actionsButton.forceActiveFocus(Qt.TabFocusReason);
+            closeShown = header.closeVisible;
+        }
+        Component.onCompleted: updateCloseVisibility()
+        readonly property bool controlFocused: informationButton.activeFocus || fullscreenButton.activeFocus || actionsButton.activeFocus || closeButton.activeFocus
         readonly property Item menuAnchor: actionsButton
-        readonly property list<Item> focusTargets: [informationButton, fullscreenButton, actionsButton]
+        readonly property list<Item> focusTargets: closeShown ? [informationButton, fullscreenButton, actionsButton, closeButton] : [informationButton, fullscreenButton, actionsButton]
+        Connections {
+            target: header
+            function onCloseVisibleChanged(): void {
+                headerContent.updateCloseVisibility();
+            }
+        }
         HnLabel {
             objectName: "headerTitle"
             visible: header.titleVisible
-            anchors.centerIn: parent
-            width: Math.max(0, parent.width - headerActions.width * 2)
-            horizontalAlignment: Text.AlignHCenter
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: Math.max(0, parent.width - headerActions.width - HnMetrics.internalSpacing(HnControlSize.Normal))
+            horizontalAlignment: Text.AlignLeft
             textFormat: Text.PlainText
             rawText: header.title
             elide: Text.ElideMiddle
@@ -74,7 +91,7 @@ HnHeaderBar {
                 id: informationButton
                 objectName: "informationButton"
                 KeyNavigation.tab: fullscreenButton
-                KeyNavigation.backtab: actionsButton
+                KeyNavigation.backtab: headerContent.closeShown ? closeButton : actionsButton
                 icon.source: "../icons/information.svg"
                 Accessible.name: qsTranslate("Main", "Image Information")
                 action: header.informationAction
@@ -91,12 +108,30 @@ HnHeaderBar {
             ViewerHeaderButton {
                 id: actionsButton
                 objectName: "actionsButton"
-                KeyNavigation.tab: informationButton
+                KeyNavigation.tab: headerContent.closeShown ? closeButton : informationButton
                 KeyNavigation.backtab: fullscreenButton
                 icon.source: "../icons/menu.svg"
                 Accessible.name: qsTranslate("Main", "Menu")
                 enabled: !header.modalActive
                 onClicked: header.menuRequested()
+            }
+            ViewerHeaderButton {
+                id: closeButton
+                objectName: "closeButton"
+                visible: headerContent.closeShown
+                KeyNavigation.tab: informationButton
+                KeyNavigation.backtab: actionsButton
+                icon.source: "../icons/close.svg"
+                icon.color: !enabled ? HoloniightPalette.textDisabled : hovered || down ? HoloniightPalette.onError : HoloniightPalette.textPrimary
+                background: HnButtonSurface {
+                    pressed: closeButton.down
+                    hovered: closeButton.hovered
+                    focusVisible: closeButton.visualFocus
+                    cornerRadius: closeButton.cornerRadius
+                    color: closeButton.enabled && (pressed || hovered) ? HoloniightPalette.error : "transparent"
+                }
+                Accessible.name: qsTranslate("Main", "Close")
+                action: header.quitAction
             }
         }
     }

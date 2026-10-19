@@ -11,6 +11,7 @@ import "footer"
 HnApplicationWindow {
     id: root
     objectName: "viewerWindow"
+    property ViewerPreferences preferences: null
     required property ImageDocument document
     width: 1000
     height: 700
@@ -283,7 +284,9 @@ HnApplicationWindow {
             anchors.right: parent.right
             anchors.top: parent.top
             title: root.headerTitle
-            titleVisible: root.fullscreen
+            titleVisible: root.preferences?.showTitle ?? true
+            closeVisible: root.preferences?.showCloseButton ?? true
+            quitAction: viewerActions.quit
             informationAction: viewerActions.imageInformation
             fullscreenAction: viewerActions.fullscreenCommand
             modalActive: root.modalActive

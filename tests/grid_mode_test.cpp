@@ -571,6 +571,10 @@ TEST(GridKeys, TabReachesTheHeaderButtonsInGridMode) {
   EXPECT_TRUE(fixture.find("fullscreenButton")->hasActiveFocus());
   fixture.key(Qt::Key_Tab);
   EXPECT_TRUE(fixture.find("actionsButton")->hasActiveFocus());
+  fixture.key(Qt::Key_Tab);
+  EXPECT_TRUE(fixture.find("closeButton")->hasActiveFocus());
+  fixture.key(Qt::Key_Backtab);
+  EXPECT_TRUE(fixture.find("actionsButton")->hasActiveFocus());
   EXPECT_TRUE(fixture.gridMode());
 }
 
@@ -1023,11 +1027,10 @@ TEST(GridMode, NativeTitlesAndHeadingFollowContentAndFullscreenTransitions) {
     const auto title = fixture.window->title();
     for (const auto mode : {QWindow::Windowed, QWindow::FullScreen, QWindow::Windowed}) {
       fixture.window->setVisibility(mode);
-      EXPECT_TRUE(
-          QTest::qWaitFor([&] { return header->property("titleVisible").toBool() == (mode == QWindow::FullScreen); }));
+      EXPECT_TRUE(QTest::qWaitFor([&] { return header->property("titleVisible").toBool(); }));
       QMetaObject::invokeMethod(fixture.window, "showArrows");
       EXPECT_TRUE(header->isVisible());
-      EXPECT_EQ(heading->isVisible(), mode == QWindow::FullScreen);
+      EXPECT_TRUE(heading->isVisible());
       EXPECT_EQ(fixture.window->title(), title);
     }
   };
@@ -1055,5 +1058,5 @@ TEST(GridMode, NativeTitlesAndHeadingFollowContentAndFullscreenTransitions) {
   fixture.key(Qt::Key_G, Qt::ControlModifier);
   EXPECT_EQ(fixture.window->title(), fixture.document.fileName() + " — HoloNight Viewer");
   fixture.window->setVisibility(QWindow::Maximized);
-  EXPECT_FALSE(header->property("titleVisible").toBool());
+  EXPECT_TRUE(header->property("titleVisible").toBool());
 }

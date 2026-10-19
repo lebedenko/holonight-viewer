@@ -18,12 +18,13 @@ function(add_viewer_application target)
     list(APPEND module_qml "${app_dir}/${file}")
   endforeach()
   set(module_icons)
-  foreach(icon broken-image empty-viewer information fullscreen menu play pause)
+  foreach(icon broken-image empty-viewer information fullscreen menu play pause close)
     set(file "${app_dir}/icons/${icon}.svg")
     set_source_files_properties("${file}" PROPERTIES QT_RESOURCE_ALIAS "icons/${icon}.svg")
     list(APPEND module_icons "${file}")
   endforeach()
   qt_add_executable(${target} ${ARGN}
+    "${app_dir}/viewer_preferences.h" "${app_dir}/viewer_preferences.cpp"
     "${app_dir}/image_information_formatter.cpp" "${app_dir}/view_geometry.cpp")
   qt_add_qml_module(${target}
     URI HolonightViewer VERSION 1.0
@@ -50,7 +51,7 @@ function(add_viewer_application target)
     FILES "${app_dir}/qtquickcontrols2.conf")
   target_include_directories(${target} PRIVATE "${app_dir}")
   target_link_libraries(${target} PRIVATE viewer-images viewer-browsing HolonightFileBrowser::PreviewQuick viewer-platform
-    Qt6::QuickControls2 Qt6::Svg
+    Qt6::QuickControls2 Qt6::Svg tomlplusplus::tomlplusplus
     HolonightQt::Core HolonightQt::Controls)
   target_compile_definitions(${target} PRIVATE VIEWER_VERSION="${PROJECT_VERSION}")
   viewer_warnings(${target})

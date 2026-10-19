@@ -117,14 +117,48 @@ Mouse Back/Forward buttons trigger previous/next once per click, browsing images
 Viewer shortcuts pause while Open, Image Information or Shortcut Help is active.
 Escape closes a card or dialog before leaving fullscreen; closing clears the focus
 ring. Fullscreen restores the previous normal/maximized state, including
-compositor-managed tiling. Native decorations belong to Qt and the compositor. The windowed toolbar shows actions only; fullscreen shows the content heading while the toolbar is visible. Native titles identify the current image or folder (and the completed image count).
+compositor-managed tiling. Native decorations belong to Qt and the compositor. The toolbar shows a left-aligned image or folder heading in windowed and fullscreen modes while visible. Native titles identify the current image or folder (and the completed image count).
 
 Tab and Shift+Tab cycle through the enabled header buttons (Information, Fullscreen,
-Menu); the empty window skips Information. Image actions clear the focus ring. In the
+Menu, Close); the empty window skips Information. Image actions clear the focus ring. In the
 menu, j/k and Down/Up move between items, skipping separators; single-key shortcuts
 still act while the menu is open and close it. The menu groups Open/Refresh/Grid View,
 Previous/Next, view controls, transforms, copying, Image Information/Shortcut Help and
 Fullscreen/Quit, with each item's shortcut shown right-aligned.
+
+### Header preferences
+
+The heading and far-right Close button are independently optional and visible by
+default in windowed and fullscreen modes. Close uses the normal Quit action and
+window shutdown lifecycle. Native window titles and decorations are independent.
+The empty heading is “HoloNight Viewer”; long headings use middle elision.
+
+Viewer reads `$XDG_CONFIG_HOME/holonight-viewer/config.toml`, falling back to
+`$HOME/.config/holonight-viewer/config.toml` when XDG_CONFIG_HOME is unset or empty:
+
+```toml
+[header]
+show_title = true
+show_close_button = true
+```
+
+Defaults are merged per key with the base file, then the first existing
+`config-<desktop>.toml` for the launch-time `XDG_CURRENT_DESKTOP`. Colon-separated
+names are tried in order, ignoring empty entries and lowercasing ASCII letters.
+Only ASCII letters, digits, hyphens and underscores are accepted. For
+`HoloNight-Hyprland:HoloNight:Hyprland`, priority is `config-holonight-hyprland.toml`,
+`config-holonight.toml`, then `config-hyprland.toml`. Only one override contributes.
+
+Changes reload automatically after a 100 ms debounce, including atomic saves,
+creation, deletion and directory recreation; override selection is repeated using
+the launch identity. Missing keys inherit individually. Invalid names, unknown
+keys, invalid types and unreadable or malformed files produce warnings. Invalid
+values are ignored; unreadable or malformed files are ignored entirely. An invalid
+selected override never falls through to a later candidate. Reload starts from
+defaults, so invalid values inherit valid lower layers rather than stale values.
+Viewer never creates or writes configuration files. Hiding a focused Close moves
+focus to Menu; reload leaves menu and modal focus alone. Fullscreen toolbar
+auto-hide still applies to both preferences.
 
 ### Zoom, pan and transforms
 
@@ -139,7 +173,8 @@ and Ctrl+R clear them; returning to a file does not restore them.
 
 ### Overlays
 
-The header shows the centered filename and scalable, theme-tinted icons. The
+The header shows the left-aligned filename and equally sized, theme-tinted glyphs.
+Close uses the theme’s error background and contrasting foreground on hover. The
 shortcut footer stays on one line below the canvas; as the window narrows, hints
 hide from the right while the Help shortcut remains visible. In fullscreen, the
 canvas fills the window and the header and footer overlay it. They appear with
@@ -533,6 +568,7 @@ for source and checksum assets.
 
 ## Documentation
 
+- [Session header preferences](docs/sdd/session-header-preferences/README.md)
 - [Project brief](docs/PROJECT_BRIEF.md) and [backlog](docs/BACKLOG.md)
 - Verification records:
   [project scaffold](docs/sdd/project-scaffold/VERIFICATION.md),

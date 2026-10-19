@@ -1,4 +1,5 @@
 #include "image_document.h"
+#include "viewer_preferences.h"
 
 #include <QCommandLineParser>
 #include <QGuiApplication>
@@ -43,12 +44,16 @@ int main(int argc, char* argv[]) {
   QObject::connect(&document, &ImageDocument::openingFailed, &app, [](const QString& fileName, const QString& error) {
     QTextStream(stderr) << QCoreApplication::translate("main", "Error opening %1: %2").arg(fileName, error) << '\n';
   });
+  ViewerPreferences preferences;
   QQmlApplicationEngine engine;
   QObject::connect(
       &engine, &QQmlApplicationEngine::objectCreationFailed, &app, [] { QCoreApplication::exit(EXIT_FAILURE); },
       Qt::QueuedConnection);
   engine.addImageProvider(QStringLiteral("thumbnail"), new ThumbnailProvider);
-  engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
+  engine.setInitialProperties({
+      {QStringLiteral("document"), QVariant::fromValue(&document)},
+      {QStringLiteral("preferences"), QVariant::fromValue(&preferences)},
+  });
   engine.loadFromModule("HolonightViewer", "Main");
   if (engine.rootObjects().isEmpty()) {
     return EXIT_FAILURE;

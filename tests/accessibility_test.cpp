@@ -42,8 +42,8 @@ TEST(Accessibility, NamesRolesEnabledFocusAndDialogs) {
   ASSERT_NE(window, nullptr);
   window->requestActivate();
   ASSERT_TRUE(QTest::qWaitForWindowActive(window));
-  for (const auto* name :
-       {"actionsButton", "informationButton", "fullscreenButton", "previousButton", "nextButton", "imageCanvas"}) {
+  for (const auto* name : {"actionsButton", "informationButton", "fullscreenButton", "closeButton", "previousButton",
+                           "nextButton", "imageCanvas"}) {
     auto* item = window->findChild<QQuickItem*>(QString::fromLatin1(name));
     ASSERT_NE(item, nullptr) << name;
     auto* accessible = QAccessible::queryAccessibleInterface(item);
@@ -190,10 +190,15 @@ TEST(Accessibility, VisibleKeyboardFocus) {
   verifyRing(fullscreen, "empty-fullscreen");
   tab(actions);
   verifyRing(actions, "empty-actions");
+  auto* close = window->findChild<QQuickItem*>("closeButton");
+  ASSERT_NE(close, nullptr);
+  tab(close);
+  verifyRing(close, "empty-close");
   tab(fullscreen);
+  tab(close, true);
   tab(actions, true);
   tab(fullscreen, true);
-  tab(actions, true);
+  tab(close, true);
   document.open({QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/sample.png")});
   ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready; }));
   EXPECT_TRUE(information->isEnabled());
@@ -201,7 +206,9 @@ TEST(Accessibility, VisibleKeyboardFocus) {
   verifyRing(information, "ready-information");
   tab(fullscreen);
   tab(actions);
+  tab(close);
   tab(information);
+  tab(close, true);
   tab(actions, true);
   tab(fullscreen, true);
   tab(information, true);
