@@ -115,21 +115,12 @@ HnHeaderBar {
                 enabled: !header.modalActive
                 onClicked: header.menuRequested()
             }
-            ViewerHeaderButton {
+            HnHeaderCloseButton {
                 id: closeButton
                 objectName: "closeButton"
                 visible: headerContent.closeShown
                 KeyNavigation.tab: informationButton
                 KeyNavigation.backtab: actionsButton
-                icon.source: "../icons/close.svg"
-                icon.color: !enabled ? HoloniightPalette.textDisabled : hovered || down ? HoloniightPalette.onError : HoloniightPalette.textPrimary
-                background: HnButtonSurface {
-                    pressed: closeButton.down
-                    hovered: closeButton.hovered
-                    focusVisible: closeButton.visualFocus
-                    cornerRadius: closeButton.cornerRadius
-                    color: closeButton.enabled && (pressed || hovered) ? HoloniightPalette.error : "transparent"
-                }
                 Accessible.name: qsTranslate("Main", "Close")
                 action: header.quitAction
             }

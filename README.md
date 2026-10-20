@@ -631,3 +631,7 @@ remain application-owned. QMarkdown is not required. Build the independent
 `holonight-file-browser` provider first and supply its prefix through `CMAKE_PREFIX_PATH`.
 CI pins published providers in `scripts/ci/providers.json`; use
 `task check -- --siblings /path/to/umbrella` to test current sibling sources explicitly.
+
+The header close button uses `Holonight.Controls.HnHeaderCloseButton` and the
+`window-close` theme icon. Visibility preferences and keyboard focus order remain
+application-owned; see [the header design](docs/header-navigation.md).

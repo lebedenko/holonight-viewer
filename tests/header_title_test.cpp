@@ -143,8 +143,8 @@ TEST(ViewerHeader, CloseActivatesOnEnterAndSpaceThroughNormalWindowClose) {
 }
 
 TEST(ViewerHeader, GlyphsPreserveIntendedExtents) {
-  QRect closeBounds;
-  for (const auto* name : {"close", "information", "fullscreen", "menu"}) {
+  const QRect closeBounds(5, 5, 14, 14);  // Shared window-close glyph bounds; artwork is tested by Icons.
+  for (const auto* name : {"information", "fullscreen", "menu"}) {
     QSvgRenderer renderer(QStringLiteral(":/qt/qml/HolonightViewer/icons/%1.svg").arg(QString::fromLatin1(name)));
     ASSERT_TRUE(renderer.isValid()) << name;
     QImage pixels(24, 24, QImage::Format_ARGB32_Premultiplied);
@@ -160,16 +160,9 @@ TEST(ViewerHeader, GlyphsPreserveIntendedExtents) {
         }
       }
     }
-    if (closeBounds.isEmpty()) {
-      closeBounds = bounds;
-      EXPECT_FALSE(bounds.isEmpty());
-    } else {
-      // The information glyph is optically enlarged while retaining the same center.
-      const auto expected = QString::fromLatin1(name) == QStringLiteral("information")
-                                ? closeBounds.adjusted(-1, -1, 1, 1)
-                                : closeBounds;
-      EXPECT_EQ(bounds, expected) << name;
-    }
+    const auto expected =
+        QString::fromLatin1(name) == QStringLiteral("information") ? closeBounds.adjusted(-1, -1, 1, 1) : closeBounds;
+    EXPECT_EQ(bounds, expected) << name;
   }
 }
 
