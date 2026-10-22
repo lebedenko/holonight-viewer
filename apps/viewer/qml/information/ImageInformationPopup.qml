@@ -56,7 +56,6 @@ HnPopupCard {
                 Layout.alignment: Qt.AlignTop
                 Layout.preferredWidth: 96
                 Layout.preferredHeight: 96
-                padding: HnMetrics.borderWidth
                 previewState: HnPreviewFrame.Content
                 Accessible.ignored: true
                 previewContent: ImageCanvas {

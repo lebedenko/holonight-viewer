@@ -5,7 +5,7 @@
   },
   {
     "name": "holonight-qt",
-    "revision": "fac34119cc2e2356a3437b5f709bb052ac04f9a8",
+    "revision": "15929ec8f960eb28caa4804f4406780cdba6bc6c",
     "options": [
       "-DBUILD_WAYLAND=ON"
     ]
@@ -20,7 +20,7 @@
   },
   {
     "name": "holonight-file-browser",
-    "revision": "6009e59cdf8d685ee818d92564ce64ea0f838896",
+    "revision": "f16d568bfb4aa8a642f8a0c3342300b42e09d757",
     "options": [
       "-DBUILD_FILE_BROWSER_SEARCH=OFF",
       "-DBUILD_FILE_BROWSER_STORAGE=OFF",

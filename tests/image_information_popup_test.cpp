@@ -502,16 +502,16 @@ TEST(ImageInformationPopup, PreviewTracksWindowDprAndPhysicalSampling) {
   EXPECT_EQ(canvas->window(), &window);
   EXPECT_DOUBLE_EQ(canvas->displayPixelRatio(), 1.5);
   ASSERT_EQ(canvas->image().size(), QSize(128, 128));
-  ASSERT_EQ(canvas->size(), QSizeF(94, 94));
+  ASSERT_EQ(canvas->size(), QSizeF(96, 96));
   const auto fitted = canvas->imageRect();
-  EXPECT_EQ(fitted, QRectF(0, 0, 94, 94));
+  EXPECT_EQ(fitted, QRectF(0, 0, 96, 96));
 
   const auto checkPreview = [&](qreal ratio) {
     SCOPED_TRACE(ratio);
     EXPECT_DOUBLE_EQ(window.effectiveDevicePixelRatio(), ratio);
     EXPECT_DOUBLE_EQ(window.screen()->devicePixelRatio(), screenRatio);
     EXPECT_DOUBLE_EQ(canvas->displayPixelRatio(), ratio);
-    EXPECT_DOUBLE_EQ(canvas->magnification(), 94.0 * ratio / 128.0);
+    EXPECT_DOUBLE_EQ(canvas->magnification(), 96.0 * ratio / 128.0);
     EXPECT_EQ(canvas->imageRect(), fitted);
     EXPECT_TRUE(canvas->fitting());
     EXPECT_TRUE(canvas->isVisible());
@@ -525,7 +525,7 @@ TEST(ImageInformationPopup, PreviewTracksWindowDprAndPhysicalSampling) {
     painted.fill(Qt::transparent);
     QPainter painter(&painted);
     canvas->paint(&painter);
-    const bool downsampling = 94.0 * ratio < 128.0;
+    const bool downsampling = 96.0 * ratio < 128.0;
     EXPECT_EQ(painter.testRenderHint(QPainter::SmoothPixmapTransform), downsampling);
     painter.end();
     int blendedPixels = 0;
