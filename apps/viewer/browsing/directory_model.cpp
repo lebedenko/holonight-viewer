@@ -41,7 +41,7 @@ DirectoryResult scanDirectory(const QUrl& selected, const std::atomic_bool& canc
           return;
         }
         for (const auto& entry : entries) {
-          if (!entry.is_parent && !entry.name.startsWith(u'.') && S_ISREG(entry.mode) &&
+          if (!entry.name.startsWith(u'.') && S_ISREG(entry.mode) &&
               suffixes.contains(QFileInfo(entry.name).suffix().toCaseFolded())) {
             result.urls.append(HolonightFileBrowser::localUrl(entry.native_path));
           }
