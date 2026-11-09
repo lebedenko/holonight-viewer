@@ -1,4 +1,5 @@
 #include "image_document.h"
+#include "image_runtime.h"
 
 #include <QAccessible>
 #include <QClipboard>
@@ -62,7 +63,7 @@ constexpr int kEntries = kMenu.size();
 QString text(std::string_view view) { return QString::fromUtf8(view.data(), static_cast<qsizetype>(view.size())); }
 
 struct MenuFixture {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   QQuickWindow* window = nullptr;
   QObject* menu = nullptr;

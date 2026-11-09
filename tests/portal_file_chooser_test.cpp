@@ -2,6 +2,7 @@
 
 #include "image_canvas.h"
 #include "image_document.h"
+#include "image_runtime.h"
 #include "mock_portal.h"
 #include "portal_request_builder.h"
 #include "wayland_foreign_export.h"
@@ -12,6 +13,7 @@
 #include <QDBusPendingCall>
 #include <QDBusPendingReply>
 #include <QDir>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QImage>
 #include <QQmlApplicationEngine>
@@ -396,7 +398,20 @@ struct WarningCollector {
 namespace {
 struct PortalViewerFixture {
   MockPortal portal;
-  ImageDocument document;
+  // Portal tests exercise URI handoff on a private bus. Raster acceptance runs on the host lane.
+  ImageDocument document{[](const QUrl& url, const std::atomic_bool&) {
+    DecodeResult result;
+    if (QFileInfo::exists(url.toLocalFile())) {
+      result.image = QImage(64, 32, QImage::Format_ARGB32_Premultiplied);
+      result.image.fill(Qt::darkCyan);
+      result.information.format = "PNG";
+      result.information.decoded_size = result.image.size();
+      result.outcome = HolonightImages::Outcome::Success;
+    } else {
+      result.error = "The file no longer exists.";
+    }
+    return result;
+  }};
   QQmlApplicationEngine engine;
   QQuickWindow* window = nullptr;
   PortalFileChooser* chooser = nullptr;

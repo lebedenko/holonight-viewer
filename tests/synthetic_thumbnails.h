@@ -42,11 +42,11 @@ struct SyntheticDecoder {
       }
     }
     if (failing) {
-      return {.image = {}, .source_size = {}, .error = QStringLiteral("boom")};
+      return {.image = {}, .source_size = {}, .error = QStringLiteral("boom"), .diagnostic = {}};
     }
     QImage image(decodedSize, QImage::Format_ARGB32_Premultiplied);
     image.fill(Qt::red);
-    return {.image = image, .source_size = sourceSize, .error = {}};
+    return {.image = image, .source_size = sourceSize, .error = {}, .diagnostic = {}};
   }
   QStringList decodedPaths() {
     QMutexLocker lock(&mutex);

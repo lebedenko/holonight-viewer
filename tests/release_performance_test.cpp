@@ -1,6 +1,7 @@
 #include "gif_fixture.h"
 #include "image_canvas.h"
 #include "image_document.h"
+#include "image_runtime.h"
 
 #include <QBuffer>
 #include <QClipboard>
@@ -74,7 +75,7 @@ TEST(ReleasePerformance, LargeWorkflow) {
   ASSERT_TRUE(source.save(dir.filePath("2.png")));
   source = {};
   recordFixtures(QDir(dir.path()));
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QElapsedTimer clock;
   clock.start();
   qint64 last = 0;
@@ -163,7 +164,7 @@ TEST(ReleasePerformance, NativeWorkflow) {
   ASSERT_TRUE(QDir().mkpath(outputDir));
   ASSERT_TRUE(QFile::exists(fixtureDir + "/1.png"));
   ASSERT_TRUE(QFile::exists(fixtureDir + "/2.png"));
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
   engine.loadFromModule("HolonightViewer", "Main");
@@ -302,7 +303,7 @@ TEST(ReleasePerformance, AnimatedGifFrameSwap) {
                          {.delayCs = 10, .second = true}},
                         0, 8000, 4000));
   file.close();
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   ImageCanvas canvas;
   canvas.setWidth(1600);
   canvas.setHeight(900);
@@ -367,7 +368,7 @@ TEST(ReleasePerformance, AnimatedGifScanNeverBlocksTheGui) {
                           "3b"));
   file.close();
   ASSERT_GT(file.size(), 190LL * 1024 * 1024);
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QElapsedTimer clock;
   clock.start();
   qint64 last = 0;
@@ -409,7 +410,7 @@ TEST(ReleasePerformance, RepeatedNavigation) {
     ASSERT_TRUE(source.save(path(index)));
   }
   recordFixtures(QDir(dir.path()));
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QElapsedTimer clock;
   clock.start();
   qint64 last = 0;

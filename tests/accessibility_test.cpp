@@ -1,6 +1,7 @@
 #include "exif_fixture.h"
 #include "image_canvas.h"
 #include "image_document.h"
+#include "image_runtime.h"
 
 #include <QAccessible>
 #include <QClipboard>
@@ -33,7 +34,7 @@ TEST(Accessibility, NamesRolesEnabledFocusAndDialogs) {
   const auto previousHandler = QAccessible::installUpdateHandler(recordEvent);
   const auto restore = qScopeGuard([&] { QAccessible::installUpdateHandler(previousHandler); });
   QAccessible::setActive(true);
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
   engine.loadFromModule("HolonightViewer", "Main");
@@ -129,7 +130,7 @@ TEST(Accessibility, NamesRolesEnabledFocusAndDialogs) {
 
 // Focus is restricted to enabled header controls; image actions clear its ring.
 TEST(Accessibility, VisibleKeyboardFocus) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
   engine.loadFromModule("HolonightViewer", "Main");
@@ -252,7 +253,7 @@ TEST(Accessibility, ImageInformationPopup) {
   ASSERT_GT(file.write(ExifFixture::jpegWithApp1(ExifFixture::sonyPayload())), 0);
   file.close();
 
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
   engine.loadFromModule("HolonightViewer", "Main");

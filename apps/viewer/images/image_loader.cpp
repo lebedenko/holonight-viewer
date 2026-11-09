@@ -103,7 +103,8 @@ void ImageLoader::decodeRequest(const Request& request, const std::shared_ptr<st
     // A neighbor's format and size must never change the foreground reservation.
     cache_.setLimit(retained_budget_ - ((gif ? 2 : 1) * result.image.sizeInBytes()));
   }
-  if (!cancel->load() && !result.image.isNull()) {
+  if (!cancel->load() && result.runtime == HolonightImages::RuntimeStatus::Success && result.error.isEmpty() &&
+      (!result.outcome || result.outcome == HolonightImages::Outcome::Success) && !result.image.isNull()) {
     if (request.kind == Kind::Prefetch || gif) {
       // Frame zero may be reused, but it must fit in the LRU rather than stay alive as an extra displayed frame.
       cache_.put(std::move(*entry));
@@ -111,7 +112,7 @@ void ImageLoader::decodeRequest(const Request& request, const std::shared_ptr<st
       displayed_ = std::move(entry);
     }
   }
-  if (request.kind == Kind::Prefetch) {
+  if (request.kind == Kind::Prefetch && result.runtime == HolonightImages::RuntimeStatus::Success) {
     result = {};
   }
   QMetaObject::invokeMethod(
@@ -123,7 +124,8 @@ void ImageLoader::decodeRequest(const Request& request, const std::shared_ptr<st
 }
 
 void ImageLoader::retainTentative(const Request& request, const DecodeResult& result, quint64 epoch) {
-  if (stopping_) {
+  if (stopping_ || result.runtime != HolonightImages::RuntimeStatus::Success || !result.error.isEmpty() ||
+      (result.outcome && result.outcome != HolonightImages::Outcome::Success)) {
     return;
   }
   auto entry = DecodedImageCache::metadata(request.url);
@@ -157,7 +159,8 @@ void ImageLoader::complete(const Request& request, DecodeResult result, bool can
     thread_.quit();
     return;
   }
-  if (cancelled) {
+  cancelled = cancelled || result.runtime == HolonightImages::RuntimeStatus::Cancelled;
+  if (cancelled && result.runtime != HolonightImages::RuntimeStatus::CleanupFailure) {
     result = {};
     result.outcome = HolonightImages::Outcome::Cancelled;
   }

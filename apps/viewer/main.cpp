@@ -28,6 +28,8 @@ int main(int argc, char* argv[]) {
   parser.addVersionOption();
   parser.addPositionalArgument(QStringLiteral("file"), QCoreApplication::translate("main", "Local image to open"),
                                QStringLiteral("[file]"));
+  parser.addOption({QStringLiteral("image-runtime"), QStringLiteral("Explicit isolated image runtime directory"),
+                    QStringLiteral("directory")});
   parser.process(app);
   const auto arguments = parser.positionalArguments();
   const auto url = arguments.isEmpty() ? QUrl{} : commandLineUrl(arguments.first());
@@ -38,7 +40,10 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
   QGuiApplication::setQuitOnLastWindowClosed(false);
-  ImageDocument document;
+  const auto runtime = parser.isSet("image-runtime")
+                           ? HolonightFileBrowser::ImageRuntimeOptions{parser.value("image-runtime")}
+                           : viewerImageRuntimeOptions();
+  ImageDocument document(runtime);
   QObject::connect(&app, &QGuiApplication::lastWindowClosed, &document, &ImageDocument::shutdown);
   QObject::connect(&document, &ImageDocument::shutdownFinished, &app, &QCoreApplication::quit);
   QObject::connect(&document, &ImageDocument::openingFailed, &app, [](const QString& fileName, const QString& error) {
@@ -49,7 +54,7 @@ int main(int argc, char* argv[]) {
   QObject::connect(
       &engine, &QQmlApplicationEngine::objectCreationFailed, &app, [] { QCoreApplication::exit(EXIT_FAILURE); },
       Qt::QueuedConnection);
-  engine.addImageProvider(QStringLiteral("thumbnail"), new ThumbnailProvider);
+  engine.addImageProvider(QStringLiteral("thumbnail"), new ThumbnailProvider(runtime));
   engine.setInitialProperties({
       {QStringLiteral("document"), QVariant::fromValue(&document)},
       {QStringLiteral("preferences"), QVariant::fromValue(&preferences)},

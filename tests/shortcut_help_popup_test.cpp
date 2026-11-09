@@ -1,4 +1,5 @@
 #include "image_document.h"
+#include "image_runtime.h"
 
 #include <QAccessible>
 #include <QColor>
@@ -191,7 +192,7 @@ struct StandaloneHelp {
 };
 
 struct ViewerFixture {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   QQuickWindow* window = nullptr;
 

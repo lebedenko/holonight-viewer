@@ -1,4 +1,5 @@
 #include "image_document.h"
+#include "image_runtime.h"
 #include "viewer_preferences.h"
 
 #include <QAccessible>
@@ -18,7 +19,7 @@
 #include <gtest/gtest.h>
 
 TEST(ViewerHeader, DefaultsAndAllPreferenceCombinationsInBothModes) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
   engine.loadFromModule("HolonightViewer", "Main");
@@ -92,7 +93,7 @@ TEST(ViewerHeader, DefaultsAndAllPreferenceCombinationsInBothModes) {
 TEST(ViewerHeader, ReloadTransfersFocusedCloseToMenuAndHonorsModalGating) {
   QTemporaryDir directory;
   ViewerPreferences preferences(directory.path(), {}, {});
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   engine.setInitialProperties({
       {QStringLiteral("document"), QVariant::fromValue(&document)},
@@ -128,7 +129,7 @@ TEST(ViewerHeader, ReloadTransfersFocusedCloseToMenuAndHonorsModalGating) {
 
 TEST(ViewerHeader, CloseActivatesOnEnterAndSpaceThroughNormalWindowClose) {
   for (const auto key : {Qt::Key_Return, Qt::Key_Space}) {
-    ImageDocument document;
+    ImageDocument document{viewer_test::imageRuntime};
     QQmlApplicationEngine engine;
     engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
     engine.loadFromModule("HolonightViewer", "Main");
@@ -167,7 +168,7 @@ TEST(ViewerHeader, GlyphsPreserveIntendedExtents) {
 }
 
 TEST(ViewerHeader, CloseHoverUsesErrorSurfaceAndContrastingForeground) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
   engine.loadFromModule("HolonightViewer", "Main");

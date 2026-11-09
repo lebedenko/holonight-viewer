@@ -1,5 +1,6 @@
 #include "image_canvas.h"
 #include "image_document.h"
+#include "image_runtime.h"
 
 #include <QDir>
 #include <QElapsedTimer>
@@ -15,7 +16,7 @@
 #include <gtest/gtest.h>
 
 TEST(Viewer, InspectionControlsAndLifecycle) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::pngFixture};
   QQmlApplicationEngine engine;
   engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
   engine.loadFromModule("HolonightViewer", "Main");
@@ -292,7 +293,7 @@ TEST(Viewer, IndependentOverlayTimers) {
   image.fill(Qt::darkCyan);
   ASSERT_TRUE(image.save(dir.filePath("a.png")));
   ASSERT_TRUE(image.save(dir.filePath("b.png")));
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
   engine.loadFromModule("HolonightViewer", "Main");

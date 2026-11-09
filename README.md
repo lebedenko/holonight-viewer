@@ -307,11 +307,20 @@ The guaranteed formats are static **PNG, JPEG, BMP, WebP, TIFF and SVG**, and **
 (GIF87a and GIF89a, including animation). TIFF is guaranteed for single-page, 8-bit,
 uncompressed RGB, RGBA, grayscale and palette files; a multi-page TIFF shows its
 first page only. Other TIFF variants (16-bit, float, CMYK, Lab, tiled, BigTIFF and
-compressed files) and other installed Qt image handlers work on a best-effort basis:
+compressed files) work on a best-effort basis:
 they either open or show an error, and some valid files, such as tiled TIFF, may not
 open. Other animated files (APNG, animated WebP) show their first frame only. Missing
 codecs, including the Qt GIF and TIFF plugins, fail qualification, not ordinary
 startup.
+
+Raster metadata and first-frame decoding require the installed isolated Images runtime.
+Only PNG, JPEG (`jpeg`, `jpg`, `jpe`), BMP, TIFF (`tiff`, `tif`), WebP and GIF are
+accepted; additional host Qt plugins do not extend this list. Untagged pixels and
+Qt's named color spaces are supported. Other valid color profiles are rejected without
+conversion or profile removal. A missing or invalid runtime fails the request without
+in-process fallback. GIF playback after the first frame and SVG remain in-process;
+this is static-raster isolation, not complete Viewer isolation. See the
+[consumer contract and host acceptance](docs/sdd/isolated-static-raster/DESIGN.md).
 
 SVG renders as true vector graphics, staying crisp at any zoom level instead of being
 decoded to a fixed-resolution raster; it is not subject to the pixel/decoded-image

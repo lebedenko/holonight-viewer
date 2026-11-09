@@ -3,6 +3,7 @@
 #include "folder_grid_model.h"
 #include "image_canvas.h"
 #include "image_document.h"
+#include "image_runtime.h"
 
 #include <QAbstractItemModelTester>
 #include <QDir>
@@ -138,7 +139,7 @@ TEST(Browsing, BoundariesErrorsDeletionAndRefresh) {
   const auto first = writeFile(dir, "image1.png", true);
   const auto broken = writeFile(dir, "image2.png");
   const auto last = writeFile(dir, "image10.png", true);
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({first});
   EXPECT_TRUE(document.scanning());
   EXPECT_FALSE(document.canNext());
@@ -314,7 +315,7 @@ TEST(Viewer, FolderBrowsingControls) {
   large.fill(Qt::blue);
   ASSERT_TRUE(large.save(first.toLocalFile()));
   ASSERT_TRUE(large.save(dir.filePath("3.png")));
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
   engine.loadFromModule("HolonightViewer", "Main");
@@ -405,7 +406,7 @@ TEST(Browsing, LargeFolderAndImages) {
   timer.start(1);
   QElapsedTimer elapsed;
   elapsed.start();
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   qint64 scanMs = -1;
   QObject::connect(&document, &ImageDocument::changed, [&] {
     if (!document.scanning() && document.count() == 20000 && scanMs < 0) {
@@ -485,7 +486,7 @@ TEST(FolderGrid, DeletedCurrentFileLeavesSingleViewBrowsingUntouched) {
   const auto first = writeFile(dir, "image1.png", true);
   const auto middle = writeFile(dir, "image2.png", true);
   const auto last = writeFile(dir, "image3.png", true);
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({middle});
   ASSERT_TRUE(settled(document));
   ASSERT_EQ(document.folder()->rowCount(), 3);
@@ -511,7 +512,7 @@ TEST(FolderGrid, SelectionCanBeRestoredByUrlAfterRescan) {
     ASSERT_FALSE(writeFile(dir, QString("photo_%1.png").arg(i, 3, 10, QChar('0')), true).isEmpty());
   }
   const auto selected = QUrl::fromLocalFile(dir.filePath("photo_010.png"));
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({selected});
   ASSERT_TRUE(settled(document));
   EXPECT_EQ(document.folder()->indexOfUrl(selected), 9);

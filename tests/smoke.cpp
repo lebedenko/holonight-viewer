@@ -1,5 +1,6 @@
 #include "image_canvas.h"
 #include "image_document.h"
+#include "image_runtime.h"
 #include "mock_portal.h"
 
 #include <QAccessible>
@@ -32,7 +33,7 @@
 #include <memory>
 
 TEST(Viewer, WindowAndKeyboard) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   QStringList iconWarnings;
   QObject::connect(&engine, &QQmlEngine::warnings, &engine, [&](const QList<QQmlError>& warnings) {
@@ -195,7 +196,7 @@ scale = 1.0
                                    << child.readAllStandardError().toStdString();
     return;
   }
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
   engine.loadFromModule("HolonightViewer", "Main");
@@ -247,7 +248,7 @@ QQuickItem* findFileDelegate(QQuickItem* root, const QUrl& url) {
 }  // namespace
 
 TEST(Viewer, OpeningCanvasAndAdapters) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::pngFixture};
   QQmlApplicationEngine engine;
   engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
   engine.loadFromModule("HolonightViewer", "Main");
@@ -353,12 +354,14 @@ TEST(Viewer, EmbeddedStyleSelection) {
 }
 
 int main(int argc, char* argv[]) {
+  viewer_test::readImageRuntime(argc, argv);
   configureDecodeLimits();
   qunsetenv("QT_QUICK_CONTROLS_FALLBACK_STYLE");
   qunsetenv("QT_QUICK_CONTROLS_CONF");
   QCoreApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
   const QGuiApplication app(argc, argv);
-  if (const auto guard = MockPortal::sessionBusIsPrivate(QDBusConnection::sessionBus()); !guard) {
+  if (const auto guard = MockPortal::sessionBusIsPrivate(QDBusConnection::sessionBus());
+      !guard && !viewer_test::explicitRuntime) {
     std::cerr << guard.message() << '\n';
     return 1;
   }

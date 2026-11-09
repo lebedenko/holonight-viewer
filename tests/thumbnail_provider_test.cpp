@@ -1,3 +1,4 @@
+#include "image_runtime.h"
 #include "thumbnail_metrics.h"
 
 #include <QCoreApplication>
@@ -42,9 +43,13 @@ struct FakeDecoder {
       cancelledSeen = cancelledSeen || cancelled.load();
     }
     if (failing) {
-      return {.image = {}, .source_size = {}, .error = QStringLiteral("boom")};
+      return {.image = {}, .source_size = {}, .error = QStringLiteral("boom"), .diagnostic = {}};
     }
-    return {.image = solid(decodedSize), .source_size = sourceSize, .error = {}, .cache_eligible = cacheEligible};
+    return {.image = solid(decodedSize),
+            .source_size = sourceSize,
+            .error = {},
+            .cache_eligible = cacheEligible,
+            .diagnostic = {}};
   }
   void block() {
     QMutexLocker lock(&mutex);
@@ -128,9 +133,9 @@ TEST(ThumbnailProvider, DecodesOffTheGuiThreadAndDeliversTheImage) {
 }
 
 TEST(ThumbnailProvider, PoolSizeIsHalfTheIdealThreadsWithAMinimumOfOne) {
-  EXPECT_EQ(ThumbnailProvider({}, thumbnailThreadCount(16)).maxThreadCount(), 8);
-  EXPECT_EQ(ThumbnailProvider({}, thumbnailThreadCount(1)).maxThreadCount(), 1);
-  EXPECT_EQ(ThumbnailProvider({}, thumbnailThreadCount(3)).maxThreadCount(), 1);
+  EXPECT_EQ(ThumbnailProvider(viewer_test::imageRuntime, thumbnailThreadCount(16)).maxThreadCount(), 8);
+  EXPECT_EQ(ThumbnailProvider(viewer_test::imageRuntime, thumbnailThreadCount(1)).maxThreadCount(), 1);
+  EXPECT_EQ(ThumbnailProvider(viewer_test::imageRuntime, thumbnailThreadCount(3)).maxThreadCount(), 1);
 }
 
 TEST(ThumbnailProvider, TextureSizeIsTheLogicalSizeNotTheDevicePixels) {

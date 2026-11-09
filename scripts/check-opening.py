@@ -13,6 +13,8 @@ binary = Path(sys.argv[1]).resolve(strict=True)
 fixtures = Path(tempfile.mkdtemp(prefix='opening-check.', dir=Path(sys.argv[2]) if len(sys.argv) > 2 else None))
 
 
+runtime_args = ['--image-runtime', sys.argv[3]] if len(sys.argv) > 3 else []
+
 FORMATS = runpy.run_path(str(Path(__file__).with_name('format-fixtures.py')))['FORMATS']
 png, jpeg = FORMATS['png'], FORMATS['jpg']
 for name, data in [('фото space.png', png), ('фото space.jpg', jpeg), ('-dash.png', png),
@@ -34,7 +36,7 @@ cases += [(str(fixtures / 'frame:1.png'), False), ((fixtures / 'frame:1.png').as
           ((fixtures / 'percent % фото.png').as_uri(), False), ('./missing:1.png', True),
           (str(fixtures / 'missing:1.png'), True)]
 for index, (name, expected_error) in enumerate(cases):
-    process = subprocess.Popen([str(binary), '--', name], cwd=fixtures, env=environment,
+    process = subprocess.Popen([str(binary), *runtime_args, '--', name], cwd=fixtures, env=environment,
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
         try:

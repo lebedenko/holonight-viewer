@@ -1,10 +1,7 @@
 #pragma once
 
-#include <QByteArray>
-class QIODevice;
 #include <QString>
 
-#include <atomic>
 #include <holonight_images/image.h>
 #include <optional>
 
@@ -29,6 +26,6 @@ struct ExifDetails {
 
 namespace ExifMetadata {
 // Formats structured provider facts for Viewer presentation.
-ExifDetails parse(const QByteArray& payload);
-ExifDetails read(QIODevice& source, const std::atomic_bool& cancelled);
+ExifDetails format(const HolonightImages::ExifFacts& facts,
+                   std::optional<HolonightImages::Outcome> outcome = std::nullopt);
 }  // namespace ExifMetadata

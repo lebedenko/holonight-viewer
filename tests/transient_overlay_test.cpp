@@ -1,5 +1,6 @@
 #include "image_canvas.h"
 #include "image_document.h"
+#include "image_runtime.h"
 
 #include <QAccessible>
 #include <QElapsedTimer>
@@ -20,7 +21,7 @@
 namespace {
 struct OverlayFixture {
   QTemporaryDir dir{QStringLiteral(VIEWER_FIXTURE_DIR) + "/overlay-XXXXXX"};
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   QQuickWindow* window = nullptr;
   ImageCanvas* canvas = nullptr;

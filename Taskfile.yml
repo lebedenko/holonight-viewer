@@ -115,3 +115,9 @@ tasks:
     - cmake --build build/sanitizer
     - ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 ctest --test-dir
       build/sanitizer --output-on-failure --no-tests=error
+  test:isolated:
+    desc: Required host raster regressions (explicit host-native runtime)
+    requires:
+      vars: [RUNTIME]
+    cmds:
+    - python3 scripts/test-lane.py --framework gtest --inventory tests/lanes.json --lane host --runtime "{{.RUNTIME}}" -- build/{{.PRESET}}/tests/viewer-smoke

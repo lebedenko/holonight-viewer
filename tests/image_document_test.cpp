@@ -5,6 +5,7 @@
 #include "gif_fixture.h"
 #include "image_canvas.h"
 #include "image_loader_test_access.h"
+#include "image_runtime.h"
 #include "manual_playback_clock.h"
 #include "pasted_path_p.h"
 #include "viewer_controller.h"
@@ -78,7 +79,7 @@ DecodeResult solidResult() {
 }  // namespace
 
 TEST(Document, FormatsAlphaPathsAndRecovery) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   ASSERT_TRUE(QImageReader::supportedImageFormats().contains("png"));
   ASSERT_TRUE(QImageReader::supportedImageFormats().contains("jpeg"));
   EXPECT_EQ(QImageReader::allocationLimit(), 256);
@@ -124,7 +125,7 @@ TEST(Document, FormatsAlphaPathsAndRecovery) {
 }
 
 TEST(Document, Orientation) {
-  ImageDocument policy;
+  ImageDocument policy{viewer_test::imageRuntime};
   const auto jpeg = encodedImage("JPEG");
   ASSERT_FALSE(jpeg.isEmpty());
   const auto base = QImage::fromData(jpeg);
@@ -134,7 +135,7 @@ TEST(Document, Orientation) {
     exif[28] = static_cast<char>(orientation);
     const auto url =
         writeFixture(QStringLiteral("orientation-%1.jpg").arg(orientation), jpeg.left(2) + exif + jpeg.mid(2));
-    const auto result = decodeImage(url, cancel);
+    const auto result = viewer_test::decode(url, cancel);
     ASSERT_FALSE(result.image.isNull()) << result.error.toStdString();
     EXPECT_EQ(result.information.decoded_size, result.image.size());
     EXPECT_EQ(result.information.format, "JPEG");
@@ -183,7 +184,7 @@ TEST(Document, Orientation) {
 }
 
 TEST(Document, LimitsAndCancellation) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QImage wide(32769, 1, QImage::Format_RGB32);
   wide.fill(Qt::red);
   const auto path = fixturePath("too-wide.png");
@@ -210,7 +211,7 @@ TEST(Document, LimitsAndCancellation) {
   EXPECT_EQ(document.state(), ImageDocument::Error);
   EXPECT_TRUE(document.error().contains("256 MiB"));
   const std::atomic_bool cancelled{true};
-  EXPECT_TRUE(decodeImage(QUrl::fromLocalFile(path), cancelled).image.isNull());
+  EXPECT_TRUE(viewer_test::decode(QUrl::fromLocalFile(path), cancelled).image.isNull());
 }
 
 TEST(Document, OnlyNewestPendingRequestRuns) {
@@ -420,7 +421,7 @@ TEST(Document, AnimatedGifAutoplaysAfterItsFirstFrame) {
   if (!gif::available()) {
     GTEST_SKIP() << "GIF handler is not installed";
   }
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   const auto url = writeGif("two-frames.gif", {{.delayCs = 50, .second = false}, {.delayCs = 30, .second = true}});
   const auto first = firstFrame(url);
   QSignalSpy frames(&document, &ImageDocument::frameChanged);
@@ -448,7 +449,7 @@ TEST(Document, SingleFrameGifStaysStatic) {
   if (!gif::available()) {
     GTEST_SKIP() << "GIF handler is not installed";
   }
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({writeGif("one-frame.gif", {{.delayCs = 10, .second = false}})});
   ASSERT_TRUE(settled(document));
   ASSERT_EQ(document.state(), ImageDocument::Ready);
@@ -462,7 +463,7 @@ TEST(Document, RefreshAndNavigationRestartPlaybackFromFrameZero) {
   if (!gif::available()) {
     GTEST_SKIP() << "GIF handler is not installed";
   }
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   const auto url =
       writeGif("restart.gif",
                {{.delayCs = 5, .second = false}, {.delayCs = 5, .second = true}, {.delayCs = 5, .second = false}}, 0);
@@ -484,7 +485,7 @@ TEST(Document, RefreshAndNavigationRestartPlaybackFromFrameZero) {
 }
 
 TEST(Document, DamagedFirstFrameIsAnErrorNotAnAnimation) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({writeFixture("broken.gif", QByteArray("GIF89a") + QByteArray(40, '\x7f'))});
   ASSERT_TRUE(settled(document));
   EXPECT_EQ(document.state(), ImageDocument::Error);
@@ -495,7 +496,7 @@ TEST(Document, CopyWhilePlayingUsesTheCurrentFrameAndKeepsPlaying) {
   if (!gif::available()) {
     GTEST_SKIP() << "GIF handler is not installed";
   }
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({writeGif("copy.gif", {{.delayCs = 5, .second = false}, {.delayCs = 5, .second = true}}, 0)});
   ASSERT_TRUE(settled(document));
   ASSERT_TRUE(QTest::qWaitFor([&] { return document.animation()->animated(); }));
@@ -603,7 +604,7 @@ TEST(Document, GifFrameZeroIsReusedWhenItFitsTheRetainedBudget) {
 }
 
 TEST(Document, UnreadableAndSpecialFiles) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   const auto url = writeFixture("unreadable.png", encodedImage("PNG"));
   ASSERT_TRUE(QFile::setPermissions(url.toLocalFile(), {}));
   const auto restore =
@@ -618,7 +619,7 @@ TEST(Document, UnreadableAndSpecialFiles) {
 }
 
 TEST(Document, LargeImageAndShutdown) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   const auto path = fixturePath("large.png");
   {
     QImage large(6000, 4000, QImage::Format_RGB32);
@@ -673,7 +674,7 @@ QByteArray malformedSvg() {
 }  // namespace
 
 TEST(Document, SvgWithViewBoxDecodesToViewBoxSize) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   bool rendererWasValidWhenPublished = false;
   QObject::connect(&document, &ImageDocument::changed, [&] {
     if (document.state() == ImageDocument::Ready && document.svgRenderer() != nullptr) {
@@ -696,7 +697,7 @@ TEST(Document, SvgWithViewBoxDecodesToViewBoxSize) {
 
 TEST(Document, SvgResolvesRelativeLocalReferences) {
   ASSERT_TRUE(writeFixture("svg-reference.png", encodedImage("PNG")).isValid());
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({writeFixture("with-relative-reference.svg",
                               "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"40\" height=\"20\">"
                               "<image href=\"svg-reference.png\" width=\"40\" height=\"20\"/>"
@@ -711,7 +712,7 @@ TEST(Document, SvgResolvesRelativeLocalReferences) {
 }
 
 TEST(Document, SvgWithoutViewBoxFallsBackToDefaultSize) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({writeFixture("valid-without-viewBox.svg", svgWithoutViewBox())});
   ASSERT_TRUE(settled(document));
   ASSERT_EQ(document.state(), ImageDocument::Ready) << document.error().toStdString();
@@ -719,7 +720,7 @@ TEST(Document, SvgWithoutViewBoxFallsBackToDefaultSize) {
 }
 
 TEST(Document, MalformedSvgFailsThroughTheGenericErrorPath) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QSignalSpy failures(&document, &ImageDocument::openingFailed);
   document.open({writeFixture("malformed.svg", malformedSvg())});
   ASSERT_TRUE(settled(document));
@@ -731,7 +732,7 @@ TEST(Document, MalformedSvgFailsThroughTheGenericErrorPath) {
 }
 
 TEST(Document, OversizedSvgIsRejectedBeforeParsing) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QFile sparse(fixturePath("oversized.svg"));
   ASSERT_TRUE(sparse.open(QIODevice::WriteOnly));
   ASSERT_TRUE(sparse.resize(kSvgFileLimitBytes + 1));
@@ -743,7 +744,7 @@ TEST(Document, OversizedSvgIsRejectedBeforeParsing) {
 }
 
 TEST(Document, SvgHasNoCameraOrLocationSectionsAndPreviewIsRasterized) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({writeFixture("preview.svg", svgWithViewBox())});
   ASSERT_TRUE(settled(document));
   ASSERT_EQ(document.state(), ImageDocument::Ready) << document.error().toStdString();
@@ -760,7 +761,7 @@ TEST(Document, SvgHasNoCameraOrLocationSectionsAndPreviewIsRasterized) {
 }
 
 TEST(Document, SelectingAwayFromSvgClearsRendererAndBytes) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({writeFixture("cleared.svg", svgWithViewBox())});
   ASSERT_TRUE(settled(document));
   ASSERT_EQ(document.state(), ImageDocument::Ready);
@@ -787,7 +788,7 @@ TEST(Document, ConstructionPreservesApplicationAllocationPolicy) {
   QImageReader::setAllocationLimit(64);
   // Qt may cache its environment override; construction must preserve the effective value.
   const auto effectiveLimit = QImageReader::allocationLimit();
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   const auto frameSource = makeQtGifFrameSource();
   EXPECT_EQ(QImageReader::allocationLimit(), effectiveLimit);
   EXPECT_EQ(qgetenv("QT_IMAGEIO_MAXALLOC"), "64");
@@ -837,12 +838,12 @@ TEST(Document, ProviderOutcomesArePresentedDistinctlyAndCancellationDrainsSilent
 TEST(Document, RasterAdapterPreservesProviderFailuresBeforePresentation) {
   using HolonightImages::Outcome;
   const std::atomic_bool running{false};
-  const auto valid = decodeImage(writeFixture("adapter-valid.png", encodedImage("PNG")), running);
+  const auto valid = viewer_test::decode(writeFixture("adapter-valid.png", encodedImage("PNG")), running);
   EXPECT_EQ(valid.outcome, Outcome::Success);
   EXPECT_EQ(valid.information.exif.outcome, Outcome::Success);
-  EXPECT_EQ(decodeImage(writeFixture("adapter-unsupported.png", "not an image"), running).outcome,
+  EXPECT_EQ(viewer_test::decode(writeFixture("adapter-unsupported.png", "not an image"), running).outcome,
             Outcome::Unsupported);
-  const auto damaged = decodeImage(writeFixture("adapter-damaged.png", encodedImage("PNG").first(45)), running);
+  const auto damaged = viewer_test::decode(writeFixture("adapter-damaged.png", encodedImage("PNG").first(45)), running);
   EXPECT_EQ(damaged.outcome, Outcome::Damaged);
   EXPECT_TRUE(damaged.error.isEmpty());
 }
@@ -886,7 +887,7 @@ TEST(Document, QuietMetadataFailuresSurviveCacheReuseAndResetOnSelection) {
 }
 
 TEST(Document, SvgUsesDefaultSizeForInformationAndPreview) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({writeFixture("different-viewport.svg",
                               "<svg xmlns='http://www.w3.org/2000/svg' width='80' height='40' viewBox='0 0 10 30'>"
                               "<rect width='10' height='30' fill='red'/></svg>")});
@@ -898,7 +899,7 @@ TEST(Document, SvgUsesDefaultSizeForInformationAndPreview) {
 }
 TEST(Document, SelfContainedSvgRendererUsesRetainedBytesAfterPathReplacement) {
   ImageDocument document([](const QUrl& url, const std::atomic_bool& cancelled) {
-    auto result = decodeImage(url, cancelled);
+    auto result = viewer_test::decode(url, cancelled);
     QFile replacement(url.toLocalFile());
     if (replacement.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
       replacement.write(
@@ -920,7 +921,7 @@ TEST(Document, SelfContainedSvgRendererUsesRetainedBytesAfterPathReplacement) {
   EXPECT_EQ(document.previewImage().pixelColor(20, 20), QColor(Qt::red));
 }
 TEST(Document, SvgRejectsExternalResourcesWithoutSelectingLocalFallback) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({writeFixture("external-svg.svg",
                               "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'>"
                               "<image href='relative.png'/><image href='https://example.com/image.png'/></svg>")});
@@ -931,7 +932,7 @@ TEST(Document, SvgRejectsExternalResourcesWithoutSelectingLocalFallback) {
 }
 
 TEST(Document, DirectOpenAndRefreshAdvanceThumbnailGenerationAndReusePreparedPreview) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QSignalSpy generations(&document, &ImageDocument::thumbnailGenerationChanged);
   const auto url = writeFixture("prepared-preview.svg", svgWithViewBox());
   document.open({url});
@@ -963,7 +964,7 @@ TEST(Document, ObsoleteDecodeCannotReplaceTheCurrentSvgPreview) {
   std::atomic_bool entered{false};
   std::atomic_bool release{false};
   ImageDocument document([&](const QUrl& url, const std::atomic_bool& cancelled) {
-    auto result = decodeImage(url, cancelled);
+    auto result = viewer_test::decode(url, cancelled);
     if (url == oldUrl) {
       entered.store(true);
       while (!release.load()) {
@@ -986,7 +987,7 @@ TEST(Document, ObsoleteDecodeCannotReplaceTheCurrentSvgPreview) {
 
 TEST(Document, ReopeningAReplacedSourceUsesFreshPixels) {
   const auto url = writeFixture("replaced-preview.svg", svgWithViewBox());
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({url});
   ASSERT_TRUE(settled(document));
   EXPECT_EQ(document.previewImage().pixelColor(20, 20), QColor(Qt::red));
@@ -1022,7 +1023,7 @@ TEST(Document, PastedFilesPreserveViewOnFailure) {
   QTemporaryDir folder;
   ASSERT_TRUE(folder.isValid());
   const auto original = writeFixture("paste-original.png", encodedImage("PNG"));
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({original});
   ASSERT_TRUE(settled(document));
   document.transform(ImageDocument::RotateClockwise);
@@ -1098,7 +1099,7 @@ TEST(Document, PastedValidationIsDecodedOnceAndStaleResultsAreDiscarded) {
 
 TEST(PastedPath, ControllerClipboardAndModalGating) {
   const auto url = writeFixture("paste-controller.png", encodedImage("PNG"));
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   ViewerController controller;
   controller.setDocument(&document);
   QGuiApplication::clipboard()->setText(url.toLocalFile());

@@ -3,6 +3,7 @@
 #include "image_canvas.h"
 #include "image_document.h"
 #include "image_orientation.h"
+#include "image_runtime.h"
 
 #include <QBuffer>
 #include <QClipboard>
@@ -124,7 +125,7 @@ TEST(Workflow, InformationCacheRefreshAndUnchangedSource) {
   ASSERT_TRUE(file.open(QIODevice::ReadOnly));
   const auto bytes = file.readAll();
   file.close();
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({QUrl::fromLocalFile(path)});
   EXPECT_EQ(document.information().encoded_size, -1);
   ASSERT_TRUE(ready(document));
@@ -221,7 +222,7 @@ TEST(Workflow, ClipboardCaptureBusyFailureAndShutdown) {
 }
 
 TEST(Viewer, StaticWorkflowControls) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
   engine.loadFromModule("HolonightViewer", "Main");
@@ -477,7 +478,7 @@ TEST(Workflow, ClipboardSeparateProcess) {
   const auto link = dir.filePath(QString::fromUtf8("посилання space.png"));
   ASSERT_TRUE(asymmetric().save(source));
   ASSERT_TRUE(QFile::link(source, link));
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({QUrl::fromLocalFile(dir.path() + "/./" + QFileInfo(link).fileName())});
   ASSERT_TRUE(ready(document));
   EXPECT_EQ(document.localPath(), link);
@@ -551,7 +552,7 @@ TEST(Workflow, InformationRejectsStaleRequestsAndKeepsErrorFacts) {
   ASSERT_TRUE(broken.open(QIODevice::WriteOnly));
   ASSERT_EQ(broken.write("broken"), 6);
   broken.close();
-  const auto decoded = decodeImage(QUrl::fromLocalFile(broken.fileName()), std::atomic_bool{false});
+  const auto decoded = viewer_test::decode(QUrl::fromLocalFile(broken.fileName()), std::atomic_bool{false});
   EXPECT_TRUE(decoded.image.isNull());
   EXPECT_EQ(decoded.information.encoded_size, 6);
   EXPECT_TRUE(decoded.information.modified.isValid());
@@ -566,7 +567,7 @@ TEST(Workflow, ClipboardPngOrientationsAndNavigation) {
     EXPECT_EQ(QGuiApplication::clipboard()->mimeData()->formats(), QStringList{"image/png"});
     EXPECT_EQ(clipboardPng(), reference(asymmetric(), orientation));
   }
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   const auto path = QStringLiteral(VIEWER_FIXTURE_DIR) + "/copy-navigation.png";
   ASSERT_TRUE(asymmetric().save(path));
   document.open({QUrl::fromLocalFile(path)});
@@ -605,7 +606,7 @@ TEST(Viewer, InformationPopupKeyboard) {
   for (const auto* name : {"1.png", "2.png", "3.png"}) {
     ASSERT_TRUE(asymmetric().save(dir.filePath(QString::fromLatin1(name))));
   }
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   engine.setInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)}});
   engine.loadFromModule("HolonightViewer", "Main");

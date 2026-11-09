@@ -171,3 +171,63 @@ TEST(ImageLoader, AcceptedTentativeResultIsAdoptedBeforeTheNextRequest) {
   EXPECT_EQ(calls.load(), 2);
   EXPECT_EQ(ImageLoaderTestAccess::cacheBudget(loader).second, 48);
 }
+
+TEST(ImageLoader, RuntimeFailuresNeverPopulateForegroundOrPrefetchCache) {
+  QTemporaryDir directory;
+  QFile file(directory.filePath("image.png"));
+  ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+  file.write("fixture");
+  file.close();
+  const auto url = QUrl::fromLocalFile(file.fileName());
+  for (auto kind : {ImageLoader::Kind::Foreground, ImageLoader::Kind::Prefetch, ImageLoader::Kind::Tentative}) {
+    std::atomic_int calls{0};
+    ImageLoader loader(
+        [&](const QUrl&, const std::atomic_bool&) {
+          ++calls;
+          auto result = decoded();
+          result.runtime = HolonightImages::RuntimeStatus::ProtocolFailure;
+          return result;
+        },
+        64);
+    int completed = 0;
+    QObject::connect(&loader, &ImageLoader::completed, &loader,
+                     [&](const ImageLoader::Request& value, const DecodeResult& result) {
+                       ++completed;
+                       if (kind == ImageLoader::Kind::Tentative) {
+                         loader.retainTentative(value, result, 1);
+                       }
+                     });
+    loader.submit({.request_id = 1, .url = url, .cache_epoch = 1, .kind = kind});
+    ASSERT_TRUE(QTest::qWaitFor([&] { return completed == 1; }));
+    loader.submit({.request_id = 2, .url = url, .cache_epoch = 1});
+    ASSERT_TRUE(QTest::qWaitFor([&] { return completed == 2; }));
+    EXPECT_EQ(calls.load(), 2);
+  }
+}
+
+TEST(ImageLoader, CleanupFailureTakesPrecedenceOverCancellation) {
+  for (const auto kind : {ImageLoader::Kind::Foreground, ImageLoader::Kind::Prefetch}) {
+    QSemaphore release;
+    std::atomic_bool started{false};
+    ImageLoader loader(
+        [&](const QUrl&, const std::atomic_bool&) {
+          started.store(true);
+          release.acquire();
+          DecodeResult result;
+          result.runtime = HolonightImages::RuntimeStatus::CleanupFailure;
+          return result;
+        },
+        64);
+    const auto cleanup = qScopeGuard([&] { release.release(); });
+    std::optional<DecodeResult> reply;
+    QObject::connect(&loader, &ImageLoader::completed, &loader,
+                     [&](const ImageLoader::Request&, const DecodeResult& result) { reply = result; });
+    loader.submit(request(1, kind));
+    ASSERT_TRUE(QTest::qWaitFor([&] { return started.load(); }));
+    loader.cancel();
+    release.release();
+    ASSERT_TRUE(QTest::qWaitFor([&] { return reply.has_value(); }));
+    EXPECT_EQ(reply->runtime, HolonightImages::RuntimeStatus::CleanupFailure);
+    EXPECT_FALSE(reply->outcome);
+  }
+}

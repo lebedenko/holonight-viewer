@@ -2,6 +2,7 @@
 #include "gif_fixture.h"
 #include "image_canvas.h"
 #include "image_document.h"
+#include "image_runtime.h"
 #include "manual_playback_clock.h"
 
 #include <QAccessible>
@@ -18,7 +19,7 @@
 namespace {
 struct AnimationFixture {
   QTemporaryDir dir{QStringLiteral(VIEWER_FIXTURE_DIR) + "/animation-XXXXXX"};
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   QQuickWindow* window = nullptr;
   ImageCanvas* canvas = nullptr;
@@ -340,7 +341,7 @@ TEST(AnimationUi, MetadataDelegatesSurviveVisibleAndHiddenFrameAdvances) {
   playback.clock = std::move(manual);
   playback.source = [&] { return std::make_unique<FakeFrameSource>(script); };
   playback.execution = AnimationController::Execution::Inline;
-  ImageDocument document(decodeImage, scanDirectory, std::move(playback));
+  ImageDocument document(viewer_test::decode, scanDirectory, std::move(playback));
   QQmlEngine engine;
   QQmlComponent component(&engine);
   component.setData(R"(import QtQuick

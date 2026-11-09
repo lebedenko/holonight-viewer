@@ -1,5 +1,6 @@
 #include "directory_model.h"
 
+#include "image_formats.h"
 #include "local_url.h"
 
 #include <QDir>
@@ -23,7 +24,7 @@ DirectoryResult scanDirectory(const QUrl& selected, const std::atomic_bool& canc
   const auto explicitUrl = normalizedLocalUrl(selected);
   const QFileInfo selectedInfo(explicitUrl.toLocalFile());
   QSet<QString> suffixes;
-  for (const auto& format : HolonightImages::supportedSuffixes()) {
+  for (const auto& format : viewerImageSuffixes()) {
     suffixes.insert(format.toCaseFolded());
   }
   // SVG decodes via QSvgRenderer, not QImageReader, so it is listed unconditionally here.

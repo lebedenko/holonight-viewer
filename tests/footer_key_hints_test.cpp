@@ -1,4 +1,5 @@
 #include "image_document.h"
+#include "image_runtime.h"
 
 #include <QAccessible>
 #include <QFontInfo>
@@ -82,7 +83,7 @@ void collectAccessibleNames(QAccessibleInterface* node, QQuickItem* footer, QStr
 }
 
 struct ViewerFixture {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   QQuickWindow* window = nullptr;
   QQuickItem* footer = nullptr;

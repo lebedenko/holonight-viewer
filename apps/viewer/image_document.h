@@ -81,6 +81,7 @@ class ImageDocument : public QObject {
     qint64 retained_bytes = 512 * 1024 * 1024;
   };
   explicit ImageDocument(QObject* parent = nullptr);
+  explicit ImageDocument(const HolonightFileBrowser::ImageRuntimeOptions& runtime, QObject* parent = nullptr);
   explicit ImageDocument(Decoder decoder, QObject* parent = nullptr);
   ImageDocument(Decoder decoder, DirectoryModel::Scanner scanner, QObject* parent = nullptr);
   ImageDocument(Decoder decoder, DirectoryModel::Scanner scanner, PlaybackOptions playback, QObject* parent = nullptr);

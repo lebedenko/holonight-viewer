@@ -1,6 +1,7 @@
 #include "exif_fixture.h"
 #include "image_canvas.h"
 #include "image_document.h"
+#include "image_runtime.h"
 
 #include <QBuffer>
 #include <QDir>
@@ -55,7 +56,7 @@ struct WarningCollector {
 // Standalone popup has no window minimum width, so it can be laid out below 420 px.
 struct StandalonePopup {
   QTemporaryDir dir;
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlEngine engine;
   QQuickWindow window;
   // Sized explicitly: compositors may not honor window resizes, and the popup only reads its parent.
@@ -459,7 +460,7 @@ TEST(ImageInformationPopup, PreviewTracksWindowDprAndPhysicalSampling) {
   }
   const auto path = directory.filePath(QStringLiteral("pattern.png"));
   ASSERT_TRUE(pattern.save(path));
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({QUrl::fromLocalFile(path)});
   ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready; }));
 

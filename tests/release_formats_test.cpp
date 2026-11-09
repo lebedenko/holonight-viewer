@@ -1,4 +1,5 @@
 #include "image_document.h"
+#include "image_runtime.h"
 
 #include <QDir>
 #include <QFile>
@@ -11,7 +12,7 @@
 #include <gtest/gtest.h>
 
 TEST(Release, RequiredIndependentFormats) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   for (const auto* format : {"png", "jpeg", "bmp", "webp", "gif", "tif", "tiff"}) {
     ASSERT_TRUE(QImageReader::supportedImageFormats().contains(format)) << "Required decoder: " << format;
   }
@@ -62,7 +63,7 @@ TEST(Release, RequiredIndependentFormats) {
 }
 
 TEST(Release, CompactWebPDecoderGate) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/compact.webp")});
   ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() != ImageDocument::Loading; }));
   ASSERT_EQ(document.state(), ImageDocument::Ready) << document.error().toStdString();
@@ -82,7 +83,7 @@ TEST(Release, SimpleWebPContentCorruptionAndLimits) {
     EXPECT_TRUE(file.open(QIODevice::WriteOnly));
     EXPECT_EQ(file.write(bytes), bytes.size());
     file.close();
-    auto result = decodeImage(QUrl::fromLocalFile(path), cancelled);
+    auto result = viewer_test::decode(QUrl::fromLocalFile(path), cancelled);
     EXPECT_TRUE(file.open(QIODevice::ReadOnly));
     EXPECT_EQ(file.readAll(), bytes);
     return result;
@@ -120,7 +121,7 @@ TEST(Release, QtWebPContainersAndAnimatedFirstFrame) {
     reader.setAutoTransform(true);
     const auto expected = reader.read().convertToFormat(QImage::Format_ARGB32_Premultiplied);
     ASSERT_FALSE(expected.isNull()) << name;
-    const auto result = decodeImage(QUrl::fromLocalFile(path), cancelled);
+    const auto result = viewer_test::decode(QUrl::fromLocalFile(path), cancelled);
     EXPECT_EQ(result.image, expected) << name;
     EXPECT_EQ(result.image.size(), QSize(1, 1));
     if (QByteArray(name) == "animated.webp") {
@@ -150,7 +151,7 @@ TEST(Release, GifFixturesAreSequencesWithTheirDelaysAndLoops) {
     }
   }
   // Both revisions are opened and played by the viewer itself.
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   for (const auto* name : {"sample.gif", "gif87a.gif", "transparent.gif"}) {
     document.open({QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/" + name)});
     ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() != ImageDocument::Loading; })) << name;
@@ -170,7 +171,8 @@ TEST(Release, TiffGuaranteedVariantsDecode) {
                                     Expected{.name = "sample.tif", .color = QColor(255, 0, 0, 128)},
                                     Expected{.name = "tiff-gray8.tif", .color = QColor(128, 128, 128, 255)},
                                     Expected{.name = "tiff-palette8.tif", .color = QColor(255, 0, 0, 255)}}) {
-    const auto result = decodeImage(QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/" + name), cancelled);
+    const auto result =
+        viewer_test::decode(QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/" + name), cancelled);
     ASSERT_FALSE(result.image.isNull()) << name << ": " << result.error.toStdString();
     EXPECT_TRUE(result.error.isEmpty()) << name;
     EXPECT_EQ(result.image.size(), QSize(1, 1)) << name;
@@ -186,7 +188,7 @@ TEST(Release, TiffGuaranteedVariantsDecode) {
 TEST(Release, TiffMultiPageShowsFirstPage) {
   std::atomic_bool cancelled{false};
   const auto result =
-      decodeImage(QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/tiff-two-page.tif"), cancelled);
+      viewer_test::decode(QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/tiff-two-page.tif"), cancelled);
   ASSERT_FALSE(result.image.isNull()) << result.error.toStdString();
   EXPECT_EQ(result.image.pixelColor(0, 0), QColor(255, 0, 0, 255));
   EXPECT_NE(result.image.pixelColor(0, 0), QColor(0, 255, 0, 255));
@@ -206,7 +208,7 @@ DecodeResult decodeBytes(QTemporaryDir& directory, const QByteArray& bytes) {
   EXPECT_EQ(file.write(bytes), bytes.size());
   file.close();
   const std::atomic_bool cancelled{false};
-  return decodeImage(QUrl::fromLocalFile(path), cancelled);
+  return viewer_test::decode(QUrl::fromLocalFile(path), cancelled);
 }
 }  // namespace
 
@@ -260,7 +262,8 @@ TEST(Release, TiffBestEffortVariantsNeverCrashOrHang) {
   for (const auto* name :
        {"tiff-be-rgb16.tif", "tiff-be-float.tif", "tiff-be-cmyk.tif", "tiff-be-lab.tif", "tiff-be-tiled.tif",
         "tiff-be-bigtiff.tif", "tiff-be-lzw.tif", "tiff-be-packbits.tif", "tiff-be-deflate.tif"}) {
-    const auto result = decodeImage(QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/" + name), cancelled);
+    const auto result =
+        viewer_test::decode(QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/" + name), cancelled);
     // Best effort: either the variant opens or the user gets an error; never both, never neither.
     ASSERT_TRUE(result.outcome) << name;
     EXPECT_NE(result.outcome, HolonightImages::Outcome::Cancelled) << name;

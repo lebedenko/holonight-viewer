@@ -1,4 +1,5 @@
 #include "image_document.h"
+#include "image_runtime.h"
 
 #include <QAccessible>
 #include <QColor>
@@ -19,7 +20,7 @@ constexpr int kBodyRole = 4;     // HnTypographyRole.Body
 constexpr int kCaptionRole = 5;  // HnTypographyRole.Caption
 
 struct EmptyFixture {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   QQmlApplicationEngine engine;
   QQuickWindow* window = nullptr;
   QQuickItem* glyph = nullptr;

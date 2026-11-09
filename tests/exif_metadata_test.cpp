@@ -3,6 +3,7 @@
 #include "exif_fixture.h"
 #include "image_document.h"
 #include "image_information_formatter.h"
+#include "image_runtime.h"
 
 #include <QBuffer>
 #include <QFile>
@@ -13,17 +14,25 @@
 #include <QTimeZone>
 #include <QtEndian>
 
+#include <HolonightFileBrowser/preview/image_limits.h>
 #include <gtest/gtest.h>
 #include <utility>
 
 namespace {
 using namespace ExifFixture;
 
+// Provider fixture extraction stays in tests; Viewer accepts only structured facts.
+ExifDetails parseFacts(const QByteArray& payload) { return ExifMetadata::format(HolonightImages::parseExif(payload)); }
+ExifDetails readFacts(QIODevice& source, const std::atomic_bool& cancelled) {
+  const auto result = HolonightImages::readMetadata(source, kRasterLimits, cancelled);
+  return ExifMetadata::format(result.facts, result.outcome);
+}
+
 ExifDetails readBytes(QByteArray bytes) {
   QBuffer buffer(&bytes);
   buffer.open(QIODevice::ReadOnly);
   const std::atomic_bool cancelled{false};
-  return ExifMetadata::read(buffer, cancelled);
+  return readFacts(buffer, cancelled);
 }
 
 QString fixturePath(const char* name) { return QStringLiteral(RELEASE_FIXTURE_DIR) + "/" + name; }
@@ -48,12 +57,12 @@ QString paddedTiff(QTemporaryDir& directory, qint64 size) {
 ExifDetails readFile(const QString& path, const std::atomic_bool& cancelled) {
   QFile file(path);
   EXPECT_TRUE(file.open(QIODevice::ReadOnly)) << path.toStdString();
-  return ExifMetadata::read(file, cancelled);
+  return readFacts(file, cancelled);
 }
 }  // namespace
 
 TEST(ExifMetadata, FormatsCameraExposureAndLocation) {
-  const auto details = ExifMetadata::parse(sonyPayload());
+  const auto details = parseFacts(sonyPayload());
   EXPECT_EQ(details.camera, "SONY ILCE-7M4");
   EXPECT_EQ(details.lens, "FE 24-70mm F2.8 GM II");
   EXPECT_EQ(details.aperture, "f/8.0");
@@ -65,12 +74,12 @@ TEST(ExifMetadata, FormatsCameraExposureAndLocation) {
 }
 
 TEST(ExifMetadata, OmitsRepeatedMakeInvalidGpsAndZeroDenominators) {
-  const auto details = ExifMetadata::parse(
-      QByteArray("Exif\0\0", 6) +
-      tiff({text(0x010f, "Canon"), text(0x0110, "Canon EOS R5")},
-           {rationals(0x829d, {{8, 0}}), shortValue(0x8827, 400)},
-           {text(0x0001, "N"), rationals(0x0002, {{95, 1}, {0, 1}, {0, 1}}), text(0x0003, "E"),
-            rationals(0x0004, {{10, 1}, {0, 1}, {0, 1}}), byte(0x0005, 1), rationals(0x0006, {{12, 1}})}));
+  const auto details =
+      parseFacts(QByteArray("Exif\0\0", 6) +
+                 tiff({text(0x010f, "Canon"), text(0x0110, "Canon EOS R5")},
+                      {rationals(0x829d, {{8, 0}}), shortValue(0x8827, 400)},
+                      {text(0x0001, "N"), rationals(0x0002, {{95, 1}, {0, 1}, {0, 1}}), text(0x0003, "E"),
+                       rationals(0x0004, {{10, 1}, {0, 1}, {0, 1}}), byte(0x0005, 1), rationals(0x0006, {{12, 1}})}));
   EXPECT_EQ(details.camera, "Canon EOS R5");
   EXPECT_TRUE(details.lens.isEmpty());
   EXPECT_TRUE(details.aperture.isEmpty());
@@ -83,7 +92,7 @@ TEST(ExifMetadata, OmitsRepeatedMakeInvalidGpsAndZeroDenominators) {
 }
 
 TEST(ExifMetadata, ExtractsJpegPngAndWebPBlocks) {
-  auto expected = ExifMetadata::parse(sonyPayload());
+  auto expected = parseFacts(sonyPayload());
   expected.outcome = HolonightImages::Outcome::Success;
   ASSERT_TRUE(expected.hasCamera() && expected.hasLocation());
   EXPECT_EQ(readBytes(jpegWithApp1(sonyPayload())), expected);
@@ -107,7 +116,7 @@ TEST(ExifMetadata, ExtractsJpegPngAndWebPBlocks) {
 
 TEST(ExifMetadata, ReadsTiffCameraExposureAndLocation) {
   // A TIFF file is itself the EXIF block: the bytes after the "Exif" signature of a payload are a valid TIFF.
-  auto expected = ExifMetadata::parse(sonyPayload());
+  auto expected = parseFacts(sonyPayload());
   expected.outcome = HolonightImages::Outcome::Success;
   ASSERT_TRUE(expected.hasCamera() && expected.hasLocation());
   EXPECT_EQ(readBytes(sonyPayload().sliced(6)), expected);
@@ -119,7 +128,7 @@ TEST(ExifMetadata, ReadsTiffCameraExposureAndLocation) {
     EXPECT_EQ(details.camera, "Acme TiffCam") << name;
     EXPECT_EQ(details.iso, "ISO 400") << name;
     EXPECT_EQ(details.location, QStringLiteral("50.50000° N, 30.25000° E")) << name;
-    const auto decoded = decodeImage(QUrl::fromLocalFile(fixturePath(name)), cancelled);
+    const auto decoded = viewer_test::decode(QUrl::fromLocalFile(fixturePath(name)), cancelled);
     ASSERT_FALSE(decoded.image.isNull()) << name << ": " << decoded.error.toStdString();
     EXPECT_EQ(decoded.information.exif, details) << name;
   }
@@ -137,7 +146,7 @@ TEST(ExifMetadata, SkipsTiffOverSizeLimit) {
   // One byte over the limit skips EXIF, but the image still opens without an error.
   const auto oversized = paddedTiff(directory, limit + 1);
   EXPECT_EQ(readFile(oversized, cancelled).outcome, HolonightImages::Outcome::ResourceLimit);
-  const auto decoded = decodeImage(QUrl::fromLocalFile(oversized), cancelled);
+  const auto decoded = viewer_test::decode(QUrl::fromLocalFile(oversized), cancelled);
   EXPECT_FALSE(decoded.image.isNull()) << decoded.error.toStdString();
   EXPECT_TRUE(decoded.error.isEmpty());
   EXPECT_EQ(decoded.information.exif.outcome, HolonightImages::Outcome::ResourceLimit);
@@ -150,8 +159,8 @@ TEST(ExifMetadata, SkipsTiffOverSizeLimit) {
 
 TEST(ExifMetadata, IgnoresMissingOversizedAndDamagedBlocks) {
   EXPECT_EQ(readBytes("not an image").outcome, HolonightImages::Outcome::Success);
-  EXPECT_EQ(ExifMetadata::parse(QByteArray("Exif\0\0II*\0\xff\xff\xff\xff", 14)), ExifDetails{});
-  EXPECT_EQ(ExifMetadata::parse(sonyPayload().first(40)).location, QString{});
+  EXPECT_EQ(parseFacts(QByteArray("Exif\0\0II*\0\xff\xff\xff\xff", 14)), ExifDetails{});
+  EXPECT_EQ(parseFacts(sonyPayload().first(40)).location, QString{});
 
   QByteArray png("\x89PNG\r\n\x1a\n", 8);
   png += QByteArray("\0\x20\0\0eXIf", 8) + QByteArray(2 * 1024 * 1024, 'a') + QByteArray(4, '\0');
@@ -161,7 +170,7 @@ TEST(ExifMetadata, IgnoresMissingOversizedAndDamagedBlocks) {
   QBuffer buffer(&cancelledBytes);
   buffer.open(QIODevice::ReadOnly);
   const std::atomic_bool cancelled{true};
-  EXPECT_EQ(ExifMetadata::read(buffer, cancelled).outcome, HolonightImages::Outcome::Cancelled);
+  EXPECT_EQ(readFacts(buffer, cancelled).outcome, HolonightImages::Outcome::Cancelled);
 }
 
 TEST(ImageInformationFormat, JoinsOnlyNonEmptyParts) {
@@ -246,10 +255,10 @@ TEST(ImageInformationProperties, ExifRichJpegHasCameraLocationAndFileSections) {
   QTemporaryDir dir;
   ASSERT_TRUE(dir.isValid());
   const auto path = writeFile(dir, "camera.jpg", jpegWithApp1(sonyPayload()));
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   ASSERT_TRUE(openAndSettle(document, QUrl::fromLocalFile(path)));
   ASSERT_EQ(document.state(), ImageDocument::Ready);
-  auto expectedExif = ExifMetadata::parse(sonyPayload());
+  auto expectedExif = parseFacts(sonyPayload());
   expectedExif.outcome = HolonightImages::Outcome::Success;
   EXPECT_EQ(document.information().exif, expectedExif);
 
@@ -276,7 +285,7 @@ TEST(ImageInformationProperties, CameraLinesOmitMissingLensAndIso) {
       tiff({text(0x010f, "Google"), text(0x0110, "Pixel 7 Pro")},
            {rationals(0x829a, {{1, 20}}), rationals(0x829d, {{22, 10}}), rationals(0x920a, {{69, 10}})}, {});
   const auto path = writeFile(dir, "pixel.jpg", jpegWithApp1(payload));
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   ASSERT_TRUE(openAndSettle(document, QUrl::fromLocalFile(path)));
 
   const auto result = sections(document);
@@ -294,7 +303,7 @@ TEST(ImageInformationProperties, ImageWithoutExifHasOnlyFileSection) {
   QImage image(4, 3, QImage::Format_RGB32);
   image.fill(Qt::green);
   ASSERT_TRUE(image.save(path));
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   ASSERT_TRUE(openAndSettle(document, QUrl::fromLocalFile(path)));
 
   EXPECT_EQ(document.summaryLine(), formatSummaryLine("PNG", {4, 3}, QFileInfo(path).size()));
@@ -312,7 +321,7 @@ TEST(ImageInformationProperties, FailedLocalLoadKeepsSizeAndFileSection) {
   QTemporaryDir dir;
   ASSERT_TRUE(dir.isValid());
   const auto path = writeFile(dir, "broken.jpg", QByteArray(10, 'x'));
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   ASSERT_TRUE(openAndSettle(document, QUrl::fromLocalFile(path)));
   ASSERT_EQ(document.state(), ImageDocument::Error);
 
@@ -323,7 +332,7 @@ TEST(ImageInformationProperties, FailedLocalLoadKeepsSizeAndFileSection) {
 }
 
 TEST(ImageInformationProperties, NonLocalDocumentHasNoDetailsOrSections) {
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   ASSERT_TRUE(openAndSettle(document, QUrl("https://example.com/image.jpg")));
   ASSERT_EQ(document.state(), ImageDocument::Error);
 
@@ -346,13 +355,13 @@ TEST(ExifMetadata, PreservesDeviceIoFailure) {
   device.setData(QByteArray(64, 'x'));
   ASSERT_TRUE(device.open(QIODevice::ReadOnly | QIODevice::Unbuffered));
   const std::atomic_bool running{false};
-  const auto result = ExifMetadata::read(device, running);
+  const auto result = readFacts(device, running);
   EXPECT_EQ(result.outcome, HolonightImages::Outcome::IoFailure);
 }
 
 TEST(ExifMetadata, OptionalMalformedTagsCompleteSuccessfullyWithoutInventingAFailure) {
   const QByteArray payload("Exif\0\0bad optional tags", 23);
-  EXPECT_FALSE(ExifMetadata::parse(payload).outcome);
+  EXPECT_FALSE(parseFacts(payload).outcome);
   const auto details = readBytes(jpegWithApp1(payload));
   EXPECT_EQ(details.outcome, HolonightImages::Outcome::Success);
   EXPECT_FALSE(details.hasCamera());

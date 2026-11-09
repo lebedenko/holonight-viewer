@@ -1,5 +1,6 @@
 #include "image_document.h"
 
+#include "image_formats.h"
 #include "image_information_formatter.h"
 #include "local_url.h"
 
@@ -24,6 +25,12 @@ QUrl commandLineUrl(const QString& argument) {
 }
 
 ImageDocument::ImageDocument(QObject* parent) : ImageDocument(decodeImage, parent) {}
+ImageDocument::ImageDocument(const HolonightFileBrowser::ImageRuntimeOptions& runtime, QObject* parent)
+    : ImageDocument(
+          [runtime](const QUrl& url, const std::atomic_bool& cancelled) {
+            return decodeImageWithRuntime(url, cancelled, runtime);
+          },
+          parent) {}
 
 ImageDocument::ImageDocument(Decoder decoder, QObject* parent)
     : ImageDocument(std::move(decoder), scanDirectory, parent) {}
@@ -71,7 +78,7 @@ bool ImageDocument::isLocalUrl(const QUrl& url) {
 
 QStringList ImageDocument::nameFilters() {
   QStringList patterns;
-  for (const auto& format : HolonightImages::supportedSuffixes()) {
+  for (const auto& format : viewerImageSuffixes()) {
     patterns.append("*." + format);
   }
   // SVG decodes via QSvgRenderer, not QImageReader, so it is listed unconditionally here.
@@ -195,8 +202,8 @@ void ImageDocument::refresh() {
 }
 
 bool ImageDocument::commitPastedPath(const Request& request, const DecodeResult& result) {
-  bool valid = request.request_id == request_id_ && result.error.isEmpty() &&
-               (!result.outcome || *result.outcome == HolonightImages::Outcome::Success) &&
+  bool valid = request.request_id == request_id_ && result.runtime == HolonightImages::RuntimeStatus::Success &&
+               result.error.isEmpty() && (!result.outcome || *result.outcome == HolonightImages::Outcome::Success) &&
                (!result.image.isNull() || !result.svg_data.isEmpty());
   if (valid && !result.svg_data.isEmpty()) {
     QSvgRenderer validation;
@@ -239,7 +246,11 @@ void ImageDocument::applyDecoded(const Request& request, DecodeResult result) {
   svg_size_ = result.svg_size;
   svg_local_images_ = result.svg_local_images;
   svg_renderer_.setOptions(QtSvg::DisableAnimations);
-  error_ = result.outcome ? rasterError(*result.outcome) : std::move(result.error);
+  if (result.runtime != HolonightImages::RuntimeStatus::Success) {
+    error_ = HolonightFileBrowser::imageRuntimeError(result.runtime);
+  } else {
+    error_ = result.outcome ? rasterError(*result.outcome) : std::move(result.error);
+  }
   if (error_.isEmpty() && information_.format == QLatin1String("SVG") &&
       !(svg_local_images_ ? svg_renderer_.load(request.url.toLocalFile()) : svg_renderer_.load(svg_data_))) {
     svg_data_.clear();

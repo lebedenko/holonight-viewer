@@ -1,4 +1,5 @@
 #include "image_document.h"
+#include "image_runtime.h"
 
 #include <QClipboard>
 #include <QFile>
@@ -28,7 +29,7 @@ TEST(SvgClipboard, CopiesIntrinsicPixelsAlphaAndCapturedOrientation) {
   const auto url = writeSvg(directory, "copy.svg",
                             "<svg xmlns='http://www.w3.org/2000/svg' width='40' height='20'>"
                             "<rect width='20' height='20' fill='#ff0000' fill-opacity='0.5'/></svg>");
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({url});
   ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready; }));
   document.transform(1);
@@ -51,7 +52,7 @@ TEST(SvgClipboard, AnimatedMarkupRemainsStaticAndStopsAfterNavigation) {
                             "<rect width='40' height='20' fill='red'>"
                             "<animate attributeName='fill' values='red;blue;red' dur='0.1s' repeatCount='indefinite'/>"
                             "</rect></svg>");
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({url});
   ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready; }));
   auto* renderer = document.svgRenderer();
@@ -80,7 +81,7 @@ TEST(SvgClipboard, IntrinsicSizeIsRoundedAndOversizedDimensionsAreBounded) {
 
 TEST(SvgClipboard, OversizedThinDocumentCopiesWithoutAllocatingItsIntrinsicExtent) {
   QTemporaryDir directory;
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({writeSvg(directory, "wide.svg",
                           "<svg xmlns='http://www.w3.org/2000/svg' width='40000' height='1'>"
                           "<rect width='40000' height='1' fill='red'/></svg>")});
@@ -97,7 +98,7 @@ TEST(SvgClipboard, ResolvesLocalImagesAndKeepsClipboardOnPreparationFailure) {
   QImage linked(4, 2, QImage::Format_ARGB32_Premultiplied);
   linked.fill(QColor(255, 0, 0, 128));
   ASSERT_TRUE(linked.save(directory.filePath("linked.png")));
-  ImageDocument document;
+  ImageDocument document{viewer_test::imageRuntime};
   document.open({writeSvg(directory, "linked.svg",
                           "<svg xmlns='http://www.w3.org/2000/svg' width='4' height='2'>"
                           "<image href='linked.png' width='4' height='2'/></svg>")});

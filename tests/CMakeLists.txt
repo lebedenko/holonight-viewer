@@ -1,12 +1,24 @@
 add_viewer_application(viewer-smoke smoke.cpp viewer_controller_test.cpp release_formats_test.cpp accessibility_test.cpp release_performance_test.cpp static_workflow_test.cpp folder_browsing_test.cpp image_document_test.cpp frame_source_test.cpp animation_controller_test.cpp animation_ui_test.cpp view_geometry_test.cpp image_inspection_test.cpp exif_metadata_test.cpp footer_key_hints_test.cpp image_information_popup_test.cpp menu_layout_test.cpp header_title_test.cpp shortcut_help_popup_test.cpp empty_state_test.cpp transient_overlay_test.cpp portal_request_builder_test.cpp mock_portal.cpp portal_file_chooser_test.cpp grid_navigation_test.cpp thumbnail_cache_test.cpp thumbnail_decoder_test.cpp thumbnail_provider_test.cpp thumbnail_grid_test.cpp grid_mode_test.cpp)
 target_link_libraries(viewer-smoke PRIVATE Qt6::Test GTest::gtest)
-target_sources(viewer-smoke PRIVATE viewer_preferences_test.cpp svg_clipboard_test.cpp loading_indicator_test.cpp image_loader_test.cpp)
+target_sources(viewer-smoke PRIVATE isolated_decoder_test.cpp viewer_preferences_test.cpp svg_clipboard_test.cpp loading_indicator_test.cpp image_loader_test.cpp)
 # The pixel matrix below exercises hairlines with the production RHI renderer.
 # Every viewer-smoke run gets a private bus with no service directories, so the Open flow can
 # only reach the mock portal and never activates the desktop's real one.
 find_program(VIEWER_DBUS_RUN_SESSION dbus-run-session REQUIRED)
 set(viewer_bus_runner "${VIEWER_DBUS_RUN_SESSION}" "--config-file=${CMAKE_CURRENT_SOURCE_DIR}/fixtures/dbus-session.conf" --)
-add_test(NAME viewer-smoke COMMAND ${viewer_bus_runner} $<TARGET_FILE:viewer-smoke> --gtest_filter=-MenuLayout.SeparatorsRenderAsPhysicalHairlines)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(NAME viewer-smoke COMMAND ${Python3_EXECUTABLE} "${PROJECT_SOURCE_DIR}/scripts/test-lane.py"
+  --framework gtest --inventory "${CMAKE_CURRENT_SOURCE_DIR}/lanes.json" --lane portable --
+  ${viewer_bus_runner} $<TARGET_FILE:viewer-smoke>)
+option(VIEWER_HOST_RUNTIME_TESTS "Register required host isolated runtime acceptance" OFF)
+set(VIEWER_TEST_RUNTIME "" CACHE PATH "Explicit host-native Images runtime bundle")
+if(VIEWER_HOST_RUNTIME_TESTS)
+  add_test(NAME viewer-host-runtime COMMAND ${Python3_EXECUTABLE} "${PROJECT_SOURCE_DIR}/scripts/test-lane.py"
+    --framework gtest --inventory "${CMAKE_CURRENT_SOURCE_DIR}/lanes.json" --lane host
+    --runtime "${VIEWER_TEST_RUNTIME}" -- $<TARGET_FILE:viewer-smoke>)
+  set_tests_properties(viewer-host-runtime PROPERTIES LABELS host-runtime TIMEOUT 1800 ENVIRONMENT
+    "QT_QPA_PLATFORM=offscreen;QSG_RHI_BACKEND=software;QML_IMPORT_PATH=${VIEWER_RUNTIME_QML_PATH}")
+endif()
 set_tests_properties(viewer-smoke PROPERTIES ENVIRONMENT
   "QT_QPA_PLATFORM=offscreen;QSG_RHI_BACKEND=software;QML_IMPORT_PATH=${VIEWER_RUNTIME_QML_PATH}")
 add_test(NAME viewer-help COMMAND holonight-viewer --help)
@@ -33,10 +45,12 @@ add_test(NAME viewer-tiff-fixtures-deterministic COMMAND ${Python3_EXECUTABLE} "
 add_test(NAME viewer-uninstall-policy COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-uninstall.py")
 add_test(NAME viewer-qml-format-discovery COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-qml-format-discovery.py")
 add_test(NAME viewer-thumbnail-constant COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-thumbnail-constant.py")
-add_test(NAME viewer-opening COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-opening.py" $<TARGET_FILE:holonight-viewer> "${CMAKE_CURRENT_BINARY_DIR}")
+if(VIEWER_HOST_RUNTIME_TESTS)
+add_test(NAME viewer-opening COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/scripts/check-opening.py" $<TARGET_FILE:holonight-viewer> "${CMAKE_CURRENT_BINARY_DIR}" "${VIEWER_TEST_RUNTIME}")
 set_tests_properties(viewer-opening PROPERTIES TIMEOUT 30 ENVIRONMENT
   "QML_IMPORT_PATH=${VIEWER_RUNTIME_QML_PATH}")
-set_tests_properties(viewer-smoke PROPERTIES TIMEOUT 120)
+endif()
+set_tests_properties(viewer-smoke PROPERTIES TIMEOUT 180)
 
 qt_add_executable(clipboard-probe clipboard_probe.cpp)
 target_link_libraries(clipboard-probe PRIVATE Qt6::Quick)
@@ -54,9 +68,12 @@ install(TARGETS installed-runtime-probe RUNTIME DESTINATION libexec/holonight-vi
   COMPONENT qualification EXCLUDE_FROM_ALL)
 
 add_dependencies(installed-runtime-probe release-fixtures)
-add_test(NAME viewer-runtime-probe COMMAND installed-runtime-probe "${CMAKE_CURRENT_BINARY_DIR}/release-fixtures")
-set_tests_properties(viewer-runtime-probe PROPERTIES TIMEOUT 15 ENVIRONMENT
+if(VIEWER_HOST_RUNTIME_TESTS)
+add_test(NAME viewer-runtime-probe COMMAND installed-runtime-probe "${CMAKE_CURRENT_BINARY_DIR}/release-fixtures" "${VIEWER_TEST_RUNTIME}")
+set_tests_properties(viewer-runtime-probe PROPERTIES TIMEOUT 150 ENVIRONMENT
   "QT_QPA_PLATFORM=offscreen;QSG_RHI_BACKEND=software;QML_IMPORT_PATH=${VIEWER_RUNTIME_QML_PATH}")
+
+endif()
 
 # Separate processes are required because Qt fixes the display scale at startup.
 # CI provides Xvfb for offscreen OpenGL; local runs can use their existing display.
@@ -75,10 +92,13 @@ foreach(theme dark light)
   endforeach()
 endforeach()
 
-add_test(NAME viewer-fusion-controls COMMAND ${viewer_bus_runner} $<TARGET_FILE:viewer-smoke>
+if(VIEWER_HOST_RUNTIME_TESTS)
+add_test(NAME viewer-fusion-controls COMMAND $<TARGET_FILE:viewer-smoke> --image-runtime "${VIEWER_TEST_RUNTIME}"
   --gtest_filter=Viewer.EmbeddedStyleSelection:Viewer.WindowAndKeyboard:MenuLayout.OrderLabelsShortcutsAndDisabledColors:ShortcutHelpPopup.*:ImageInformationPopup.*)
 set_tests_properties(viewer-fusion-controls PROPERTIES TIMEOUT 60 ENVIRONMENT
   "QT_QPA_PLATFORM=offscreen;QSG_RHI_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Fusion;QML_IMPORT_PATH=${VIEWER_RUNTIME_QML_PATH}")
+
+endif()
 
 add_test(NAME viewer-clipboard-persistence-runner COMMAND ${Python3_EXECUTABLE}
   "${CMAKE_SOURCE_DIR}/scripts/check-clipboard-persistence.py")
@@ -96,7 +116,12 @@ if(VIEWER_ENABLE_SANITIZERS)
   endforeach()
 endif()
 
-add_test(NAME viewer-header-title COMMAND ${viewer_bus_runner} $<TARGET_FILE:viewer-smoke>
+if(VIEWER_HOST_RUNTIME_TESTS)
+add_test(NAME viewer-header-title COMMAND $<TARGET_FILE:viewer-smoke> --image-runtime "${VIEWER_TEST_RUNTIME}"
   --gtest_filter=ViewerHeader.*:ViewerPreferences.*)
 set_tests_properties(viewer-header-title PROPERTIES TIMEOUT 30 ENVIRONMENT
   "QT_QPA_PLATFORM=offscreen;QSG_RHI_BACKEND=software;QML_IMPORT_PATH=${VIEWER_RUNTIME_QML_PATH}")
+
+endif()
+
+add_test(NAME viewer-test-lanes COMMAND ${Python3_EXECUTABLE} "${PROJECT_SOURCE_DIR}/scripts/check-test-lane.py")

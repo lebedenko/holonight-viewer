@@ -1,5 +1,6 @@
 #include "exif_fixture.h"
 #include "gif_fixture.h"
+#include "image_runtime.h"
 
 #include <QBuffer>
 #include <QFile>
@@ -51,7 +52,7 @@ QByteArray jpegWithExif(const QByteArray& payload, QSize size = {4, 3}) {
 }
 
 ThumbnailResult decode(const QString& path, qreal dpr, const std::atomic_bool& cancelled = kNotCancelled) {
-  return decodeThumbnail({.path = path, .box_pixels = thumbnailBoxPixels(dpr)}, cancelled);
+  return decodeThumbnail({.path = path, .box_pixels = thumbnailBoxPixels(dpr)}, cancelled, viewer_test::imageRuntime);
 }
 
 quint32 crc32(const QByteArray& bytes) {
@@ -310,7 +311,7 @@ TEST(ThumbnailDecoder, RequestsAboveLargestTierDecodeTheSource) {
   ASSERT_TRUE(HolonightThumbnails::store(cacheRequest(path, {1024, 1024}, HolonightThumbnails::Kind::Raster), cached,
                                          kNotCancelled));
 
-  const auto result = decodeThumbnail({.path = path, .box_pixels = 1100}, kNotCancelled);
+  const auto result = decodeThumbnail({.path = path, .box_pixels = 1100}, kNotCancelled, viewer_test::imageRuntime);
   ASSERT_FALSE(result.image.isNull()) << qPrintable(result.error);
   EXPECT_EQ(result.image.size(), QSize(1100, 1100));
   EXPECT_EQ(result.image.pixelColor(550, 550), QColor(Qt::red));
@@ -363,7 +364,7 @@ TEST(ThumbnailDecoder, LocalImageSvgBypassesCachesAndReflectsLinkedEdits) {
       "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='16' height='8'>"
       "<image xlink:href='linked.png' width='16' height='8'/></svg>");
   for (const int box : {256, 320}) {
-    const auto first = decodeThumbnail({.path = svg, .box_pixels = box}, kNotCancelled);
+    const auto first = decodeThumbnail({.path = svg, .box_pixels = box}, kNotCancelled, viewer_test::imageRuntime);
     ASSERT_FALSE(first.image.isNull()) << qPrintable(first.error);
     EXPECT_FALSE(first.cache_eligible);
     EXPECT_EQ(first.image.size(), QSize(box, box / 2));
@@ -371,7 +372,7 @@ TEST(ThumbnailDecoder, LocalImageSvgBypassesCachesAndReflectsLinkedEdits) {
     EXPECT_EQ(first.image.pixelColor(box / 2, box / 4), QColor(Qt::red));
   }
   ASSERT_FALSE(writeImage(directory, "linked.png", {16, 8}, "PNG", Qt::blue).isEmpty());
-  const auto changed = decodeThumbnail({.path = svg, .box_pixels = 320}, kNotCancelled);
+  const auto changed = decodeThumbnail({.path = svg, .box_pixels = 320}, kNotCancelled, viewer_test::imageRuntime);
   ASSERT_FALSE(changed.image.isNull());
   EXPECT_EQ(changed.image.pixelColor(160, 80), QColor(Qt::blue));
 }
@@ -381,5 +382,6 @@ TEST(ThumbnailDecoder, MixedUnsupportedSvgReferencesRemainRejected) {
   const auto svg = writeBytes(directory, "mixed.svg",
                               "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='8'>"
                               "<image href='linked.png'/><image href='https://example.com/image.png'/></svg>");
-  EXPECT_TRUE(decodeThumbnail({.path = svg, .box_pixels = 256}, kNotCancelled).image.isNull());
+  EXPECT_TRUE(
+      decodeThumbnail({.path = svg, .box_pixels = 256}, kNotCancelled, viewer_test::imageRuntime).image.isNull());
 }

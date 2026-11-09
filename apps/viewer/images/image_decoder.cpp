@@ -79,16 +79,30 @@ QString rasterError(HolonightImages::Outcome outcome) {
   }
   Q_UNREACHABLE();
 }
-namespace {
-DecodeResult readImage(QFile& file, const std::atomic_bool& cancelled, ImageInformation facts) {
-  auto result = HolonightImages::decode(file, {.limits = kRasterLimits, .bound = {}}, cancelled);
-  facts.format = QString::fromLatin1(result.inspection.format).toUpper();
-  return {
-      .image = std::move(result.image), .error = {}, .information = facts, .svg_data = {}, .outcome = result.outcome};
+HolonightFileBrowser::ImageRuntimeOptions viewerImageRuntimeOptions() {
+  return {QString::fromUtf8(VIEWER_IMAGE_RUNTIME)};
 }
-}  // namespace
 
 DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
+  return decodeImageWithRuntime(url, cancelled, viewerImageRuntimeOptions());
+}
+
+DecodeResult decodeImageWithRuntime(const QUrl& url, const std::atomic_bool& cancelled,
+                                    const HolonightFileBrowser::ImageRuntimeOptions& runtime) {
+  const HolonightImages::IsolatedClient client(runtime.directory);
+  return decodeImageWithOperations(url, cancelled,
+                                   {.metadata =
+                                        [&client](QIODevice& file, const std::atomic_bool& cancel) {
+                                          return client.readMetadata(file, kRasterLimits, cancel);
+                                        },
+                                    .decode =
+                                        [&client](QIODevice& file, const std::atomic_bool& cancel) {
+                                          return client.decode(file, {.limits = kRasterLimits, .bound = {}}, cancel);
+                                        }});
+}
+
+DecodeResult decodeImageWithOperations(const QUrl& url, const std::atomic_bool& cancelled,
+                                       const RasterOperations& operations) {
   if (cancelled.load()) {
     return {};
   }
@@ -130,11 +144,40 @@ DecodeResult decodeImage(const QUrl& url, const std::atomic_bool& cancelled) {
             .information = facts,
             .svg_data = {}};
   }
-  facts.exif = ExifMetadata::read(file, cancelled);
-  if (cancelled.load() || !file.seek(0)) {
-    return {};
+  const auto metadata = operations.metadata(file, cancelled);
+  if (metadata.runtime != HolonightImages::RuntimeStatus::Success) {
+    DecodeResult failed;
+    failed.information = std::move(facts);
+    failed.runtime = metadata.runtime;
+    failed.error = HolonightFileBrowser::imageRuntimeError(metadata.runtime);
+    return failed;
   }
-  auto decoded = readImage(file, cancelled, facts);
+  facts.exif = ExifMetadata::format(metadata.result->facts, metadata.result->outcome);
+  if (cancelled.load() || metadata.result->outcome == HolonightImages::Outcome::Cancelled) {
+    DecodeResult stopped;
+    stopped.outcome = HolonightImages::Outcome::Cancelled;
+    return stopped;
+  }
+  // Each operation captures from zero and validates the runtime independently.
+  // The same open device is retained, but these captures are not an atomic snapshot.
+  auto reply = operations.decode(file, cancelled);
+  DecodeResult decoded;
+  decoded.information = facts;
+  decoded.runtime = reply.runtime;
+  if (reply.runtime != HolonightImages::RuntimeStatus::Success) {
+    decoded.error = HolonightFileBrowser::imageRuntimeError(reply.runtime);
+    return decoded;
+  }
+  decoded.outcome = reply.result->outcome;
+  decoded.image = std::move(reply.result->image);
+  decoded.information.format = QString::fromLatin1(reply.result->inspection.format).toUpper();
+  if (decoded.outcome != HolonightImages::Outcome::Success || cancelled.load()) {
+    decoded.image = {};
+    if (cancelled.load()) {
+      decoded.outcome = HolonightImages::Outcome::Cancelled;
+    }
+    return decoded;
+  }
   if (decoded.image.isNull()) {
     return decoded;
   }

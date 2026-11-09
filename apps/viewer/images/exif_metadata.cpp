@@ -1,8 +1,5 @@
 #include "exif_metadata.h"
 
-#include <QIODevice>
-
-#include <HolonightFileBrowser/preview/image_limits.h>
 #include <cmath>
 
 namespace ExifMetadata {
@@ -14,8 +11,10 @@ QString decimal(double value, int precision) {
   }
   return text;
 }
-ExifDetails format(const HolonightImages::ExifFacts& facts) {
+}  // namespace
+ExifDetails format(const HolonightImages::ExifFacts& facts, std::optional<HolonightImages::Outcome> outcome) {
   ExifDetails details;
+  details.outcome = outcome;
   details.camera = facts.model;
   if (facts.model.isEmpty()) {
     details.camera = facts.make;
@@ -47,14 +46,6 @@ ExifDetails format(const HolonightImages::ExifFacts& facts) {
   if (facts.altitudeMeters) {
     details.altitude = QStringLiteral("%1 m").arg(std::round(*facts.altitudeMeters), 0, 'f', 0);
   }
-  return details;
-}
-}  // namespace
-ExifDetails parse(const QByteArray& payload) { return format(HolonightImages::parseExif(payload)); }
-ExifDetails read(QIODevice& source, const std::atomic_bool& cancelled) {
-  const auto result = HolonightImages::readMetadata(source, kRasterLimits, cancelled);
-  auto details = format(result.facts);
-  details.outcome = result.outcome;
   return details;
 }
 }  // namespace ExifMetadata
