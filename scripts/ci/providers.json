@@ -1,26 +1,26 @@
 [
   {
     "name": "holonight-config",
-    "revision": "b76a5c3acb6c6717f51f7e131ce42a687566cee2"
+    "revision": "b115286c67561bcb34c8009da5098e3cb215f874"
   },
   {
     "name": "holonight-qt",
-    "revision": "15929ec8f960eb28caa4804f4406780cdba6bc6c",
+    "revision": "e9b5f79b9ab69a0d22ba6d326dc04f12055a45ab",
     "options": [
       "-DBUILD_WAYLAND=ON"
     ]
   },
   {
     "name": "holonight-images",
-    "revision": "2713d62b90f980e36221db00220c854141c598dd"
+    "revision": "59384f1540e88ed23857611db16c24f7594abc32"
   },
   {
     "name": "holonight-thumbnails",
-    "revision": "dde56208d8edc8ec6e2870dbcd44c0a9363f4b19"
+    "revision": "9462bacf7a7f7fdfb8f6eddb2edf1dac63ed75aa"
   },
   {
     "name": "holonight-file-browser",
-    "revision": "24eb8e7211339d70c507a23497a0e3624a6e2d7d",
+    "revision": "f8d92dfff898fefa4741bb57a851eafc9e04445b",
     "options": [
       "-DBUILD_FILE_BROWSER_SEARCH=OFF",
       "-DBUILD_FILE_BROWSER_STORAGE=OFF",
