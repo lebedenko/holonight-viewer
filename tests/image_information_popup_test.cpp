@@ -107,8 +107,10 @@ struct StandalonePopup {
     host.setSize(QSizeF(width, height));
     QQmlComponent component(&engine);
     component.loadFromModule("HolonightViewer", "ImageInformationPopup");
-    popup.reset(component.createWithInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)},
-                                                       {QStringLiteral("parent"), QVariant::fromValue(&host)}}));
+    popup.reset(component.createWithInitialProperties({
+        {QStringLiteral("document"), QVariant::fromValue(&document)},
+        {QStringLiteral("parent"), QVariant::fromValue(&host)},
+    }));
     if (!popup) {
       return ::testing::AssertionFailure() << component.errorString().toStdString();
     }
@@ -483,9 +485,10 @@ TEST(ImageInformationPopup, PreviewTracksWindowDprAndPhysicalSampling) {
   host.setSize({480, 480});
   QQmlComponent component(&engine);
   component.loadFromModule("HolonightViewer", "ImageInformationPopup");
-  const std::unique_ptr<QObject> popup(
-      component.createWithInitialProperties({{QStringLiteral("document"), QVariant::fromValue(&document)},
-                                             {QStringLiteral("parent"), QVariant::fromValue(&host)}}));
+  const std::unique_ptr<QObject> popup(component.createWithInitialProperties({
+      {QStringLiteral("document"), QVariant::fromValue(&document)},
+      {QStringLiteral("parent"), QVariant::fromValue(&host)},
+  }));
   ASSERT_NE(popup, nullptr) << component.errorString().toStdString();
   auto* content = popup->property("contentItem").value<QQuickItem*>();
   ASSERT_NE(content, nullptr);

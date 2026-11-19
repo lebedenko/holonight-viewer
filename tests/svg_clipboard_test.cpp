@@ -82,9 +82,11 @@ TEST(SvgClipboard, IntrinsicSizeIsRoundedAndOversizedDimensionsAreBounded) {
 TEST(SvgClipboard, OversizedThinDocumentCopiesWithoutAllocatingItsIntrinsicExtent) {
   QTemporaryDir directory;
   ImageDocument document{viewer_test::imageRuntime};
-  document.open({writeSvg(directory, "wide.svg",
-                          "<svg xmlns='http://www.w3.org/2000/svg' width='40000' height='1'>"
-                          "<rect width='40000' height='1' fill='red'/></svg>")});
+  document.open({
+      writeSvg(directory, "wide.svg",
+               "<svg xmlns='http://www.w3.org/2000/svg' width='40000' height='1'>"
+               "<rect width='40000' height='1' fill='red'/></svg>"),
+  });
   ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready; }));
   document.copyImage();
   ASSERT_TRUE(QTest::qWaitFor([&] { return !document.clipboard()->busy(); }));
@@ -99,9 +101,11 @@ TEST(SvgClipboard, ResolvesLocalImagesAndKeepsClipboardOnPreparationFailure) {
   linked.fill(QColor(255, 0, 0, 128));
   ASSERT_TRUE(linked.save(directory.filePath("linked.png")));
   ImageDocument document{viewer_test::imageRuntime};
-  document.open({writeSvg(directory, "linked.svg",
-                          "<svg xmlns='http://www.w3.org/2000/svg' width='4' height='2'>"
-                          "<image href='linked.png' width='4' height='2'/></svg>")});
+  document.open({
+      writeSvg(directory, "linked.svg",
+               "<svg xmlns='http://www.w3.org/2000/svg' width='4' height='2'>"
+               "<image href='linked.png' width='4' height='2'/></svg>"),
+  });
   ASSERT_TRUE(QTest::qWaitFor([&] { return document.state() == ImageDocument::Ready; }));
   document.copyImage();
   ASSERT_TRUE(document.clipboard()->busy());

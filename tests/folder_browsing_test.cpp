@@ -53,8 +53,17 @@ DecodeResult solid() {
 TEST(Directory, OrderingFilteringAndRoles) {
   QTemporaryDir dir(temporaryPattern());
   ASSERT_TRUE(dir.isValid());
-  for (const auto& name : {"image10.png", "image2.PNG", "Image02.png", "image02.png", "space 1.png", "зображення.png",
-                           ".hidden.png", "extensionless", "ignore.txt"}) {
+  for (const auto& name : {
+           "image10.png",
+           "image2.PNG",
+           "Image02.png",
+           "image02.png",
+           "space 1.png",
+           "зображення.png",
+           ".hidden.png",
+           "extensionless",
+           "ignore.txt",
+       }) {
     ASSERT_FALSE(writeFile(dir, QString::fromUtf8(name)).isEmpty());
   }
   ASSERT_TRUE(QDir(dir.path()).mkdir("folder.png"));

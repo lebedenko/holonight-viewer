@@ -75,11 +75,16 @@ TEST(ExifMetadata, FormatsCameraExposureAndLocation) {
 
 TEST(ExifMetadata, OmitsRepeatedMakeInvalidGpsAndZeroDenominators) {
   const auto details =
-      parseFacts(QByteArray("Exif\0\0", 6) +
-                 tiff({text(0x010f, "Canon"), text(0x0110, "Canon EOS R5")},
-                      {rationals(0x829d, {{8, 0}}), shortValue(0x8827, 400)},
-                      {text(0x0001, "N"), rationals(0x0002, {{95, 1}, {0, 1}, {0, 1}}), text(0x0003, "E"),
-                       rationals(0x0004, {{10, 1}, {0, 1}, {0, 1}}), byte(0x0005, 1), rationals(0x0006, {{12, 1}})}));
+      parseFacts(QByteArray("Exif\0\0", 6) + tiff({text(0x010f, "Canon"), text(0x0110, "Canon EOS R5")},
+                                                  {rationals(0x829d, {{8, 0}}), shortValue(0x8827, 400)},
+                                                  {
+                                                      text(0x0001, "N"),
+                                                      rationals(0x0002, {{95, 1}, {0, 1}, {0, 1}}),
+                                                      text(0x0003, "E"),
+                                                      rationals(0x0004, {{10, 1}, {0, 1}, {0, 1}}),
+                                                      byte(0x0005, 1),
+                                                      rationals(0x0006, {{12, 1}}),
+                                                  }));
   EXPECT_EQ(details.camera, "Canon EOS R5");
   EXPECT_TRUE(details.lens.isEmpty());
   EXPECT_TRUE(details.aperture.isEmpty());
@@ -269,8 +274,14 @@ TEST(ImageInformationProperties, ExifRichJpegHasCameraLocationAndFileSections) {
   EXPECT_EQ(document.displayPath(), abbreviateHomePath(path));
 
   const QList<std::pair<QString, QStringList>> expected{
-      {"Camera",
-       {"SONY ILCE-7M4", QStringLiteral("FE 24-70mm F2.8 GM II · 32 mm · f/8.0"), QStringLiteral("1/100 s · ISO 100")}},
+      {
+          "Camera",
+          {
+              "SONY ILCE-7M4",
+              QStringLiteral("FE 24-70mm F2.8 GM II · 32 mm · f/8.0"),
+              QStringLiteral("1/100 s · ISO 100"),
+          },
+      },
       {"Location", {QStringLiteral("50.45000° N, 30.52000° W · 179 m")}},
       {"File", {abbreviateHomePath(path)}},
   };

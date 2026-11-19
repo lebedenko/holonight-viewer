@@ -91,14 +91,16 @@ DecodeResult decodeImageWithRuntime(const QUrl& url, const std::atomic_bool& can
                                     const HolonightFileBrowser::ImageRuntimeOptions& runtime) {
   const HolonightImages::IsolatedClient client(runtime.directory);
   return decodeImageWithOperations(url, cancelled,
-                                   {.metadata =
-                                        [&client](QIODevice& file, const std::atomic_bool& cancel) {
-                                          return client.readMetadata(file, kRasterLimits, cancel);
-                                        },
-                                    .decode =
-                                        [&client](QIODevice& file, const std::atomic_bool& cancel) {
-                                          return client.decode(file, {.limits = kRasterLimits, .bound = {}}, cancel);
-                                        }});
+                                   {
+                                       .metadata =
+                                           [&client](QIODevice& file, const std::atomic_bool& cancel) {
+                                             return client.readMetadata(file, kRasterLimits, cancel);
+                                           },
+                                       .decode =
+                                           [&client](QIODevice& file, const std::atomic_bool& cancel) {
+                                             return client.decode(file, {.limits = kRasterLimits, .bound = {}}, cancel);
+                                           },
+                                   });
 }
 
 DecodeResult decodeImageWithOperations(const QUrl& url, const std::atomic_bool& cancelled,
@@ -113,24 +115,30 @@ DecodeResult decodeImageWithOperations(const QUrl& url, const std::atomic_bool& 
     facts.modified = info.lastModified();
   }
   if (!info.exists()) {
-    return {.image = {},
-            .error = QCoreApplication::translate("ImageDocument", "The file no longer exists."),
-            .information = facts,
-            .svg_data = {}};
+    return {
+        .image = {},
+        .error = QCoreApplication::translate("ImageDocument", "The file no longer exists."),
+        .information = facts,
+        .svg_data = {},
+    };
   }
   if (!info.isFile()) {
-    return {.image = {},
-            .error = QCoreApplication::translate("ImageDocument",
-                                                 "Choose a regular image file, not a folder or special file."),
-            .information = facts,
-            .svg_data = {}};
+    return {
+        .image = {},
+        .error =
+            QCoreApplication::translate("ImageDocument", "Choose a regular image file, not a folder or special file."),
+        .information = facts,
+        .svg_data = {},
+    };
   }
   QFile file(info.absoluteFilePath());
   if (!file.open(QIODevice::ReadOnly)) {
-    return {.image = {},
-            .error = QCoreApplication::translate("ImageDocument", "The file could not be opened for reading."),
-            .information = facts,
-            .svg_data = {}};
+    return {
+        .image = {},
+        .error = QCoreApplication::translate("ImageDocument", "The file could not be opened for reading."),
+        .information = facts,
+        .svg_data = {},
+    };
   }
   // SVG is dispatched by extension, not content-sniffing: it has no reliable magic-byte signature, and this is the
   // same signal REQ-F-001..003 already use for format registration and directory scanning. It skips EXIF entirely
@@ -139,10 +147,12 @@ DecodeResult decodeImageWithOperations(const QUrl& url, const std::atomic_bool& 
     return decodeSvg(file, cancelled, facts);
   }
   if (file.size() > kFileLimitBytes) {
-    return {.image = {},
-            .error = QCoreApplication::translate("ImageDocument", "The file exceeds the 256 MiB input limit."),
-            .information = facts,
-            .svg_data = {}};
+    return {
+        .image = {},
+        .error = QCoreApplication::translate("ImageDocument", "The file exceeds the 256 MiB input limit."),
+        .information = facts,
+        .svg_data = {},
+    };
   }
   const auto metadata = operations.metadata(file, cancelled);
   if (metadata.runtime != HolonightImages::RuntimeStatus::Success) {
@@ -188,16 +198,20 @@ DecodeResult decodeImageWithOperations(const QUrl& url, const std::atomic_bool& 
   }
   image.convertTo(QImage::Format_ARGB32_Premultiplied);
   if (image.isNull()) {
-    return {.image = {},
-            .error = QCoreApplication::translate("ImageDocument", "There is not enough memory to display this image."),
-            .information = facts,
-            .svg_data = {}};
+    return {
+        .image = {},
+        .error = QCoreApplication::translate("ImageDocument", "There is not enough memory to display this image."),
+        .information = facts,
+        .svg_data = {},
+    };
   }
   image.setDevicePixelRatio(1);
   facts.decoded_size = image.size();
-  return {.image = std::move(image),
-          .error = {},
-          .information = facts,
-          .svg_data = {},
-          .outcome = HolonightImages::Outcome::Success};
+  return {
+      .image = std::move(image),
+      .error = {},
+      .information = facts,
+      .svg_data = {},
+      .outcome = HolonightImages::Outcome::Success,
+  };
 }

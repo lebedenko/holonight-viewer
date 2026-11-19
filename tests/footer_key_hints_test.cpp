@@ -24,13 +24,17 @@ struct Hint {
   const char* label;
 };
 
-constexpr std::array<Hint, 7> kHints{{{.name = "Navigate", .key = "[ or ]", .label = "Navigate"},
-                                      {.name = "Zoom", .key = "Ctrl plus + or Ctrl plus -", .label = "Zoom"},
-                                      {.name = "Fit", .key = "Ctrl plus 0", .label = "Fit"},
-                                      {.name = "ActualSize", .key = "1", .label = "100%"},
-                                      {.name = "Rotate", .key = "r", .label = "Rotate"},
-                                      {.name = "Fullscreen", .key = "f", .label = "Fullscreen"},
-                                      {.name = "Help", .key = "?", .label = "Help"}}};
+constexpr std::array<Hint, 7> kHints{
+    {
+        {.name = "Navigate", .key = "[ or ]", .label = "Navigate"},
+        {.name = "Zoom", .key = "Ctrl plus + or Ctrl plus -", .label = "Zoom"},
+        {.name = "Fit", .key = "Ctrl plus 0", .label = "Fit"},
+        {.name = "ActualSize", .key = "1", .label = "100%"},
+        {.name = "Rotate", .key = "r", .label = "Rotate"},
+        {.name = "Fullscreen", .key = "f", .label = "Fullscreen"},
+        {.name = "Help", .key = "?", .label = "Help"},
+    },
+};
 
 // Hint rows created by the Repeater inside the footer row, in layout order.
 QList<QQuickItem*> hintRows(QQuickItem* footer) {
@@ -218,8 +222,10 @@ TEST(FooterKeyHints, NarrowWidthHidesRightmostWholeHints) {
     }
     EXPECT_EQ(lines.size(), 1U) << width;
     // Hidden hints form a suffix (before Help): visible names keep layout order.
-    const QStringList expected{"footerHintNavigate",   "footerHintZoom",   "footerHintFit",
-                               "footerHintActualSize", "footerHintRotate", "footerHintFullscreen"};
+    const QStringList expected{
+        "footerHintNavigate",   "footerHintZoom",   "footerHintFit",
+        "footerHintActualSize", "footerHintRotate", "footerHintFullscreen",
+    };
     QStringList withoutHelp = names;
     withoutHelp.removeAll(QStringLiteral("footerHintHelp"));
     EXPECT_EQ(withoutHelp, expected.mid(0, withoutHelp.size())) << width;

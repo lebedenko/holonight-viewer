@@ -68,11 +68,13 @@ bool MockPortal::handleMessage(const QDBusMessage& message, const QDBusConnectio
     const auto predicted = PortalRequest::requestPath(message.service(), options.value("handle_token").toString());
     last_sender_ = message.service();
     const auto handle = returned_handle_.isEmpty() ? predicted : returned_handle_;
-    calls_.append({.sender = message.service(),
-                   .parentWindow = arguments.at(0).toString(),
-                   .title = arguments.at(1).toString(),
-                   .options = options,
-                   .handle = handle});
+    calls_.append({
+        .sender = message.service(),
+        .parentWindow = arguments.at(0).toString(),
+        .title = arguments.at(1).toString(),
+        .options = options,
+        .handle = handle,
+    });
     if (response_before_reply_) {
       emitResponse(predicted, response_before_reply_->code, response_before_reply_->results);
     }

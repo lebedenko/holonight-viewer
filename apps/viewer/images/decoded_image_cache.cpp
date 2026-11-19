@@ -9,11 +9,13 @@
 CachedImage DecodedImageCache::metadata(const QUrl& url) {
   const auto normalized = normalizedLocalUrl(url);
   const QFileInfo info(normalized.toLocalFile());
-  return {.url = normalized,
-          .size = info.isFile() ? info.size() : -1,
-          .modified = info.lastModified(),
-          .image = {},
-          .information = {}};
+  return {
+      .url = normalized,
+      .size = info.isFile() ? info.size() : -1,
+      .modified = info.lastModified(),
+      .image = {},
+      .information = {},
+  };
 }
 bool DecodedImageCache::valid(const CachedImage& entry) {
   const auto current = metadata(entry.url);

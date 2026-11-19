@@ -208,8 +208,10 @@ QVariantList ViewerShortcuts::aliasKeyGroups(Command command) {
     case Next:
       return keyGroups(GridRight);
     case ZoomIn:
-      return {QVariantList{static_cast<int>(Qt::Key_Control), static_cast<int>(Qt::Key_Equal)},
-              QVariantList{static_cast<int>(Qt::Key_Plus)}};
+      return {
+          QVariantList{static_cast<int>(Qt::Key_Control), static_cast<int>(Qt::Key_Equal)},
+          QVariantList{static_cast<int>(Qt::Key_Plus)},
+      };
     case ZoomOut:
       return {QVariantList{static_cast<int>(Qt::Key_Minus)}};
     case Fit:

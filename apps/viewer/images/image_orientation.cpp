@@ -3,8 +3,12 @@
 #include <array>
 
 QTransform ImageOrientation::matrix(int orientation) {
-  static const std::array rotations = {QTransform(), QTransform(0, 1, -1, 0, 0, 0), QTransform(-1, 0, 0, -1, 0, 0),
-                                       QTransform(0, -1, 1, 0, 0, 0)};
+  static const std::array rotations = {
+      QTransform(),
+      QTransform(0, 1, -1, 0, 0, 0),
+      QTransform(-1, 0, 0, -1, 0, 0),
+      QTransform(0, -1, 1, 0, 0, 0),
+  };
   return QTransform::fromScale(orientation >= 4 ? -1 : 1, 1) * rotations.at(static_cast<std::size_t>(orientation & 3));
 }
 QTransform ImageOrientation::mapping(int orientation, QSize size) {

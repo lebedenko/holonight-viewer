@@ -297,10 +297,12 @@ TEST(ReleasePerformance, AnimatedGifFrameSwap) {
   QFile file(dir.filePath("large.gif"));
   ASSERT_TRUE(file.open(QIODevice::WriteOnly));
   file.write(gif::bytes("GIF89a",
-                        {{.delayCs = 10, .second = false},
-                         {.delayCs = 10, .second = true},
-                         {.delayCs = 10, .second = false},
-                         {.delayCs = 10, .second = true}},
+                        {
+                            {.delayCs = 10, .second = false},
+                            {.delayCs = 10, .second = true},
+                            {.delayCs = 10, .second = false},
+                            {.delayCs = 10, .second = true},
+                        },
                         0, 8000, 4000));
   file.close();
   ImageDocument document{viewer_test::imageRuntime};

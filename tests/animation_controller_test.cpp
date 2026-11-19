@@ -326,10 +326,12 @@ TEST(AnimationController, ThreadedPlaybackOfARealGifThenStopAndShutdown) {
   QFile file(dir.filePath("loop.gif"));
   ASSERT_TRUE(file.open(QIODevice::WriteOnly));
   file.write(gif::bytes("GIF89a",
-                        {{.delayCs = 3, .second = false},
-                         {.delayCs = 3, .second = true},
-                         {.delayCs = 3, .second = false},
-                         {.delayCs = 3, .second = true}},
+                        {
+                            {.delayCs = 3, .second = false},
+                            {.delayCs = 3, .second = true},
+                            {.delayCs = 3, .second = false},
+                            {.delayCs = 3, .second = true},
+                        },
                         0));
   file.close();
   AnimationController controller;

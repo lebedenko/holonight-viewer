@@ -34,9 +34,13 @@ TEST(FrameSource, CountsAndLoopConvention) {
     int field;
     int expectedLoop;
   };
-  for (const auto& [field, expectedLoop] :
-       {Case{.field = -1, .expectedLoop = 0}, Case{.field = 0, .expectedLoop = -1}, Case{.field = 1, .expectedLoop = 1},
-        Case{.field = 2, .expectedLoop = 2}, Case{.field = 7, .expectedLoop = 7}}) {
+  for (const auto& [field, expectedLoop] : {
+           Case{.field = -1, .expectedLoop = 0},
+           Case{.field = 0, .expectedLoop = -1},
+           Case{.field = 1, .expectedLoop = 1},
+           Case{.field = 2, .expectedLoop = 2},
+           Case{.field = 7, .expectedLoop = 7},
+       }) {
     auto bytes = gif::bytes(
         "GIF89a", {{.delayCs = 10, .second = false}, {.delayCs = 10, .second = true}, {.delayCs = 10, .second = false}},
         field);
@@ -54,10 +58,12 @@ TEST(FrameSource, DelayBelongsToTheFrameJustRead) {
   if (!gifAvailable()) {
     GTEST_SKIP() << kNoGifPlugin;
   }
-  auto bytes = gif::bytes("GIF89a", {{.delayCs = 20, .second = false},
-                                     {.delayCs = 30, .second = true},
-                                     {.delayCs = 0, .second = false},
-                                     {.delayCs = 5, .second = true}});
+  auto bytes = gif::bytes("GIF89a", {
+                                        {.delayCs = 20, .second = false},
+                                        {.delayCs = 30, .second = true},
+                                        {.delayCs = 0, .second = false},
+                                        {.delayCs = 5, .second = true},
+                                    });
   QBuffer buffer(&bytes);
   ASSERT_TRUE(buffer.open(QIODevice::ReadOnly));
   QImageReader reader(&buffer);

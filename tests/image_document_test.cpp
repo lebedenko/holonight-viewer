@@ -107,7 +107,8 @@ TEST(Document, FormatsAlphaPathsAndRecovery) {
   const QList<QUrl> failures{
       QUrl::fromLocalFile(fixturePath("missing.png")), QUrl::fromLocalFile(QStringLiteral(VIEWER_FIXTURE_DIR)),
       writeFixture("unsupported.txt", "not an image"), writeFixture("corrupt.png", encodedImage("PNG").left(45)),
-      QUrl("https://example.org/image.png")};
+      QUrl("https://example.org/image.png"),
+  };
   for (const auto& url : failures) {
     document.open({url});
     ASSERT_TRUE(settled(document));
@@ -381,11 +382,13 @@ TEST(Document, SuccessfulTransformsAndPrefetchFailuresDoNotReportOpeningFailures
           return solidResult();
         }
         prefetched.store(true);
-        return DecodeResult{.image = {},
-                            .error = {},
-                            .information = {},
-                            .svg_data = {},
-                            .outcome = HolonightImages::Outcome::IoFailure};
+        return DecodeResult{
+            .image = {},
+            .error = {},
+            .information = {},
+            .svg_data = {},
+            .outcome = HolonightImages::Outcome::IoFailure,
+        };
       },
       [&](const QUrl&, const std::atomic_bool&) { return DirectoryResult{.urls = {selected, neighbor}, .error = {}}; });
   QSignalSpy failures(&document, &ImageDocument::openingFailed);
@@ -523,20 +526,27 @@ TEST(Document, GifReservationSurvivesStillNeighborPrefetchAndReleasesFrameZero) 
   ImageDocument document(
       [&](const QUrl& url, const std::atomic_bool&) {
         QImage image = url == gifUrl ? fakeImage(script, 0) : QImage(2, 2, QImage::Format_ARGB32_Premultiplied);
-        return DecodeResult{.image = std::move(image),
-                            .error = {},
-                            .information = {.format = url == gifUrl ? QStringLiteral("GIF") : QStringLiteral("PNG"),
-                                            .encoded_size = -1,
-                                            .modified = {},
-                                            .decoded_size = {2, 2},
-                                            .exif = {}},
-                            .svg_data = {}};
+        return DecodeResult{
+            .image = std::move(image),
+            .error = {},
+            .information =
+                {
+                    .format = url == gifUrl ? QStringLiteral("GIF") : QStringLiteral("PNG"),
+                    .encoded_size = -1,
+                    .modified = {},
+                    .decoded_size = {2, 2},
+                    .exif = {},
+                },
+            .svg_data = {},
+        };
       },
       [&](const QUrl&, const std::atomic_bool&) { return DirectoryResult{.urls = {gifUrl, pngUrl}, .error = {}}; },
-      {.clock = std::move(clock),
-       .source = [&] { return std::make_unique<FakeFrameSource>(script); },
-       .execution = AnimationController::Execution::Inline,
-       .retained_bytes = 48});
+      {
+          .clock = std::move(clock),
+          .source = [&] { return std::make_unique<FakeFrameSource>(script); },
+          .execution = AnimationController::Execution::Inline,
+          .retained_bytes = 48,
+      });
   document.open({gifUrl});
   ASSERT_TRUE(settled(document));
   ASSERT_TRUE(QTest::qWaitFor([&] { return !document.scanning() && !ImageDocumentTestAccess::busy(document); }));
@@ -577,20 +587,27 @@ TEST(Document, GifFrameZeroIsReusedWhenItFitsTheRetainedBudget) {
         }
         QImage image(2, 2, QImage::Format_ARGB32_Premultiplied);
         image.fill(Qt::red);
-        return DecodeResult{.image = std::move(image),
-                            .error = {},
-                            .information = {.format = gif ? QStringLiteral("GIF") : QStringLiteral("PNG"),
-                                            .encoded_size = -1,
-                                            .modified = {},
-                                            .decoded_size = {2, 2},
-                                            .exif = {}},
-                            .svg_data = {}};
+        return DecodeResult{
+            .image = std::move(image),
+            .error = {},
+            .information =
+                {
+                    .format = gif ? QStringLiteral("GIF") : QStringLiteral("PNG"),
+                    .encoded_size = -1,
+                    .modified = {},
+                    .decoded_size = {2, 2},
+                    .exif = {},
+                },
+            .svg_data = {},
+        };
       },
       [&](const QUrl&, const std::atomic_bool&) { return DirectoryResult{.urls = {gifUrl, pngUrl}, .error = {}}; },
-      {.clock = std::make_unique<ManualPlaybackClock>(),
-       .source = [&] { return std::make_unique<FakeFrameSource>(script); },
-       .execution = AnimationController::Execution::Inline,
-       .retained_bytes = 64});
+      {
+          .clock = std::make_unique<ManualPlaybackClock>(),
+          .source = [&] { return std::make_unique<FakeFrameSource>(script); },
+          .execution = AnimationController::Execution::Inline,
+          .retained_bytes = 64,
+      });
   document.open({gifUrl});
   ASSERT_TRUE(settled(document));
   ASSERT_TRUE(QTest::qWaitFor([&] { return !document.scanning() && !ImageDocumentTestAccess::busy(document); }));
@@ -698,10 +715,12 @@ TEST(Document, SvgWithViewBoxDecodesToViewBoxSize) {
 TEST(Document, SvgResolvesRelativeLocalReferences) {
   ASSERT_TRUE(writeFixture("svg-reference.png", encodedImage("PNG")).isValid());
   ImageDocument document{viewer_test::imageRuntime};
-  document.open({writeFixture("with-relative-reference.svg",
-                              "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"40\" height=\"20\">"
-                              "<image href=\"svg-reference.png\" width=\"40\" height=\"20\"/>"
-                              "</svg>")});
+  document.open({
+      writeFixture("with-relative-reference.svg",
+                   "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"40\" height=\"20\">"
+                   "<image href=\"svg-reference.png\" width=\"40\" height=\"20\"/>"
+                   "</svg>"),
+  });
   ASSERT_TRUE(settled(document));
   ASSERT_EQ(document.state(), ImageDocument::Ready) << document.error().toStdString();
   QImage output(40, 20, QImage::Format_ARGB32_Premultiplied);
@@ -798,8 +817,14 @@ TEST(Document, ProviderOutcomesArePresentedDistinctlyAndCancellationDrainsSilent
   using HolonightImages::Outcome;
   QStringList messages;
   const auto url = writeFixture("outcome.png", encodedImage("PNG"));
-  for (const auto outcome : {Outcome::Success, Outcome::Unsupported, Outcome::Damaged, Outcome::ResourceLimit,
-                             Outcome::IoFailure, Outcome::Cancelled}) {
+  for (const auto outcome : {
+           Outcome::Success,
+           Outcome::Unsupported,
+           Outcome::Damaged,
+           Outcome::ResourceLimit,
+           Outcome::IoFailure,
+           Outcome::Cancelled,
+       }) {
     ImageDocument document([&](const QUrl&, const std::atomic_bool&) {
       auto result = solidResult();
       if (outcome != Outcome::Success) {
@@ -888,9 +913,11 @@ TEST(Document, QuietMetadataFailuresSurviveCacheReuseAndResetOnSelection) {
 
 TEST(Document, SvgUsesDefaultSizeForInformationAndPreview) {
   ImageDocument document{viewer_test::imageRuntime};
-  document.open({writeFixture("different-viewport.svg",
-                              "<svg xmlns='http://www.w3.org/2000/svg' width='80' height='40' viewBox='0 0 10 30'>"
-                              "<rect width='10' height='30' fill='red'/></svg>")});
+  document.open({
+      writeFixture("different-viewport.svg",
+                   "<svg xmlns='http://www.w3.org/2000/svg' width='80' height='40' viewBox='0 0 10 30'>"
+                   "<rect width='10' height='30' fill='red'/></svg>"),
+  });
   ASSERT_TRUE(settled(document));
   ASSERT_EQ(document.state(), ImageDocument::Ready);
   EXPECT_EQ(document.information().decoded_size, QSize(80, 40));
@@ -922,9 +949,11 @@ TEST(Document, SelfContainedSvgRendererUsesRetainedBytesAfterPathReplacement) {
 }
 TEST(Document, SvgRejectsExternalResourcesWithoutSelectingLocalFallback) {
   ImageDocument document{viewer_test::imageRuntime};
-  document.open({writeFixture("external-svg.svg",
-                              "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'>"
-                              "<image href='relative.png'/><image href='https://example.com/image.png'/></svg>")});
+  document.open({
+      writeFixture("external-svg.svg",
+                   "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'>"
+                   "<image href='relative.png'/><image href='https://example.com/image.png'/></svg>"),
+  });
   ASSERT_TRUE(settled(document));
   EXPECT_EQ(document.state(), ImageDocument::Error);
   EXPECT_TRUE(document.error().contains("resource"));
@@ -1001,8 +1030,12 @@ TEST(Document, ReopeningAReplacedSourceUsesFreshPixels) {
 }
 
 TEST(PastedPath, StrictTextGrammar) {
-  for (const auto& path : {QStringLiteral("/tmp/image.png"), QStringLiteral("/tmp/雪%#.png"),
-                           QStringLiteral("/tmp/a\\ b\\\\c.png"), QStringLiteral("~/image.png")}) {
+  for (const auto& path : {
+           QStringLiteral("/tmp/image.png"),
+           QStringLiteral("/tmp/雪%#.png"),
+           QStringLiteral("/tmp/a\\ b\\\\c.png"),
+           QStringLiteral("~/image.png"),
+       }) {
     const auto result = parsePastedPath(path);
     ASSERT_TRUE(result.has_value());
     EXPECT_TRUE(result->isLocalFile());
@@ -1011,9 +1044,23 @@ TEST(PastedPath, StrictTextGrammar) {
   }
   EXPECT_EQ(parsePastedPath(QStringLiteral("/tmp/a\\ b\\\\c.png"))->toLocalFile(), QStringLiteral("/tmp/a b\\c.png"));
   EXPECT_EQ(parsePastedPath(QStringLiteral("~/image.png"))->toLocalFile(), QDir::homePath() + "/image.png");
-  for (const auto* text :
-       {"", " /tmp/a", "/tmp/a ", "/tmp/a\n", "/tmp/a\t", "/tmp/a b", "'/tmp/a'", "/tmp/a\"", "/tmp/a\\q", "/tmp/a\\",
-        "file:///tmp/a", "https://example.org/a", "image.png", "~other/a", "/tmp/a /tmp/b"}) {
+  for (const auto* text : {
+           "",
+           " /tmp/a",
+           "/tmp/a ",
+           "/tmp/a\n",
+           "/tmp/a\t",
+           "/tmp/a b",
+           "'/tmp/a'",
+           "/tmp/a\"",
+           "/tmp/a\\q",
+           "/tmp/a\\",
+           "file:///tmp/a",
+           "https://example.org/a",
+           "image.png",
+           "~other/a",
+           "/tmp/a /tmp/b",
+       }) {
     EXPECT_FALSE(parsePastedPath(QString::fromUtf8(text))) << text;
   }
   EXPECT_FALSE(parsePastedPath(QStringLiteral("/tmp/a") + QChar(0)));
@@ -1041,8 +1088,14 @@ TEST(Document, PastedFilesPreserveViewOnFailure) {
   ASSERT_TRUE(oversized.save(limited.toLocalFile()));
   const auto corrupt = writeFixture("paste-corrupt.png", "not an image");
   const auto svg = writeFixture("paste-corrupt.svg", "<svg>broken");
-  for (const auto& url : {QUrl::fromLocalFile(folder.path()), QUrl::fromLocalFile(folder.filePath("missing")), corrupt,
-                          svg, unreadable, limited}) {
+  for (const auto& url : {
+           QUrl::fromLocalFile(folder.path()),
+           QUrl::fromLocalFile(folder.filePath("missing")),
+           corrupt,
+           svg,
+           unreadable,
+           limited,
+       }) {
     document.tryOpenPastedPath(url);
     EXPECT_EQ(document.url(), original);
     ASSERT_TRUE(QTest::qWaitFor([&] { return !ImageDocumentTestAccess::busy(document); }));

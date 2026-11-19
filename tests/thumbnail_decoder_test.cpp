@@ -158,12 +158,14 @@ struct CacheHome {
 
 HolonightThumbnails::Request cacheRequest(const QString& path, QSize required, HolonightThumbnails::Kind kind) {
   const QFileInfo info(path);
-  return {.uri = QUrl::fromLocalFile(info.absoluteFilePath()),
-          .modified = info.lastModified(),
-          .size = info.size(),
-          .required = required,
-          .kind = kind,
-          .revision = {}};
+  return {
+      .uri = QUrl::fromLocalFile(info.absoluteFilePath()),
+      .modified = info.lastModified(),
+      .size = info.size(),
+      .required = required,
+      .kind = kind,
+      .revision = {},
+  };
 }
 }  // namespace
 
@@ -290,8 +292,12 @@ TEST(ThumbnailDecoder, WritesAspectAwareAndOrientedThumbnailEntries) {
   const auto oriented = writeBytes(dir, "oriented.jpg", jpegWithExif(payload));
   const auto largeOriented = writeBytes(dir, "large-oriented.jpg", jpegWithExif(payload, {400, 300}));
 
-  for (const auto& [path, pixels] : {std::pair{landscape, QSize(256, 192)}, std::pair{portrait, QSize(192, 256)},
-                                     std::pair{oriented, QSize(3, 4)}, std::pair{largeOriented, QSize(192, 256)}}) {
+  for (const auto& [path, pixels] : {
+           std::pair{landscape, QSize(256, 192)},
+           std::pair{portrait, QSize(192, 256)},
+           std::pair{oriented, QSize(3, 4)},
+           std::pair{largeOriented, QSize(192, 256)},
+       }) {
     const auto result = decode(path, 1);
     ASSERT_FALSE(result.image.isNull()) << qPrintable(result.error);
     const auto cached =

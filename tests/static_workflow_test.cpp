@@ -529,14 +529,19 @@ TEST(Workflow, InformationRejectsStaleRequestsAndKeepsErrorFacts) {
         QThread::msleep(1);
       }
     }
-    return DecodeResult{.image = asymmetric(),
-                        .error = {},
-                        .information = {.format = url.fileName(),
-                                        .encoded_size = 123,
-                                        .modified = {},
-                                        .decoded_size = {3, 2},
-                                        .exif = {}},
-                        .svg_data = {}};
+    return DecodeResult{
+        .image = asymmetric(),
+        .error = {},
+        .information =
+            {
+                .format = url.fileName(),
+                .encoded_size = 123,
+                .modified = {},
+                .decoded_size = {3, 2},
+                .exif = {},
+            },
+        .svg_data = {},
+    };
   });
   const auto cleanup = qScopeGuard([&] { release.store(true); });
   document.open({QUrl::fromLocalFile(QStringLiteral(VIEWER_FIXTURE_DIR) + "/old.missing")});

@@ -66,18 +66,30 @@ QList<InformationSection> formatInformationSections(const ImageInformation& info
   };
   const auto& exif = information.exif;
   // Keys are stable identifiers for QML; labels are translated for display.
-  const std::array<Section, 3> sections{{
-      {.key = "Camera",
-       .label = QCoreApplication::translate("ImageDocument", "Camera"),
-       .lines = {exif.camera, joinNonEmpty({exif.lens, exif.focal_length, exif.aperture}),
-                 joinNonEmpty({exif.shutter, exif.iso})}},
-      {.key = "Location",
-       .label = QCoreApplication::translate("ImageDocument", "Location"),
-       .lines = {joinNonEmpty({exif.location, exif.altitude})}},
-      {.key = "File",
-       .label = QCoreApplication::translate("ImageDocument", "File"),
-       .lines = {path.isEmpty() ? QString{} : abbreviateHomePath(path)}},
-  }};
+  const std::array<Section, 3> sections{
+      {
+          {
+              .key = "Camera",
+              .label = QCoreApplication::translate("ImageDocument", "Camera"),
+              .lines =
+                  {
+                      exif.camera,
+                      joinNonEmpty({exif.lens, exif.focal_length, exif.aperture}),
+                      joinNonEmpty({exif.shutter, exif.iso}),
+                  },
+          },
+          {
+              .key = "Location",
+              .label = QCoreApplication::translate("ImageDocument", "Location"),
+              .lines = {joinNonEmpty({exif.location, exif.altitude})},
+          },
+          {
+              .key = "File",
+              .label = QCoreApplication::translate("ImageDocument", "File"),
+              .lines = {path.isEmpty() ? QString{} : abbreviateHomePath(path)},
+          },
+      },
+  };
   QList<InformationSection> result;
   for (const auto& section : sections) {
     auto present = section.lines;

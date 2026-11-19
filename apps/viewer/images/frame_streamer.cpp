@@ -63,10 +63,12 @@ void FrameStreamer::readOne(quint64 generation) {
   }
   switch (frame.status) {
     case FrameResult::Status::Ok:
-      post({.kind = StreamEvent::Kind::Frame,
-            .generation = generation,
-            .image = std::move(frame.image),
-            .delay_ms = frame.delay_ms});
+      post({
+          .kind = StreamEvent::Kind::Frame,
+          .generation = generation,
+          .image = std::move(frame.image),
+          .delay_ms = frame.delay_ms,
+      });
       break;
     case FrameResult::Status::EndOfSequence:
       post({.kind = StreamEvent::Kind::End, .generation = generation});

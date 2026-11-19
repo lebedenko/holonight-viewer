@@ -43,8 +43,15 @@ TEST(Accessibility, NamesRolesEnabledFocusAndDialogs) {
   ASSERT_NE(window, nullptr);
   window->requestActivate();
   ASSERT_TRUE(QTest::qWaitForWindowActive(window));
-  for (const auto* name : {"actionsButton", "informationButton", "fullscreenButton", "closeButton", "previousButton",
-                           "nextButton", "imageCanvas"}) {
+  for (const auto* name : {
+           "actionsButton",
+           "informationButton",
+           "fullscreenButton",
+           "closeButton",
+           "previousButton",
+           "nextButton",
+           "imageCanvas",
+       }) {
     auto* item = window->findChild<QQuickItem*>(QString::fromLatin1(name));
     ASSERT_NE(item, nullptr) << name;
     auto* accessible = QAccessible::queryAccessibleInterface(item);

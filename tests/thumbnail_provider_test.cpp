@@ -45,11 +45,13 @@ struct FakeDecoder {
     if (failing) {
       return {.image = {}, .source_size = {}, .error = QStringLiteral("boom"), .diagnostic = {}};
     }
-    return {.image = solid(decodedSize),
-            .source_size = sourceSize,
-            .error = {},
-            .cache_eligible = cacheEligible,
-            .diagnostic = {}};
+    return {
+        .image = solid(decodedSize),
+        .source_size = sourceSize,
+        .error = {},
+        .cache_eligible = cacheEligible,
+        .diagnostic = {},
+    };
   }
   void block() {
     QMutexLocker lock(&mutex);
@@ -145,10 +147,12 @@ TEST(ThumbnailProvider, TextureSizeIsTheLogicalSizeNotTheDevicePixels) {
     QSize logical;
   };
   // Large source at 1.25, large source at 2, small source at 2 (never enlarged), and an SVG that scales up.
-  for (const auto& expected : {Case{.decoded = {320, 240}, .source = {4000, 3000}, .logical = {256, 192}},
-                               Case{.decoded = {512, 384}, .source = {4000, 3000}, .logical = {256, 192}},
-                               Case{.decoded = {100, 100}, .source = {100, 100}, .logical = {100, 100}},
-                               Case{.decoded = {512, 256}, .source = {256, 128}, .logical = {256, 128}}}) {
+  for (const auto& expected : {
+           Case{.decoded = {320, 240}, .source = {4000, 3000}, .logical = {256, 192}},
+           Case{.decoded = {512, 384}, .source = {4000, 3000}, .logical = {256, 192}},
+           Case{.decoded = {100, 100}, .source = {100, 100}, .logical = {100, 100}},
+           Case{.decoded = {512, 256}, .source = {256, 128}, .logical = {256, 128}},
+       }) {
     Harness harness;
     harness.decoder.decodedSize = expected.decoded;
     harness.decoder.sourceSize = expected.source;

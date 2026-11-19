@@ -22,10 +22,12 @@ DecodeResult decoded() {
   return result;
 }
 ImageLoader::Request request(quint64 token, ImageLoader::Kind kind = ImageLoader::Kind::Foreground) {
-  return {.request_id = token,
-          .url = QUrl::fromLocalFile(QString("/tmp/loader-%1.png").arg(token)),
-          .cache_epoch = 1,
-          .kind = kind};
+  return {
+      .request_id = token,
+      .url = QUrl::fromLocalFile(QString("/tmp/loader-%1.png").arg(token)),
+      .cache_epoch = 1,
+      .kind = kind,
+  };
 }
 }  // namespace
 

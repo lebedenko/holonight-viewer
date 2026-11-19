@@ -137,10 +137,11 @@ TEST(Release, GifFixturesAreSequencesWithTheirDelaysAndLoops) {
     std::array<int, 2> delays;
     int loopCount;
   };
-  for (const auto& [name, delays, loopCount] :
-       {Expected{.name = "sample.gif", .delays = {100, 200}, .loopCount = -1},
-        Expected{.name = "gif87a.gif", .delays = {100, 100}, .loopCount = 0},
-        Expected{.name = "transparent.gif", .delays = {100, 200}, .loopCount = 2}}) {
+  for (const auto& [name, delays, loopCount] : {
+           Expected{.name = "sample.gif", .delays = {100, 200}, .loopCount = -1},
+           Expected{.name = "gif87a.gif", .delays = {100, 100}, .loopCount = 0},
+           Expected{.name = "transparent.gif", .delays = {100, 200}, .loopCount = 2},
+       }) {
     QImageReader reader(QStringLiteral(RELEASE_FIXTURE_DIR) + "/" + name);
     ASSERT_TRUE(reader.canRead()) << name;
     EXPECT_EQ(reader.imageCount(), 2) << name;
@@ -167,10 +168,12 @@ TEST(Release, TiffGuaranteedVariantsDecode) {
     QColor color;
   };
   std::atomic_bool cancelled{false};
-  for (const auto& [name, color] : {Expected{.name = "tiff-rgb8.tif", .color = QColor(255, 0, 0, 255)},
-                                    Expected{.name = "sample.tif", .color = QColor(255, 0, 0, 128)},
-                                    Expected{.name = "tiff-gray8.tif", .color = QColor(128, 128, 128, 255)},
-                                    Expected{.name = "tiff-palette8.tif", .color = QColor(255, 0, 0, 255)}}) {
+  for (const auto& [name, color] : {
+           Expected{.name = "tiff-rgb8.tif", .color = QColor(255, 0, 0, 255)},
+           Expected{.name = "sample.tif", .color = QColor(255, 0, 0, 128)},
+           Expected{.name = "tiff-gray8.tif", .color = QColor(128, 128, 128, 255)},
+           Expected{.name = "tiff-palette8.tif", .color = QColor(255, 0, 0, 255)},
+       }) {
     const auto result =
         viewer_test::decode(QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/" + name), cancelled);
     ASSERT_FALSE(result.image.isNull()) << name << ": " << result.error.toStdString();
@@ -259,9 +262,17 @@ TEST(Release, TiffTruncatedIsAnError) {
 
 TEST(Release, TiffBestEffortVariantsNeverCrashOrHang) {
   const std::atomic_bool cancelled{false};
-  for (const auto* name :
-       {"tiff-be-rgb16.tif", "tiff-be-float.tif", "tiff-be-cmyk.tif", "tiff-be-lab.tif", "tiff-be-tiled.tif",
-        "tiff-be-bigtiff.tif", "tiff-be-lzw.tif", "tiff-be-packbits.tif", "tiff-be-deflate.tif"}) {
+  for (const auto* name : {
+           "tiff-be-rgb16.tif",
+           "tiff-be-float.tif",
+           "tiff-be-cmyk.tif",
+           "tiff-be-lab.tif",
+           "tiff-be-tiled.tif",
+           "tiff-be-bigtiff.tif",
+           "tiff-be-lzw.tif",
+           "tiff-be-packbits.tif",
+           "tiff-be-deflate.tif",
+       }) {
     const auto result =
         viewer_test::decode(QUrl::fromLocalFile(QStringLiteral(RELEASE_FIXTURE_DIR) + "/" + name), cancelled);
     // Best effort: either the variant opens or the user gets an error; never both, never neither.

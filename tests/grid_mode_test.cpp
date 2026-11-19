@@ -219,10 +219,11 @@ TEST(GridMode, PictureActionsAreDisabledInGridAndReturnInSingleView) {
   GridModeFixture fixture;
   ASSERT_TRUE(fixture.load(12));
   ASSERT_TRUE(fixture.open(5));
-  const std::array<const char*, 7> actions = {"rotateClockwiseAction", "rotateCounterclockwiseAction",
-                                              "flipHorizontalAction",  "flipVerticalAction",
-                                              "resetTransformAction",  "copyImageAction",
-                                              "imageInformationAction"};
+  const std::array<const char*, 7> actions = {
+      "rotateClockwiseAction",  "rotateCounterclockwiseAction", "flipHorizontalAction",
+      "flipVerticalAction",     "resetTransformAction",         "copyImageAction",
+      "imageInformationAction",
+  };
   EXPECT_TRUE(fixture.window->property("canInspect").toBool());
   for (const auto* name : actions) {
     EXPECT_TRUE(fixture.actionEnabled(name)) << name;
@@ -397,7 +398,7 @@ TEST(GridMode, DroppingAFileLeavesTheGrid) {
   QMimeData mime;
   mime.setUrls({photo(9)});
   const QPoint point(fixture.window->width() / 2, fixture.window->height() / 2);
-  QDragEnterEvent enter(point, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+  QDragEnterEvent enter(QPointF(point), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
   QCoreApplication::sendEvent(fixture.window, &enter);
   QDropEvent drop(point, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
   QCoreApplication::sendEvent(fixture.window, &drop);

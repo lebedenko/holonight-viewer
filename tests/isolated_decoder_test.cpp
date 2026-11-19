@@ -34,8 +34,13 @@ TEST(IsolatedDecoder, InfrastructureFailuresNeverBecomeProviderOutcomesOrFallbac
   QTemporaryDir dir;
   const auto url = fixture(dir);
   const std::atomic_bool running{false};
-  for (auto status : {RuntimeStatus::Unavailable, RuntimeStatus::ProtocolFailure, RuntimeStatus::Timeout,
-                      RuntimeStatus::CleanupFailure, RuntimeStatus::Cancelled}) {
+  for (auto status : {
+           RuntimeStatus::Unavailable,
+           RuntimeStatus::ProtocolFailure,
+           RuntimeStatus::Timeout,
+           RuntimeStatus::CleanupFailure,
+           RuntimeStatus::Cancelled,
+       }) {
     for (bool metadataFailure : {false, true}) {
       int decodes = 0;
       RasterOperations operations{
@@ -48,7 +53,8 @@ TEST(IsolatedDecoder, InfrastructureFailuresNeverBecomeProviderOutcomesOrFallbac
           .decode = [&](QIODevice&, const std::atomic_bool&) -> RasterReply {
             ++decodes;
             return {.runtime = status, .result = std::nullopt, .diagnostic = {}};
-          }};
+          },
+      };
       const auto result = decodeImageWithOperations(url, running, operations);
       EXPECT_EQ(result.runtime, status);
       EXPECT_FALSE(result.outcome);
@@ -67,15 +73,21 @@ TEST(IsolatedDecoder, CancellationBetweenOperationsDoesNotDecode) {
     RasterOperations operations{
         .metadata = [&](QIODevice&, const std::atomic_bool&) -> MetadataReply {
           cancelled.store(signal);
-          return {.runtime = RuntimeStatus::Success,
-                  .result = HolonightImages::MetadataResult{.outcome = signal ? Outcome::Success : Outcome::Cancelled,
-                                                            .facts = {}},
-                  .diagnostic = {}};
+          return {
+              .runtime = RuntimeStatus::Success,
+              .result =
+                  HolonightImages::MetadataResult{
+                      .outcome = signal ? Outcome::Success : Outcome::Cancelled,
+                      .facts = {},
+                  },
+              .diagnostic = {},
+          };
         },
         .decode = [](QIODevice&, const std::atomic_bool&) -> RasterReply {
           ADD_FAILURE() << "decode after cancellation";
           return success();
-        }};
+        },
+    };
     const auto result = decodeImageWithOperations(url, cancelled, operations);
     EXPECT_EQ(result.outcome, Outcome::Cancelled);
     EXPECT_TRUE(result.image.isNull());
@@ -87,23 +99,25 @@ TEST(IsolatedDecoder, ReusesOpenDeviceAndPreservesIncompleteStructuredMetadata) 
   const auto url = fixture(dir);
   const std::atomic_bool running{false};
   QIODevice* source = nullptr;
-  RasterOperations operations{.metadata = [&](QIODevice& device, const std::atomic_bool&) -> MetadataReply {
-                                source = &device;
-                                EXPECT_TRUE(device.isOpen());
-                                HolonightImages::MetadataResult result;
-                                result.outcome = Outcome::ResourceLimit;
-                                result.facts.make = "SONY";
-                                result.facts.model = "ILCE-7M4";
-                                result.facts.aperture = 8;
-                                result.facts.exposureSeconds = .01;
-                                return {.runtime = RuntimeStatus::Success, .result = result, .diagnostic = {}};
-                              },
-                              .decode =
-                                  [&](QIODevice& device, const std::atomic_bool&) {
-                                    EXPECT_EQ(&device, source);
-                                    EXPECT_TRUE(device.isOpen());
-                                    return success();
-                                  }};
+  RasterOperations operations{
+      .metadata = [&](QIODevice& device, const std::atomic_bool&) -> MetadataReply {
+        source = &device;
+        EXPECT_TRUE(device.isOpen());
+        HolonightImages::MetadataResult result;
+        result.outcome = Outcome::ResourceLimit;
+        result.facts.make = "SONY";
+        result.facts.model = "ILCE-7M4";
+        result.facts.aperture = 8;
+        result.facts.exposureSeconds = .01;
+        return {.runtime = RuntimeStatus::Success, .result = result, .diagnostic = {}};
+      },
+      .decode =
+          [&](QIODevice& device, const std::atomic_bool&) {
+            EXPECT_EQ(&device, source);
+            EXPECT_TRUE(device.isOpen());
+            return success();
+          },
+  };
   const auto result = decodeImageWithOperations(url, running, operations);
   EXPECT_EQ(result.outcome, Outcome::Success);
   EXPECT_EQ(result.information.exif.outcome, Outcome::ResourceLimit);
@@ -128,7 +142,8 @@ TEST(IsolatedDecoder, PreservesProviderFailures) {
           HolonightImages::DecodeResult result;
           result.outcome = outcome;
           return {.runtime = RuntimeStatus::Success, .result = result, .diagnostic = {}};
-        }};
+        },
+    };
     const auto result = decodeImageWithOperations(url, running, operations);
     EXPECT_EQ(result.runtime, RuntimeStatus::Success);
     EXPECT_EQ(result.outcome, outcome);

@@ -10,7 +10,10 @@ static_assert(!std::is_move_assignable_v<ThumbnailCache>);
 namespace {
 ThumbnailKey key(int number, int box = 256, int generation = 0) {
   return ThumbnailKey{
-      .path = QStringLiteral("/photos/%1.png").arg(number), .box_pixels = box, .generation = generation};
+      .path = QStringLiteral("/photos/%1.png").arg(number),
+      .box_pixels = box,
+      .generation = generation,
+  };
 }
 
 QImage image(int side = 4) {

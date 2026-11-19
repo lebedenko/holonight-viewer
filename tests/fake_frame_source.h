@@ -68,9 +68,11 @@ class FakeFrameSource final : public FrameSource {
       return {.status = FrameResult::Status::EndOfSequence};
     }
     const int frameIndex = position_++;
-    return {.status = FrameResult::Status::Ok,
-            .image = fakeImage(script_, frameIndex),
-            .delay_ms = script_.delaysMs[static_cast<size_t>(frameIndex)]};
+    return {
+        .status = FrameResult::Status::Ok,
+        .image = fakeImage(script_, frameIndex),
+        .delay_ms = script_.delaysMs[static_cast<size_t>(frameIndex)],
+    };
   }
   bool rewind() override {
     ++script_.rewinds;

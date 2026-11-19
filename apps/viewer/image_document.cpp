@@ -135,11 +135,14 @@ void ImageDocument::tryOpenPastedPath(const QUrl& url) {
     return;
   }
   ++request_id_;
-  loader_.submit({.request_id = request_id_,
-                  .url = normalizedLocalUrl(url),
-                  .cache_epoch = cache_epoch_,
-                  .kind = ImageLoader::Kind::Tentative},
-                 state_ != Loading);
+  loader_.submit(
+      {
+          .request_id = request_id_,
+          .url = normalizedLocalUrl(url),
+          .cache_epoch = cache_epoch_,
+          .kind = ImageLoader::Kind::Tentative,
+      },
+      state_ != Loading);
 }
 
 void ImageDocument::select(const QUrl& url) {
@@ -321,8 +324,12 @@ void ImageDocument::shutdown() {
   }
   stopping_ = true;
   ++request_id_;
-  pending_shutdown_ = {ShutdownParticipant::Loader, ShutdownParticipant::Directory, ShutdownParticipant::Clipboard,
-                       ShutdownParticipant::Animation};
+  pending_shutdown_ = {
+      ShutdownParticipant::Loader,
+      ShutdownParticipant::Directory,
+      ShutdownParticipant::Clipboard,
+      ShutdownParticipant::Animation,
+  };
   loader_.shutdown();
   clipboard_.shutdown();
   animation_.shutdown();
@@ -348,11 +355,14 @@ void ImageDocument::resetTransform() {
 void ImageDocument::copyImage() {
   if (state_ == Ready && !stopping_) {
     if (information_.format == QLatin1String("SVG")) {
-      clipboard_.copySvg({.bytes = svg_data_,
-                          .local_path = localPath(),
-                          .intrinsic_size = svg_size_,
-                          .local_images = svg_local_images_},
-                         orientation_, file_name_);
+      clipboard_.copySvg(
+          {
+              .bytes = svg_data_,
+              .local_path = localPath(),
+              .intrinsic_size = svg_size_,
+              .local_images = svg_local_images_,
+          },
+          orientation_, file_name_);
     } else {
       clipboard_.copyImage(image_, orientation_, file_name_);
     }

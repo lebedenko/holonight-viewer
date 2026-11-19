@@ -82,8 +82,14 @@ TEST(ThumbnailCell, LoadsStandaloneBelowTheWindowMinimumWidth) {
   StandaloneCell standalone(300);
   ASSERT_TRUE(standalone.load());
   EXPECT_LT(standalone.cell->width(), 420);
-  for (const char* name : {"hnSelectableDelegateSelectedOverlay", "hnSelectableDelegateOutline", "cellThumbnail",
-                           "cellPlaceholder", "cellBrokenGlyph", "thumbnailCaption"}) {
+  for (const char* name : {
+           "hnSelectableDelegateSelectedOverlay",
+           "hnSelectableDelegateOutline",
+           "cellThumbnail",
+           "cellPlaceholder",
+           "cellBrokenGlyph",
+           "thumbnailCaption",
+       }) {
     EXPECT_NE(standalone.part(name), nullptr) << name;
   }
   EXPECT_EQ(standalone.cell->implicitWidth(), 256 + (2 * standalone.cell->property("padding").toReal()));
@@ -425,9 +431,13 @@ TEST(ThumbnailGrid, SelectionStaysFullyVisibleWhileNavigating) {
     Move move;
     int times;
   };
-  for (const auto& step : {Step{.move = Move::RowDown, .times = 20}, Step{.move = Move::PageDown, .times = 5},
-                           Step{.move = Move::RowUp, .times = 40}, Step{.move = Move::PageUp, .times = 5},
-                           Step{.move = Move::Next, .times = 7}}) {
+  for (const auto& step : {
+           Step{.move = Move::RowDown, .times = 20},
+           Step{.move = Move::PageDown, .times = 5},
+           Step{.move = Move::RowUp, .times = 40},
+           Step{.move = Move::PageUp, .times = 5},
+           Step{.move = Move::Next, .times = 7},
+       }) {
     for (int i = 0; i < step.times; ++i) {
       fixture.call("move", static_cast<int>(step.move));
       ASSERT_TRUE(fixture.selectedFullyVisible())

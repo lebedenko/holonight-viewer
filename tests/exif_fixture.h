@@ -80,12 +80,22 @@ inline QByteArray tiff(const QList<Field>& primary, const QList<Field>& exif, co
 }
 
 inline QByteArray sonyPayload() {
-  return QByteArray("Exif\0\0", 6) +
-         tiff({text(0x010f, "SONY"), text(0x0110, "ILCE-7M4")},
-              {rationals(0x829a, {{1, 100}}), rationals(0x829d, {{8, 1}}), shortValue(0x8827, 100),
-               rationals(0x920a, {{32, 1}}), text(0xa434, "FE 24-70mm F2.8 GM II")},
-              {text(0x0001, "N"), rationals(0x0002, {{50, 1}, {27, 1}, {0, 1}}), text(0x0003, "W"),
-               rationals(0x0004, {{30, 1}, {31, 1}, {12, 1}}), byte(0x0005, 0), rationals(0x0006, {{1790, 10}})});
+  return QByteArray("Exif\0\0", 6) + tiff({text(0x010f, "SONY"), text(0x0110, "ILCE-7M4")},
+                                          {
+                                              rationals(0x829a, {{1, 100}}),
+                                              rationals(0x829d, {{8, 1}}),
+                                              shortValue(0x8827, 100),
+                                              rationals(0x920a, {{32, 1}}),
+                                              text(0xa434, "FE 24-70mm F2.8 GM II"),
+                                          },
+                                          {
+                                              text(0x0001, "N"),
+                                              rationals(0x0002, {{50, 1}, {27, 1}, {0, 1}}),
+                                              text(0x0003, "W"),
+                                              rationals(0x0004, {{30, 1}, {31, 1}, {12, 1}}),
+                                              byte(0x0005, 0),
+                                              rationals(0x0006, {{1790, 10}}),
+                                          });
 }
 
 inline QByteArray jpegWithApp1(const QByteArray& exif) {

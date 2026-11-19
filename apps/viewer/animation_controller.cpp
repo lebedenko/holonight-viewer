@@ -195,10 +195,12 @@ void AnimationController::handle(StreamEvent event) {
       }
       return;
     case Kind::Frame: {
-      next_ = Pending{.image = std::move(event.image),
-                      .delay_ms = clampFrameDelay(event.delay_ms),
-                      .index = read_index_++,
-                      .ready_at = clock_->nowMs()};
+      next_ = Pending{
+          .image = std::move(event.image),
+          .delay_ms = clampFrameDelay(event.delay_ms),
+          .index = read_index_++,
+          .ready_at = clock_->nowMs(),
+      };
       if (!animated_) {
         animated_ = true;
         remaining_ = std::max<qint64>(0, prime_deadline_ - clock_->nowMs());
@@ -282,14 +284,16 @@ void AnimationController::step() {
 }
 
 void AnimationController::publish() {
-  const Published current{.animated = animated(),
-                          .playing = playing(),
-                          .user_paused = userPaused(),
-                          .can_toggle = canToggle(),
-                          .frame_count = frameCount(),
-                          .notice = failureNotice(),
-                          .modal = suspendedByModal(),
-                          .window = suspendedByWindow()};
+  const Published current{
+      .animated = animated(),
+      .playing = playing(),
+      .user_paused = userPaused(),
+      .can_toggle = canToggle(),
+      .frame_count = frameCount(),
+      .notice = failureNotice(),
+      .modal = suspendedByModal(),
+      .window = suspendedByWindow(),
+  };
   const bool state_changed = current != published_;
   const bool frame_changed = frame_index_ != published_frame_index_;
   published_ = current;
