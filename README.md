@@ -64,10 +64,11 @@ task check
 
 Open one local image with **Open…**, **Ctrl+O**, a file drop, or a command-line path.
 Open… and Ctrl+O use the desktop's xdg-desktop-portal file picker, attached to the
-Viewer window. Viewer calls the portal FileChooser itself, so Open does not depend on
-the platform theme; Qt's built-in dialog appears only when no portal can serve the
-request. Escape, closing the picker, or its Cancel button cancels and restores the
-previously focused control if it is still available; the current view is preserved.
+Viewer window. If the portal is unavailable, Viewer opens the built-in file dialog.
+If the system chooser closes without returning a file, Viewer offers **Open with
+built-in chooser**. The portal's Cancel response closes the request silently and
+returns focus to the previous control when available. Older portal backends may
+also show the recovery prompt after Escape or closing their chooser.
 
 On the command line, pass one local path (quote spaces) or a local file URL, and use
 `--` before filenames beginning with a dash. Remote URLs and multiple files are

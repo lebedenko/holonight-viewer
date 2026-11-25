@@ -18,14 +18,21 @@ Item {
     property bool helpOpen: false
     readonly property bool modalActive: dialogRequested || informationOpen || helpOpen
 
-    // Every Open trigger sets dialogRequested; the portal picker runs first and the
-    // FileDialog below appears only when the portal cannot serve the request.
+    function cancelOpen(): void {
+        const previousFocus = root.dialogFocusItem;
+        root.dialogRequested = false;
+        if (!root.modalActive && previousFocus && previousFocus.visible && previousFocus.enabled)
+            previousFocus.forceActiveFocus(Qt.OtherFocusReason);
+    }
+
+    // Every Open trigger starts with the system chooser.
     onDialogRequestedChanged: {
         if (root.dialogRequested) {
             root.dialogFocusItem = root.applicationWindow.activeFocusItem;
             portalFileChooser.requestOpen();
         } else {
             root.dialogFocusItem = null;
+            recoveryDialog.close();
             portalFileChooser.cancel();
         }
     }
@@ -41,11 +48,34 @@ Item {
             root.controller.open(urls);
             root.dialogRequested = false;
         }
-        onCancelled: {
-            const previousFocus = root.dialogFocusItem;
-            root.dialogRequested = false;
-            if (!root.modalActive && previousFocus && previousFocus.visible && previousFocus.enabled)
-                previousFocus.forceActiveFocus(Qt.OtherFocusReason);
+        onCancelled: root.cancelOpen()
+        onPortalEnded: recoveryDialog.open()
+    }
+
+    Controls.Dialog {
+        id: recoveryDialog
+        objectName: "chooserRecoveryDialog"
+        parent: root.applicationWindow.Controls.Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        closePolicy: Controls.Popup.CloseOnEscape
+        title: qsTranslate("Main", "Open image")
+        onAccepted: portalFileChooser.openBuiltInChooser()
+        onRejected: root.cancelOpen()
+
+        contentItem: Controls.Label {
+            text: qsTr("The system chooser closed without returning a file.")
+            wrapMode: Text.WordWrap
+        }
+
+        footer: Controls.DialogButtonBox {
+            standardButtons: Controls.DialogButtonBox.Cancel
+
+            Controls.Button {
+                objectName: "openBuiltInChooserButton"
+                text: qsTr("Open with built-in chooser")
+                Controls.DialogButtonBox.buttonRole: Controls.DialogButtonBox.AcceptRole
+            }
         }
     }
 
@@ -57,6 +87,7 @@ Item {
                 objectName: "openDialog"
                 title: qsTranslate("Main", "Open image")
                 fileMode: FileDialog.OpenFile
+                options: FileDialog.DontUseNativeDialog
                 nameFilters: root.document.nameFilters
                 onAccepted: portalFileChooser.fallbackAccepted(fileDialog.selectedFile)
                 onRejected: portalFileChooser.fallbackRejected()

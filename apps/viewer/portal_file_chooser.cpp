@@ -19,6 +19,7 @@ constexpr auto fileChooserInterface = "org.freedesktop.portal.FileChooser";
 constexpr auto requestInterface = "org.freedesktop.portal.Request";
 
 constexpr uint responseSelected = 0;
+constexpr uint responseEnded = 2;
 constexpr int shutdownCloseTimeoutMs = 500;
 
 void closeRequest(const QString& handle, QDBus::CallMode mode) {
@@ -100,6 +101,12 @@ void PortalFileChooser::requestOpen() {
   state_ = State::Calling;
   watcher_ = new QDBusPendingCallWatcher(bus.asyncCall(call, call_timeout_ms_), this);
   connect(watcher_, &QDBusPendingCallWatcher::finished, this, &PortalFileChooser::onOpenFileFinished);
+}
+
+void PortalFileChooser::openBuiltInChooser() {
+  if (state_ == State::Idle) {
+    showFallback();
+  }
 }
 
 void PortalFileChooser::fallbackAccepted(const QUrl& selectedFile) {
@@ -184,9 +191,9 @@ void PortalFileChooser::onResponse(uint code, const QVariantMap& results, const 
       urls.append(QUrl(uri, QUrl::StrictMode));
     }
     emit finished(urls);
+  } else if (code == responseEnded) {
+    emit portalEnded();
   } else {
-    // Code 1 is the Cancel button; GTK reports Escape and closing the picker as code 2.
-    // Both are a user decision, so the FileDialog is reserved for OpenFile call failures.
     emit cancelled();
   }
 }

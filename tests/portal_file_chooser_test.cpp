@@ -218,23 +218,24 @@ TEST(PortalFileChooser, OutstandingResponseHasNoTimeout) {
   EXPECT_EQ(fixture.portal.calls().size(), 1);
 }
 
-TEST(PortalFileChooser, EndedResponseIsCancellation) {
+TEST(PortalFileChooser, EndedResponseOffersRecovery) {
   PortalChooserFixture fixture;
   ASSERT_TRUE(fixture.start());
-  // xdg-desktop-portal-gtk sends code 2 with empty uris when the picker is dismissed by Escape.
+  QSignalSpy ended(&fixture.chooser, &PortalFileChooser::portalEnded);
   ASSERT_TRUE(fixture.requestAndAwait());
   fixture.portal.emitResponse(fixture.portal.calls().back().handle, 2, {{"uris", QStringList{}}});
-  ASSERT_TRUE(QTest::qWaitFor([&] { return fixture.cancelled.size() == 1; }));
-  QTest::qWait(requestSettleMs);
-  EXPECT_EQ(fixture.outcomes(), 1);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return ended.size() == 1; }));
+  EXPECT_EQ(fixture.outcomes(), 0);
   EXPECT_FALSE(fixture.chooser.fallbackShown());
+  fixture.chooser.openBuiltInChooser();
+  EXPECT_TRUE(fixture.chooser.fallbackShown());
+  QTest::qWait(requestSettleMs);
+  EXPECT_EQ(fixture.portal.calls().size(), 1);
   fixture.chooser.fallbackRejected();
   EXPECT_EQ(fixture.cancelled.size(), 1);
-  // Any other non-zero code is treated the same way, and the chooser stays usable.
   ASSERT_TRUE(fixture.requestAndAwait());
   fixture.portal.emitResponse(fixture.portal.calls().back().handle, 7);
   ASSERT_TRUE(QTest::qWaitFor([&] { return fixture.cancelled.size() == 2; }));
-  EXPECT_TRUE(fixture.fallback.isEmpty());
   EXPECT_TRUE(fixture.finished.isEmpty());
   EXPECT_EQ(fixture.portal.calls().size(), 2);
 }
@@ -527,6 +528,13 @@ TEST(PortalViewer, CancellationRestoresFocusedControl) {
     ASSERT_EQ(fixture.window->activeFocusItem(), control);
     ASSERT_TRUE(fixture.pressOpen());
     fixture.portal.emitResponse(fixture.portal.calls().back().handle, code);
+    if (code == 2) {
+      auto* recovery = fixture.window->findChild<QObject*>(QStringLiteral("chooserRecoveryDialog"));
+      ASSERT_NE(recovery, nullptr);
+      ASSERT_TRUE(QTest::qWaitFor([&] { return recovery->property("visible").toBool(); }));
+      EXPECT_FALSE(fixture.dialogExists());
+      QTest::keyClick(fixture.window, Qt::Key_Escape);
+    }
     ASSERT_TRUE(QTest::qWaitFor([&] { return !fixture.modalActive(); }));
     EXPECT_EQ(fixture.window->activeFocusItem(), control);
     EXPECT_FALSE(fixture.dialogExists());
@@ -611,14 +619,26 @@ TEST(PortalViewer, FallbackOnlyWhenPortalCannotServe) {
   EXPECT_FALSE(fixture.dialogExists());
   EXPECT_TRUE(fallback.isEmpty());
 
-  // Escape in the GTK picker (code 2) is a cancellation, not a reason for the FileDialog.
+  // A presenter failure and an older backend's Escape response both require an explicit choice.
   ASSERT_TRUE(fixture.pressOpen());
   fixture.portal.emitResponse(fixture.portal.calls().back().handle, 2, {{"uris", QStringList{}}});
-  ASSERT_TRUE(QTest::qWaitFor([&] { return !fixture.modalActive(); }));
-  QTest::qWait(requestSettleMs);
+  auto* recovery = fixture.window->findChild<QObject*>(QStringLiteral("chooserRecoveryDialog"));
+  ASSERT_NE(recovery, nullptr);
+  ASSERT_TRUE(QTest::qWaitFor([&] { return recovery->property("visible").toBool(); }));
   EXPECT_FALSE(fixture.dialogExists());
   EXPECT_TRUE(fallback.isEmpty());
+  auto* builtIn = recovery->findChild<QObject*>(QStringLiteral("openBuiltInChooserButton"));
+  ASSERT_NE(builtIn, nullptr);
+  ASSERT_TRUE(QMetaObject::invokeMethod(builtIn, "click"));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return fixture.dialogExists(); }));
+  QTest::qWait(requestSettleMs);
+  EXPECT_EQ(fixture.portal.calls().size(), 2);
+  auto* builtInDialog = fixture.window->findChild<QObject*>(QStringLiteral("openDialog"));
+  ASSERT_NE(builtInDialog, nullptr);
+  ASSERT_TRUE(QMetaObject::invokeMethod(builtInDialog, "reject"));
+  ASSERT_TRUE(QTest::qWaitFor([&] { return !fixture.modalActive(); }));
   EXPECT_EQ(fixture.document.state(), ImageDocument::Error);
+  fallback.clear();
 
   fixture.portal.setReply(MockPortal::Reply::Error);
   QTest::keyClick(fixture.window, Qt::Key_O, Qt::ControlModifier);

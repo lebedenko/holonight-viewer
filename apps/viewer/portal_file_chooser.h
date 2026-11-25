@@ -44,6 +44,7 @@ class PortalFileChooser : public QObject {
 
   // Starts a request unless one (portal or fallback) is already outstanding.
   Q_INVOKABLE void requestOpen();
+  Q_INVOKABLE void openBuiltInChooser();
   Q_INVOKABLE void fallbackAccepted(const QUrl& selectedFile);
   Q_INVOKABLE void fallbackRejected();
   // Abandons an outstanding request without emitting finished() or cancelled().
@@ -60,6 +61,7 @@ class PortalFileChooser : public QObject {
   // Code 0: the portal's uris as given; ImageDocument::open() rejects anything but one local file.
   void finished(const QList<QUrl>& urls);
   void cancelled();
+  void portalEnded();
 
  private:
   enum class State : std::uint8_t { Idle, Calling, AwaitingResponse, FallbackShown };

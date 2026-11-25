@@ -112,7 +112,7 @@
     "PortalFileChooser.DestructionClosesOutstandingRequest",
     "PortalFileChooser.DifferingHandleIsResubscribed",
     "PortalFileChooser.EmptyAndNonFileUrisFinishWithoutFallback",
-    "PortalFileChooser.EndedResponseIsCancellation",
+    "PortalFileChooser.EndedResponseOffersRecovery",
     "PortalFileChooser.MissingServiceShowsFallback",
     "PortalFileChooser.OutstandingResponseHasNoTimeout",
     "PortalFileChooser.ReplacedWindowDestructionDoesNotCancelRequest",
